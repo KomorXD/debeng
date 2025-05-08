@@ -72,3 +72,4 @@ CMakeUserPresets.json
 *-prefix/
 
 .cache/
+out/

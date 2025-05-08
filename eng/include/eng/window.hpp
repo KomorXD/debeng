@@ -3,7 +3,10 @@
 
 #include <cstdint>
 #include <optional>
+#include <queue>
 #include <string>
+
+#include "event.hpp"
 
 struct GLFWwindow;
 
@@ -26,14 +29,21 @@ struct Window {
     // Terminates GLFW context and destroys every window
     static void terminate();
 
+    /* Necessary to do each time the location of window object changes, so
+       that events are caught properly. */
+    void update_user_pointer();
     bool is_open() const;
     void update();
     void close();
 
     GLFWwindow *handle = nullptr;
     WindowSpec spec{};
+
+    /* Window's pending events that should be cleared and checked each
+       frame. */
+    std::queue<Event> pending_events;
 };
 
-} // namespace egg
+} // namespace eng
 
 #endif

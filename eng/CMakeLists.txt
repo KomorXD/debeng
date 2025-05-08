@@ -6,6 +6,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+option(GLFW_BUILD_DOCS OFF)
+option(GLFW_BUILD_EXAMPLES OFF)
+option(GLFW_BUILD_TESTS OFF)
+
+add_subdirectory("extern/glfw")
+
 add_library(${PROJECT_NAME} SHARED)
 
 file(GLOB_RECURSE PROJECT_SORUCES CONFIGURE_DEPENDS "src/*.cpp")
@@ -26,4 +32,15 @@ target_sources(${PROJECT_NAME}
 target_include_directories(${PROJECT_NAME}
     PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/include/eng"
+)
+
+target_include_directories(${PROJECT_NAME}
+    PUBLIC
+        "${CMAKE_CURRENT_SOURCE_DIR}/extern/glfw/include"
+)
+
+target_link_libraries(${PROJECT_NAME}
+    PRIVATE
+        glfw
+        ${GLFW_LIBRARIES}
 )

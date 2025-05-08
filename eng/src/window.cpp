@@ -173,4 +173,8 @@ void Window::enable_cursor() {
     glfwSetInputMode(handle, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 }
 
+void Window::set_title(const std::string &title) {
+    glfwSetWindowTitle(handle, title.c_str());
+}
+
 } // namespace eng

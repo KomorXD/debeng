@@ -43,6 +43,8 @@ struct Window {
     void disable_cursor();
     void enable_cursor();
 
+    void set_title(const std::string &title);
+
     GLFWwindow *handle = nullptr;
     WindowSpec spec{};
 

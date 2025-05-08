@@ -1,3 +1,7 @@
 [submodule "eng/extern/glfw"]
 	path = eng/extern/glfw
 	url = git@github.com:glfw/glfw.git
+[submodule "eng/extern/glad"]
+	path = eng/extern/glad
+	url = git@github.com:Dav1dde/glad.git
+	branch = c

@@ -16,6 +16,9 @@ add_library(${PROJECT_NAME} SHARED)
 
 file(GLOB_RECURSE PROJECT_SORUCES CONFIGURE_DEPENDS "src/*.cpp")
 file(GLOB_RECURSE PROJECT_HEADERS CONFIGURE_DEPENDS "include/eng/*.hpp")
+file(GLOB_RECURSE PROJECT_VENDORS CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/extern/glad/src/glad.c"
+)
 file(GLOB_RECURSE PROJECT_CONFIGS CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/CMakeLists.txt"
     "${CMAKE_SOURCE_DIR}/.gitignore"
@@ -26,6 +29,7 @@ target_sources(${PROJECT_NAME}
     PRIVATE
         ${PROJECT_SORUCES}
         ${PROJECT_HEADERS}
+        ${PROJECT_VENDORS}
         ${PROJECT_CONFIGS}
 )
 
@@ -37,10 +41,12 @@ target_include_directories(${PROJECT_NAME}
 target_include_directories(${PROJECT_NAME}
     PUBLIC
         "${CMAKE_CURRENT_SOURCE_DIR}/extern/glfw/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/extern/glad/include"
 )
 
 target_link_libraries(${PROJECT_NAME}
     PRIVATE
         glfw
         ${GLFW_LIBRARIES}
+        ${GLAD_LIBRARIES}
 )

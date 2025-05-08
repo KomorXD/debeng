@@ -1,6 +1,7 @@
 #ifndef EVENT_HPP
 #define EVENT_HPP
 
+#include "input.hpp"
 #include <cstdint>
 
 namespace eng {
@@ -11,7 +12,7 @@ struct ResizeEvent {
 };
 
 struct KeyEvent {
-    int code = 0;
+    Key key{};
     bool alt = false;
     bool shift = false;
     bool ctrl = false;
@@ -23,7 +24,7 @@ struct MouseMoveEvent {
 };
 
 struct MouseButtonEvent {
-    int button = 0;
+    MouseButton button{};
     bool alt = false;
     bool shift = false;
     bool ctrl = false;

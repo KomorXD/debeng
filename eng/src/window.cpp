@@ -27,7 +27,7 @@ static void key_cb(GLFWwindow *window, int key, int scancode, int action,
         break;
     }
 
-    ev.key.code = key;
+    ev.key.key = (Key)key;
     ev.key.alt = mods | GLFW_MOD_ALT;
     ev.key.shift = mods | GLFW_MOD_SHIFT;
     ev.key.ctrl = mods | GLFW_MOD_CONTROL;
@@ -60,7 +60,7 @@ static void mouse_btn_cb(GLFWwindow* window, int button, int action, int mods) {
         break;
     }
 
-    ev.mouse_button.button = button;
+    ev.mouse_button.button = (MouseButton)button;
     ev.mouse_button.alt = mods | GLFW_MOD_ALT;
     ev.mouse_button.shift = mods | GLFW_MOD_SHIFT;
     ev.mouse_button.ctrl = mods | GLFW_MOD_CONTROL;
@@ -147,6 +147,30 @@ void Window::close() {
         return;
 
     glfwSetWindowShouldClose(handle, 1);
+}
+
+bool Window::is_key_pressed(Key key) {
+    return glfwGetKey(handle, (int)key) == GLFW_PRESS;
+}
+
+bool Window::is_mouse_btn_pressed(MouseButton button) {
+    return glfwGetMouseButton(handle, (int)button) == GLFW_PRESS;
+}
+
+void Window::hide_cursor() {
+    glfwSetInputMode(handle, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+}
+
+void Window::show_cursor() {
+    glfwSetInputMode(handle, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+}
+
+void Window::disable_cursor() {
+    glfwSetInputMode(handle, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+}
+
+void Window::enable_cursor() {
+    glfwSetInputMode(handle, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 }
 
 } // namespace eng

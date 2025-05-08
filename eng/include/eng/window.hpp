@@ -36,6 +36,13 @@ struct Window {
     void update();
     void close();
 
+    bool is_key_pressed(Key key);
+    bool is_mouse_btn_pressed(MouseButton button);
+    void hide_cursor();
+    void show_cursor();
+    void disable_cursor();
+    void enable_cursor();
+
     GLFWwindow *handle = nullptr;
     WindowSpec spec{};
 

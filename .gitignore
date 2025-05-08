@@ -70,3 +70,5 @@ CMakeUserPresets.json
 
 # External projects
 *-prefix/
+
+.cache/

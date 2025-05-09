@@ -11,6 +11,7 @@ option(GLFW_BUILD_EXAMPLES OFF)
 option(GLFW_BUILD_TESTS OFF)
 
 add_subdirectory("extern/glfw")
+add_subdirectory("tests")
 
 add_library(${PROJECT_NAME} SHARED)
 

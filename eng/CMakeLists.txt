@@ -11,6 +11,7 @@ option(GLFW_BUILD_EXAMPLES OFF)
 option(GLFW_BUILD_TESTS OFF)
 
 add_subdirectory("extern/glfw")
+add_subdirectory("extern/glm")
 add_subdirectory("tests")
 
 add_library(${PROJECT_NAME} SHARED)
@@ -43,6 +44,7 @@ target_include_directories(${PROJECT_NAME}
     PUBLIC
         "${CMAKE_CURRENT_SOURCE_DIR}/extern/glfw/include"
         "${CMAKE_CURRENT_SOURCE_DIR}/extern/glad/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/extern/glm"
 )
 
 target_link_libraries(${PROJECT_NAME}

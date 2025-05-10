@@ -3,7 +3,9 @@
 
 #include <glad/glad.h>
 #include <glm/glm.hpp>
+#include <optional>
 #include <string>
+#include <unordered_map>
 
 #define GL_CALL(f)                                                             \
     gl_clear_errors();                                                         \
@@ -51,7 +53,11 @@ struct Shader {
     void bind() const;
     void unbind() const;
 
+    std::optional<GLint> get_uniform_location(const std::string &name);
+    void set_uniform_1f(const std::string &name, float val);
+
     GLuint id = 0;
+    std::unordered_map<std::string, GLint> uniform_cache;
 };
 
 struct VertexBufferElement {

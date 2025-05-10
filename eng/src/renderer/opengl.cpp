@@ -181,6 +181,33 @@ void Shader::unbind() const {
     GL_CALL(glUseProgram(0));
 }
 
+std::optional<GLint> Shader::get_uniform_location(const std::string &name) {
+    assert(id != 0 && "Trying to get uniform of invalid shader object");
+
+    if (uniform_cache.contains(name))
+        return uniform_cache[name];
+
+    GL_CALL(GLint loc = glGetUniformLocation(id, name.c_str()));
+    if (loc == -1)
+        return {};
+
+    uniform_cache[name] = loc;
+    return loc;
+}
+
+void Shader::set_uniform_1f(const std::string &name, float val) {
+    assert(id != 0 && "Trying to set uniform of invalid shader object");
+
+    std::optional<GLint> loc = get_uniform_location(name);
+    if(!loc.has_value()) {
+        fprintf(stderr, "Unable to get location of uniform '%s'\r\n",
+                name.c_str());
+        return;
+    }
+
+    GL_CALL(glUniform1f(loc.value(), val));
+}
+
 size_t VertexBufferElement::get_size_of_type(GLenum type) {
     /*
         #define GL_BYTE 0x1400

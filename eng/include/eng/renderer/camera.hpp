@@ -34,6 +34,7 @@ struct SpectatorCamera {
 
     float pitch = 0.0f;
     float yaw = 0.0f;
+    float roll = 0.0f;
 
     float exposure = 1.0f;
     float gamma = 2.2f;

@@ -19,7 +19,8 @@ glm::vec3 SpectatorCamera::forward_dir() const {
 }
 
 glm::quat SpectatorCamera::orientation() const {
-    return glm::quat(glm::vec3(-glm::radians(pitch), -glm::radians(yaw), 0.0f));
+    return glm::quat(glm::vec3(-glm::radians(pitch), -glm::radians(yaw),
+                               -glm::radians(roll)));
 }
 
 glm::mat4 SpectatorCamera::projection() const {
@@ -85,6 +86,11 @@ void SpectatorCamera::fps_update(float timestep) {
     yaw += mouse_delta.x * 0.1f;
     pitch -= mouse_delta.y * 0.1f;
     pitch = glm::clamp(pitch, -90.0f, 90.0f);
+
+    if (is_key_pressed(Key::Left))
+        roll -= 90.0f * timestep;
+    else if (is_key_pressed(Key::Right))
+        roll += 90.0f * timestep;
 }
 
 } // namespace eng

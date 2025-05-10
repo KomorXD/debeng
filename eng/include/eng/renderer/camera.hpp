@@ -24,8 +24,6 @@ struct SpectatorCamera {
     void update_with_input(float timestep);
     void fps_update(float timestep);
 
-    ControlMode control_mode;
-
     glm::vec3 position;
     glm::vec2 viewport;
     float fov = 90.0f;
@@ -38,6 +36,11 @@ struct SpectatorCamera {
 
     float exposure = 1.0f;
     float gamma = 2.2f;
+
+    ControlMode control_mode;
+    float moving_speed_ps = 10.0f;
+    float rolling_angle_ps = 180.0f;
+    float mouse_sens = 0.1f;
 };
 
 } // namespace eng

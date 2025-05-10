@@ -80,17 +80,17 @@ void SpectatorCamera::fps_update(float timestep) {
         move.y -= 1.0f;
 
     if (glm::length2(move) != 0.0f)
-        position += glm::normalize(move) * 15.0f * timestep;
+        position += glm::normalize(move) * moving_speed_ps * timestep;
 
     glm::vec2 mouse_delta = get_mouse_move_delta();
-    yaw += mouse_delta.x * 0.1f;
-    pitch -= mouse_delta.y * 0.1f;
+    yaw += mouse_delta.x * mouse_sens;
+    pitch -= mouse_delta.y * mouse_sens;
     pitch = glm::clamp(pitch, -90.0f, 90.0f);
 
     if (is_key_pressed(Key::Left))
-        roll -= 90.0f * timestep;
+        roll -= rolling_angle_ps * timestep;
     else if (is_key_pressed(Key::Right))
-        roll += 90.0f * timestep;
+        roll += rolling_angle_ps * timestep;
 }
 
 } // namespace eng

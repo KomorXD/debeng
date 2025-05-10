@@ -55,6 +55,7 @@ struct Shader {
 
     std::optional<GLint> get_uniform_location(const std::string &name);
     void set_uniform_1f(const std::string &name, float val);
+    void set_uniform_mat4(const std::string &name, const glm::mat4 &val);
 
     GLuint id = 0;
     std::unordered_map<std::string, GLint> uniform_cache;
@@ -95,8 +96,9 @@ struct VertexArray {
     void unbind() const;
 
     GLuint id = 0;
-    uint32_t vertex_count = 0;
-    const IndexBuffer *ibo = nullptr;
+    VertexBuffer vbo;
+    VertexBuffer vbo_instanced;
+    IndexBuffer ibo;
 };
 
 #endif

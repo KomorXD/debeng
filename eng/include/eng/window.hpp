@@ -6,7 +6,7 @@
 #include <queue>
 #include <string>
 
-#include "event.hpp"
+#include "eng/event.hpp"
 
 struct GLFWwindow;
 

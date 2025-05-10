@@ -1,7 +1,7 @@
 #ifndef EVENT_HPP
 #define EVENT_HPP
 
-#include "input.hpp"
+#include "eng/input.hpp"
 #include <cstdint>
 
 namespace eng {

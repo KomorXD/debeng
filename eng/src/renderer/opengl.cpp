@@ -1,5 +1,5 @@
-#include "renderer/opengl.hpp"
-#include "random_utils.hpp"
+#include "eng/renderer/opengl.hpp"
+#include "eng/random_utils.hpp"
 #include <alloca.h>
 #include <cstdio>
 
@@ -208,6 +208,19 @@ void Shader::set_uniform_1f(const std::string &name, float val) {
     GL_CALL(glUniform1f(loc.value(), val));
 }
 
+void Shader::set_uniform_mat4(const std::string &name, const glm::mat4 &val) {
+    assert(id != 0 && "Trying to set uniform of invalid shader object");
+
+    std::optional<GLint> loc = get_uniform_location(name);
+    if(!loc.has_value()) {
+        fprintf(stderr, "Unable to get location of uniform '%s'\r\n",
+                name.c_str());
+        return;
+    }
+
+    GL_CALL(glUniformMatrix4fv(loc.value(), 1, GL_FALSE, &val[0][0]));
+}
+
 size_t VertexBufferElement::get_size_of_type(GLenum type) {
     /*
         #define GL_BYTE 0x1400
@@ -274,8 +287,8 @@ void VertexArray::add_buffers(const VertexBuffer &vbo, const IndexBuffer &ibo,
             element.count * VertexBufferElement::get_size_of_type(element.type);
     }
 
-    vertex_count += vbo.vertex_count;
-    this->ibo = &ibo;
+    this->vbo = vbo;
+    this->ibo = ibo;
 }
 
 void VertexArray::add_vertex_buffer(const VertexBuffer &vbo,
@@ -298,7 +311,7 @@ void VertexArray::add_vertex_buffer(const VertexBuffer &vbo,
             element.count * VertexBufferElement::get_size_of_type(element.type);
     }
 
-    vertex_count += vbo.vertex_count;
+    this->vbo = vbo;
 }
 
 void VertexArray::add_instanced_vertex_buffer(const VertexBuffer &vbo,
@@ -322,7 +335,7 @@ void VertexArray::add_instanced_vertex_buffer(const VertexBuffer &vbo,
             element.count * VertexBufferElement::get_size_of_type(element.type);
     }
 
-    vertex_count += vbo.vertex_count;
+    this->vbo_instanced = vbo;
 }
 
 void VertexArray::bind() const {

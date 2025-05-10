@@ -6,6 +6,11 @@
 namespace eng {
 
 struct SpectatorCamera {
+    enum class ControlMode {
+        NONE,
+        FPS
+    };
+
     glm::vec3 up_dir() const;
     glm::vec3 right_dir() const;
     glm::vec3 forward_dir() const;
@@ -15,6 +20,11 @@ struct SpectatorCamera {
     glm::mat4 view() const;
 
     Renderer::CameraData camera_render_data() const;
+
+    void update_with_input(float timestep);
+    void fps_update(float timestep);
+
+    ControlMode control_mode;
 
     glm::vec3 position;
     glm::vec2 viewport;

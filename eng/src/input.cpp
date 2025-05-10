@@ -32,6 +32,18 @@ glm::vec2 get_mouse_position() {
     return { (float)pos_x, (float)height - (float)pos_y };
 }
 
+glm::vec2 get_mouse_move_delta() {
+    static glm::vec2 prev_position(-1.0f);
+    if (prev_position == glm::vec2(-1.0f))
+        prev_position = get_mouse_position();
+
+    glm::vec2 curr_position = get_mouse_position();
+    glm::vec2 delta = curr_position - prev_position;
+    prev_position = curr_position;
+
+    return delta;
+}
+
 void hide_cursor() {
     GLFWwindow *window = glfwGetCurrentContext();
     assert(window != nullptr && "Reading input without active window");

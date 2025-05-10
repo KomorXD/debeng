@@ -1,4 +1,5 @@
 #include "eng/renderer/camera.hpp"
+#include "eng/input.hpp"
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/quaternion.hpp>
@@ -46,6 +47,44 @@ Renderer::CameraData SpectatorCamera::camera_render_data() const {
     cdata.viewport = viewport;
 
     return cdata;
+}
+
+void SpectatorCamera::update_with_input(float timestep) {
+    switch (control_mode) {
+    case ControlMode::FPS:
+        fps_update(timestep);
+        break;
+
+    default:
+        break;
+    }
+}
+
+void SpectatorCamera::fps_update(float timestep) {
+    glm::vec3 move(0.0f);
+
+    if (is_key_pressed(Key::W))
+        move += forward_dir();
+    else if (is_key_pressed(Key::S))
+        move -= forward_dir();
+
+    if (is_key_pressed(Key::A))
+        move -= right_dir();
+    else if (is_key_pressed(Key::D))
+        move += right_dir();
+
+    if (is_key_pressed(Key::Space))
+        move.y += 1.0f;
+    else if (is_key_pressed(Key::LeftShift))
+        move.y -= 1.0f;
+
+    if (glm::length2(move) != 0.0f)
+        position += glm::normalize(move) * 15.0f * timestep;
+
+    glm::vec2 mouse_delta = get_mouse_move_delta();
+    yaw += mouse_delta.x * 0.1f;
+    pitch -= mouse_delta.y * 0.1f;
+    pitch = glm::clamp(pitch, -90.0f, 90.0f);
 }
 
 } // namespace eng

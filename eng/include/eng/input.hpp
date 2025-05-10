@@ -162,6 +162,8 @@ bool is_mouse_btn_pressed(MouseButton button);
 
 glm::vec2 get_mouse_position();
 
+glm::vec2 get_mouse_move_delta();
+
 void hide_cursor();
 
 void show_cursor();

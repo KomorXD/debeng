@@ -56,6 +56,10 @@ void SpectatorCamera::update_with_input(float timestep) {
         fps_update(timestep);
         break;
 
+    case ControlMode::TRACKBALL:
+        trackball_update(timestep);
+        break;
+
     default:
         break;
     }
@@ -91,6 +95,31 @@ void SpectatorCamera::fps_update(float timestep) {
         roll -= rolling_angle_ps * timestep;
     else if (is_key_pressed(Key::Right))
         roll += rolling_angle_ps * timestep;
+}
+
+void SpectatorCamera::trackball_update(float timestep) {
+    glm::vec2 mouse_delta = get_mouse_move_delta();
+
+    if (is_mouse_btn_pressed(MouseButton::Right)) {
+        disable_cursor();
+
+        yaw += mouse_delta.x * mouse_sens;
+        pitch -= mouse_delta.y * mouse_sens;
+        pitch = glm::clamp(pitch, -90.0f, 90.0f);
+
+        return;
+    }
+
+    if (is_mouse_btn_pressed(MouseButton::Middle)) {
+        disable_cursor();
+
+        position -= right_dir() * mouse_delta.x * 0.02f;
+        position -= up_dir() * mouse_delta.y * 0.02f;
+
+        return;
+    }
+
+    enable_cursor();
 }
 
 } // namespace eng

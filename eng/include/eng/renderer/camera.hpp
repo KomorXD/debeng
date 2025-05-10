@@ -8,7 +8,8 @@ namespace eng {
 struct SpectatorCamera {
     enum class ControlMode {
         NONE,
-        FPS
+        FPS,
+        TRACKBALL
     };
 
     glm::vec3 up_dir() const;
@@ -23,6 +24,7 @@ struct SpectatorCamera {
 
     void update_with_input(float timestep);
     void fps_update(float timestep);
+    void trackball_update(float timestep);
 
     glm::vec3 position;
     glm::vec2 viewport;

@@ -54,4 +54,43 @@ struct Shader {
     GLuint id = 0;
 };
 
+struct VertexBufferElement {
+    static size_t get_size_of_type(GLenum type);
+
+    GLenum type = 0;
+    GLint count = 0;
+    GLboolean normalized = 0;
+};
+
+struct VertexBufferLayout {
+    void push_float(uint32_t count, bool normalized = false);
+    void clear();
+
+    std::vector<VertexBufferElement> elements;
+    uint32_t stride = 0;
+};
+
+struct VertexArray {
+    static VertexArray create();
+
+    void destroy();
+
+    void add_buffers(const VertexBuffer &vbo, const IndexBuffer &ibo,
+                     const VertexBufferLayout &layout,
+                     uint32_t attrib_offset = 0);
+    void add_vertex_buffer(const VertexBuffer &vbo,
+                           const VertexBufferLayout &layout,
+                           uint32_t attrib_offset = 0);
+    void add_instanced_vertex_buffer(const VertexBuffer &vbo,
+                                     const VertexBufferLayout &layout,
+                                     uint32_t attrib_offset = 0);
+
+    void bind() const;
+    void unbind() const;
+
+    GLuint id = 0;
+    uint32_t vertex_count = 0;
+    const IndexBuffer *ibo = nullptr;
+};
+
 #endif

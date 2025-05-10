@@ -180,3 +180,130 @@ void Shader::bind() const {
 void Shader::unbind() const {
     GL_CALL(glUseProgram(0));
 }
+
+size_t VertexBufferElement::get_size_of_type(GLenum type) {
+    /*
+        #define GL_BYTE 0x1400
+        #define GL_UNSIGNED_BYTE 0x1401
+        #define GL_SHORT 0x1402
+        #define GL_UNSIGNED_SHORT 0x1403
+        #define GL_INT 0x1404
+        #define GL_UNSIGNED_INT 0x1405
+        #define GL_FLOAT 0x1406
+        #define GL_DOUBLE 0x140A
+    */
+    static size_t sizes[] = {sizeof(GLfloat),  sizeof(GLubyte), sizeof(GLshort),
+                             sizeof(GLushort), sizeof(GLint),   sizeof(GLuint),
+                             sizeof(GLfloat),  sizeof(GLdouble)};
+
+    assert(type >= GL_BYTE && type <= GL_DOUBLE && "Invalid type passed");
+    return sizes[type - GL_BYTE];
+}
+
+void VertexBufferLayout::push_float(uint32_t count, bool normalized) {
+    GLboolean norm = (GLboolean)(normalized ? GL_TRUE : GL_FALSE);
+    elements.push_back({GL_FLOAT, (GLint)count, norm});
+    stride += count * sizeof(GLfloat);
+}
+
+void VertexBufferLayout::clear() {
+    elements.clear();
+    stride = 0;
+}
+
+VertexArray VertexArray::create() {
+    VertexArray vao;
+    GL_CALL(glGenVertexArrays(1, &vao.id));
+    assert(vao.id != 0 && "Couldn't create vertex array");
+
+    return vao;
+}
+
+void VertexArray::destroy() {
+    assert(id != 0 && "Trying to destroy invalid vertex arrayy");
+
+    GL_CALL(glDeleteVertexArrays(1, &id));
+    id = 0;
+}
+
+void VertexArray::add_buffers(const VertexBuffer &vbo, const IndexBuffer &ibo,
+                              const VertexBufferLayout &layout,
+                              uint32_t attrib_offset) {
+    bind();
+    vbo.bind();
+    ibo.bind();
+
+    uint32_t len = layout.elements.size() + attrib_offset;
+    size_t offset = 0;
+    for (uint32_t i = attrib_offset; i < len; i++) {
+        const VertexBufferElement &element = layout.elements[i - attrib_offset];
+
+        GL_CALL(glEnableVertexAttribArray(i));
+        GL_CALL(glVertexAttribPointer(i, element.count, element.type,
+                                      element.normalized, layout.stride,
+                                      (const void *)offset));
+
+        offset +=
+            element.count * VertexBufferElement::get_size_of_type(element.type);
+    }
+
+    vertex_count += vbo.vertex_count;
+    this->ibo = &ibo;
+}
+
+void VertexArray::add_vertex_buffer(const VertexBuffer &vbo,
+                                    const VertexBufferLayout &layout,
+                                    uint32_t attrib_offset) {
+    bind();
+    vbo.bind();
+
+    uint32_t len = layout.elements.size() + attrib_offset;
+    size_t offset = 0;
+    for (uint32_t i = attrib_offset; i < len; i++) {
+        const VertexBufferElement &element = layout.elements[i - attrib_offset];
+
+        GL_CALL(glEnableVertexAttribArray(i));
+        GL_CALL(glVertexAttribPointer(i, element.count, element.type,
+                                      element.normalized, layout.stride,
+                                      (const void *)offset));
+
+        offset +=
+            element.count * VertexBufferElement::get_size_of_type(element.type);
+    }
+
+    vertex_count += vbo.vertex_count;
+}
+
+void VertexArray::add_instanced_vertex_buffer(const VertexBuffer &vbo,
+                                              const VertexBufferLayout &layout,
+                                              uint32_t attrib_offset) {
+    bind();
+    vbo.bind();
+
+    uint32_t len = layout.elements.size() + attrib_offset;
+    size_t offset = 0;
+    for (uint32_t i = attrib_offset; i < len; i++) {
+        const VertexBufferElement &element = layout.elements[i - attrib_offset];
+
+        GL_CALL(glEnableVertexAttribArray(i));
+        GL_CALL(glVertexAttribPointer(i, element.count, element.type,
+                                      element.normalized, layout.stride,
+                                      (const void *)offset));
+        GL_CALL(glVertexAttribDivisor(i, 1));
+
+        offset +=
+            element.count * VertexBufferElement::get_size_of_type(element.type);
+    }
+
+    vertex_count += vbo.vertex_count;
+}
+
+void VertexArray::bind() const {
+    assert(id != 0 && "Trying to bind invalid vertex array");
+
+    GL_CALL(glBindVertexArray(id));
+}
+
+void VertexArray::unbind() const {
+    GL_CALL(glBindVertexArray(0));
+}

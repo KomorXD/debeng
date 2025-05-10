@@ -149,30 +149,6 @@ void Window::close() {
     glfwSetWindowShouldClose(handle, 1);
 }
 
-bool Window::is_key_pressed(Key key) {
-    return glfwGetKey(handle, (int)key) == GLFW_PRESS;
-}
-
-bool Window::is_mouse_btn_pressed(MouseButton button) {
-    return glfwGetMouseButton(handle, (int)button) == GLFW_PRESS;
-}
-
-void Window::hide_cursor() {
-    glfwSetInputMode(handle, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
-}
-
-void Window::show_cursor() {
-    glfwSetInputMode(handle, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-}
-
-void Window::disable_cursor() {
-    glfwSetInputMode(handle, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-}
-
-void Window::enable_cursor() {
-    glfwSetInputMode(handle, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-}
-
 void Window::set_title(const std::string &title) {
     glfwSetWindowTitle(handle, title.c_str());
 }

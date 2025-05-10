@@ -1,4 +1,7 @@
-#pragma once
+#ifndef INPUT_HPP
+#define INPUT_HPP
+
+#include <glm/glm.hpp>
 
 namespace eng {
 
@@ -153,4 +156,20 @@ enum class Key {
     Menu = 348
 };
 
+bool is_key_pressed(Key key);
+
+bool is_mouse_btn_pressed(MouseButton button);
+
+glm::vec2 get_mouse_position();
+
+void hide_cursor();
+
+void show_cursor();
+
+void disable_cursor();
+
+void enable_cursor();
+
 } // namespace eng
+
+#endif

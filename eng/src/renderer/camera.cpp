@@ -36,8 +36,8 @@ glm::mat4 SpectatorCamera::view() const {
     return glm::inverse(view_mat);
 }
 
-Renderer::CameraData SpectatorCamera::camera_render_data() const {
-    Renderer::CameraData cdata;
+renderer::CameraData SpectatorCamera::camera_render_data() const {
+    renderer::CameraData cdata;
     cdata.view = view();
     cdata.far_clip = far_clip;
     cdata.near_clip = near_clip;

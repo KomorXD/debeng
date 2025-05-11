@@ -4,7 +4,7 @@
 #include "eng/renderer/opengl.hpp"
 #include <glm/glm.hpp>
 
-namespace eng::Renderer {
+namespace eng::renderer {
 
 struct CameraData {
     glm::mat4 projection;

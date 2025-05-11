@@ -1,9 +1,10 @@
 #include "eng/renderer/renderer.hpp"
+#include "eng/renderer/opengl.hpp"
 #include "glm/ext/matrix_transform.hpp"
 #include "GLFW/glfw3.h"
 #include <vector>
 
-namespace eng::Renderer {
+namespace eng::renderer {
 
 struct Mesh {
     VertexArray vao;
@@ -32,7 +33,20 @@ static CameraData s_camera{};
 void opengl_msg_cb(unsigned source, unsigned type, unsigned id,
                    unsigned severity, int length, const char *msg,
                    const void *user_param) {
-    // TODO: when logging is done, fill
+    switch (severity) {
+    case GL_DEBUG_SEVERITY_HIGH:
+        fprintf(stderr, "%s", msg);
+        return;
+    case GL_DEBUG_SEVERITY_MEDIUM:
+        fprintf(stderr, "%s", msg);
+        return;
+    case GL_DEBUG_SEVERITY_LOW:
+        fprintf(stderr, "%s", msg);
+        return;
+    case GL_DEBUG_SEVERITY_NOTIFICATION:
+        printf("%s", msg);
+        return;
+    }
 }
 
 bool init() {

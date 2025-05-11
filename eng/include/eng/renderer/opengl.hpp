@@ -54,7 +54,11 @@ struct Shader {
     void unbind() const;
 
     std::optional<GLint> get_uniform_location(const std::string &name);
+    void set_uniform_1i(const std::string &name, int32_t val);
     void set_uniform_1f(const std::string &name, float val);
+    void set_uniform_2f(const std::string &name, const glm::vec2 &val);
+    void set_uniform_3f(const std::string &name, const glm::vec3 &val);
+    void set_uniform_4f(const std::string &name, const glm::vec4 &val);
     void set_uniform_mat4(const std::string &name, const glm::mat4 &val);
 
     GLuint id = 0;

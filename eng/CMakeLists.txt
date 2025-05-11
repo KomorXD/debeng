@@ -20,6 +20,7 @@ file(GLOB_RECURSE PROJECT_SORUCES CONFIGURE_DEPENDS "src/*.cpp")
 file(GLOB_RECURSE PROJECT_HEADERS CONFIGURE_DEPENDS "include/eng/*.hpp")
 file(GLOB_RECURSE PROJECT_VENDORS CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/extern/glad/src/glad.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/extern/vendors/*.cpp"
 )
 file(GLOB_RECURSE PROJECT_CONFIGS CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/CMakeLists.txt"
@@ -45,6 +46,7 @@ target_include_directories(${PROJECT_NAME}
         "${CMAKE_CURRENT_SOURCE_DIR}/extern/glfw/include"
         "${CMAKE_CURRENT_SOURCE_DIR}/extern/glad/include"
         "${CMAKE_CURRENT_SOURCE_DIR}/extern/glm"
+        "${CMAKE_CURRENT_SOURCE_DIR}/extern/vendors"
 )
 
 target_link_libraries(${PROJECT_NAME}

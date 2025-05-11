@@ -105,4 +105,45 @@ struct VertexArray {
     IndexBuffer ibo;
 };
 
+enum class TextureFormat {
+    RGBA8,
+	RGB8,
+	RGBA16F,
+	RGB16F,
+	RG16F,
+	RGB32F,
+	R11_G11_B10,
+	DEPTH_32F,
+
+    COUNT
+};
+
+struct TextureFormatDetails {
+    GLenum internal_format;
+    GLenum format;
+    GLenum type;
+    GLenum bpp;
+};
+
+TextureFormatDetails format_details(TextureFormat format);
+
+struct Texture {
+    static Texture create(const std::string &path, TextureFormat format);
+    static Texture create(const void *data, int32_t width, int32_t height,
+                          TextureFormat format);
+
+    void destroy();
+
+    void bind(uint32_t slot = 0) const;
+    void unbind() const;
+
+    GLuint id = 0;
+    int32_t width = 0;
+    int32_t height = 0;
+    int32_t bpp = 0;
+
+    std::string path;
+    std::string name;
+};
+
 #endif

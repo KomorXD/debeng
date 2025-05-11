@@ -1,7 +1,9 @@
 #include "eng/renderer/opengl.hpp"
 #include "eng/random_utils.hpp"
+#include "stb/stb_image.hpp"
 #include <alloca.h>
 #include <cstdio>
+#include <filesystem>
 
 void gl_clear_errors() {
     while (glGetError() != GL_NO_ERROR)
@@ -31,7 +33,7 @@ void VertexBuffer::allocate(const void *data, uint64_t size, uint32_t count) {
     assert(id != 0 && "Trying to allocate invalid vertex buffer");
 
     GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, id));
-    GL_CALL(glBufferData(GL_ARRAY_BUFFER, size, data, GL_STATIC_DRAW));
+    GL_CALL(glBufferData(GL_ARRAY_BUFFER, size, data, GL_DYNAMIC_DRAW));
 
     vertex_count = count;
 }
@@ -74,7 +76,7 @@ void IndexBuffer::allocate(const uint32_t *data, uint32_t count) {
 
     GL_CALL(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, id));
     GL_CALL(glBufferData(GL_ELEMENT_ARRAY_BUFFER, count * sizeof(uint32_t),
-                         data, GL_STATIC_DRAW));
+                         data, GL_DYNAMIC_DRAW));
 
     indices_count = count;
 }
@@ -398,4 +400,111 @@ void VertexArray::bind() const {
 
 void VertexArray::unbind() const {
     GL_CALL(glBindVertexArray(0));
+}
+
+TextureFormatDetails format_details(TextureFormat format) {
+    static GLenum internal_formats[] = {
+        GL_RGBA8, GL_RGB8,   GL_RGBA16F,        GL_RGB16F,
+        GL_RG16F, GL_RGB32F, GL_R11F_G11F_B10F, GL_DEPTH_COMPONENT32F
+    };
+    static GLenum formats[] = {
+        GL_RGBA, GL_RGB, GL_RGBA, GL_RGB,
+        GL_RG,   GL_RGB, GL_RGB,  GL_DEPTH_COMPONENT
+    };
+    static GLenum types[] = {
+        GL_UNSIGNED_BYTE, GL_UNSIGNED_BYTE, GL_FLOAT, GL_FLOAT,
+        GL_FLOAT,         GL_FLOAT,         GL_FLOAT, GL_FLOAT
+    };
+    static GLenum bpps[] = {
+        4, 3, 4, 3,
+        2, 3, 3, 1
+    };
+
+    int32_t idx = (int32_t)format;
+    assert(idx < (int32_t)TextureFormat::COUNT && "Invalid texture format");
+
+    return {
+        internal_formats[idx],
+        formats[idx],
+        types[idx],
+        bpps[idx]
+    };
+}
+
+Texture Texture::create(const std::string &path, TextureFormat format) {
+    Texture tex;
+
+    auto [internal, pixel_format, type, bpp] = format_details(format);
+    void *buffer = nullptr;
+    stbi_set_flip_vertically_on_load(1);
+
+    if (type == GL_FLOAT)
+        buffer =
+            stbi_loadf(path.c_str(), &tex.width, &tex.height, &tex.bpp, bpp);
+    else
+        buffer =
+            stbi_load(path.c_str(), &tex.width, &tex.height, &tex.bpp, bpp);
+
+    GL_CALL(glGenTextures(1, &tex.id));
+    GL_CALL(glBindTexture(GL_TEXTURE_2D, tex.id));
+
+    GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
+                            GL_NEAREST_MIPMAP_LINEAR));
+    GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
+    GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT));
+    GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT));
+
+    GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, internal, tex.width, tex.height, 0,
+                         pixel_format, type, buffer));
+    GL_CALL(glGenerateMipmap(GL_TEXTURE_2D));
+    GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
+
+    if (buffer)
+        stbi_image_free(buffer);
+
+    std::filesystem::path tex_path = path;
+    tex.path = path;
+    tex.name = tex_path.filename().string();
+
+    return tex;
+}
+
+Texture Texture::create(const void *data, int32_t width, int32_t height,
+                        TextureFormat format) {
+    Texture tex;
+
+    GL_CALL(glGenTextures(1, &tex.id));
+    GL_CALL(glBindTexture(GL_TEXTURE_2D, tex.id));
+
+    GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
+                            GL_NEAREST_MIPMAP_LINEAR));
+    GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
+    GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT));
+    GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT));
+
+
+    auto [internal, pixel_format, type, bpp] = format_details(format);
+    GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, internal, tex.width, tex.height, 0,
+                         pixel_format, type, data));
+    GL_CALL(glGenerateMipmap(GL_TEXTURE_2D));
+    GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
+
+    return tex;
+}
+
+void Texture::destroy() {
+    assert(id != 0 && "Trying to destroy invalid texture object");
+
+    GL_CALL(glDeleteTextures(1, &id));
+}
+
+void Texture::bind(uint32_t slot) const {
+    assert(id != 0 && "Trying to bind invalid texture object");
+
+    GL_CALL(glActiveTexture(GL_TEXTURE0 + slot));
+    GL_CALL(glBindTexture(GL_TEXTURE_2D, id));
+}
+
+void Texture::unbind() const {
+    GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
 }

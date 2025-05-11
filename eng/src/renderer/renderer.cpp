@@ -35,16 +35,16 @@ void opengl_msg_cb(unsigned source, unsigned type, unsigned id,
                    const void *user_param) {
     switch (severity) {
     case GL_DEBUG_SEVERITY_HIGH:
-        fprintf(stderr, "%s", msg);
+        fprintf(stderr, "%s\r\n", msg);
         return;
     case GL_DEBUG_SEVERITY_MEDIUM:
-        fprintf(stderr, "%s", msg);
+        fprintf(stderr, "%s\r\n", msg);
         return;
     case GL_DEBUG_SEVERITY_LOW:
-        fprintf(stderr, "%s", msg);
+        fprintf(stderr, "%s\r\n", msg);
         return;
     case GL_DEBUG_SEVERITY_NOTIFICATION:
-        printf("%s", msg);
+        printf("%s\r\n", msg);
         return;
     }
 }
@@ -87,13 +87,13 @@ bool init() {
 	s_renderer.quad_mesh.vao.bind();
 
 	float vertices[] = {
-	    -0.5f, -0.5f, 0.0f,
-	     0.5f, -0.5f, 0.0f,
-	     0.5f,  0.5f, 0.0f,
-	    -0.5f,  0.5f, 0.0f
+	    -0.5f, -0.5f, 0.0f, 0.0f, 0.0f,
+	     0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
+	     0.5f,  0.5f, 0.0f, 1.0f, 1.0f,
+	    -0.5f,  0.5f, 0.0f, 0.0f, 1.0f
 	};
 	VertexBuffer vbo = VertexBuffer::create();
-	vbo.allocate(vertices, 3 * 4 * sizeof(float), 3 * 4);
+	vbo.allocate(vertices, 5 * 4 * sizeof(float), 5 * 4);
 
 	uint32_t indices[] = {
 	    0, 1, 2,
@@ -104,6 +104,7 @@ bool init() {
 
 	VertexBufferLayout layout;
 	layout.push_float(3);
+	layout.push_float(2);
 	s_renderer.quad_mesh.vao.add_buffers(vbo, ibo, layout);
 
 	layout.clear();
@@ -114,7 +115,7 @@ bool init() {
 
 	VertexBuffer ivbo = VertexBuffer::create();
 	ivbo.allocate(nullptr, 4 * 4 * 16 * sizeof(float));
-	s_renderer.quad_mesh.vao.add_instanced_vertex_buffer(ivbo, layout, 1);
+	s_renderer.quad_mesh.vao.add_instanced_vertex_buffer(ivbo, layout, 2);
 	s_renderer.quad_mesh.vao.unbind();
     }
 
@@ -137,6 +138,7 @@ void scene_end() {
     s_renderer.default_shader.bind();
     s_renderer.default_shader.set_uniform_mat4(
         "u_view_proj", s_camera.projection * s_camera.view);
+    s_renderer.default_shader.set_uniform_1i("u_texture", 0);
 
     s_renderer.quad_mesh.vao.vbo_instanced.set_data(
         s_renderer.mesh_instances.data(),

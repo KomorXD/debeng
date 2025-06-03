@@ -58,6 +58,13 @@ AssetPack AssetPack::create(const std::string &pack_name) {
     return pack;
 }
 
+void AssetPack::destroy() {
+    for (auto &[mesh_id, mesh] : meshes)
+        mesh.vao.destroy();
+
+    meshes.clear();
+}
+
 Mesh &AssetPack::add_mesh(Mesh mesh) {
     if (meshes.empty())
         mesh.id = 1;

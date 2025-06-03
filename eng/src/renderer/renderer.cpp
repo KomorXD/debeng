@@ -41,9 +41,8 @@ void opengl_msg_cb(unsigned source, unsigned type, unsigned id,
 }
 
 bool init() {
-    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
         return false;
-    }
 
     GL_CALL(glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS,
                           &s_renderer.gpu.texture_units));
@@ -79,13 +78,12 @@ bool init() {
     for (auto &[mesh_id, instances] : s_default_pack.meshes)
         s_renderer.mesh_instances[mesh_id].reserve(128);
 
-    // TODO: setup stuff when it comes
-
     return true;
 }
 
 void shutdown() {
-    // TODO: clean stuff when it comes
+    s_default_pack.destroy();
+    s_renderer.default_shader.destroy();
 }
 
 void scene_begin(const CameraData &camera) {

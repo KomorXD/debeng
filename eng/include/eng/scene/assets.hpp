@@ -21,6 +21,8 @@ struct Mesh {
 struct AssetPack {
     static AssetPack create(const std::string &pack_name);
 
+    void destroy();
+
     std::string name;
 
     std::map<AssetID, Mesh> meshes;

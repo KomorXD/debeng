@@ -316,6 +316,15 @@ VertexArray VertexArray::create() {
 void VertexArray::destroy() {
     assert(id != 0 && "Trying to destroy invalid vertex arrayy");
 
+    if (vbo.id != 0)
+        vbo.destroy();
+
+    if (ibo.id != 0)
+        ibo.destroy();
+
+    if (vbo_instanced.id != 0)
+        vbo_instanced.destroy();
+
     GL_CALL(glDeleteVertexArrays(1, &id));
     id = 0;
 }

@@ -30,6 +30,7 @@ void scene_begin(const CameraData &camera);
 void scene_end();
 
 void submit_quad(const glm::vec3 &position);
+void submit_cube(const glm::vec3 &position);
 
 void draw_indexed_instanced(const Shader &shader, const VertexArray &vao,
                             uint32_t count);

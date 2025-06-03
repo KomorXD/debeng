@@ -1,20 +1,10 @@
 #include "eng/renderer/renderer.hpp"
-#include "eng/renderer/opengl.hpp"
-#include "eng/renderer/primitives.hpp"
+#include "eng/scene/assets.hpp"
 #include "glm/ext/matrix_transform.hpp"
 #include "GLFW/glfw3.h"
 #include <vector>
 
 namespace eng::renderer {
-
-struct Mesh {
-    VertexArray vao;
-    std::string name;
-};
-
-struct MeshInstance {
-    glm::mat4 transform;
-};
 
 struct GPU {
     GLint texture_units = 0;
@@ -22,15 +12,14 @@ struct GPU {
 
 struct Renderer {
     GPU gpu;
-
-    Mesh quad_mesh;
-    std::vector<MeshInstance> mesh_instances;
-
     Shader default_shader;
+
+    std::unordered_map<AssetID, std::vector<MeshInstance>> mesh_instances;
 };
 
 static Renderer s_renderer{};
 static CameraData s_camera{};
+static AssetPack s_default_pack{};
 
 void opengl_msg_cb(unsigned source, unsigned type, unsigned id,
                    unsigned severity, int length, const char *msg,
@@ -49,42 +38,6 @@ void opengl_msg_cb(unsigned source, unsigned type, unsigned id,
         printf("%s\r\n", msg);
         return;
     }
-}
-
-Mesh create_mesh(VertexData vertex_data) {
-    Mesh mesh{};
-    auto &[vertices, indices] = vertex_data;
-
-    mesh.vao = VertexArray::create();
-    mesh.vao.bind();
-
-    VertexBuffer vbo = VertexBuffer::create();
-    vbo.allocate(vertices.data(), vertices.size() * sizeof(Vertex),
-                 vertices.size());
-
-    VertexBufferLayout layout;
-    layout.push_float(3); // 0 - position
-    layout.push_float(3); // 1 - normal
-    layout.push_float(3); // 2 - tangent
-    layout.push_float(3); // 3 - bitangent
-    layout.push_float(2); // 4 - texture uv
-
-    IndexBuffer ibo = IndexBuffer::create();
-    ibo.allocate(indices.data(), indices.size());
-    mesh.vao.add_buffers(vbo, ibo, layout);
-
-    layout.clear();
-    layout.push_float(4); // 5 - transform
-    layout.push_float(4); // 6 - transform
-    layout.push_float(4); // 7 - transform
-    layout.push_float(4); // 8 - transform
-
-    vbo = VertexBuffer::create();
-    vbo.allocate(nullptr, 128 * sizeof(MeshInstance));
-    mesh.vao.add_instanced_vertex_buffer(vbo, layout, 5);
-    mesh.vao.unbind();
-
-    return mesh;
 }
 
 bool init() {
@@ -122,13 +75,9 @@ bool init() {
     s_renderer.default_shader.build("resources/shaders/vs.glsl",
                                     "resources/shaders/fs.glsl");
 
-    {
-	Mesh quad_mesh = create_mesh(cube_vertex_data());
-	quad_mesh.name = "Quad";
-
-	s_renderer.quad_mesh = quad_mesh;
-	s_renderer.mesh_instances.reserve(128);
-    }
+    s_default_pack = AssetPack::create("default");
+    for (auto &[mesh_id, instances] : s_default_pack.meshes)
+        s_renderer.mesh_instances[mesh_id].reserve(128);
 
     // TODO: setup stuff when it comes
 
@@ -141,7 +90,9 @@ void shutdown() {
 
 void scene_begin(const CameraData &camera) {
     s_camera = camera;
-    s_renderer.mesh_instances.clear();
+
+    for (auto &[mesh_id, instances] : s_renderer.mesh_instances)
+        instances.clear();
 }
 
 void scene_end() {
@@ -150,15 +101,30 @@ void scene_end() {
         "u_view_proj", s_camera.projection * s_camera.view);
     s_renderer.default_shader.set_uniform_1i("u_texture", 0);
 
-    s_renderer.quad_mesh.vao.vbo_instanced.set_data(
-        s_renderer.mesh_instances.data(),
-        s_renderer.mesh_instances.size() * sizeof(MeshInstance));
-    draw_indexed_instanced(s_renderer.default_shader, s_renderer.quad_mesh.vao,
-                           s_renderer.mesh_instances.size());
+    for (auto &[mesh_id, instances] : s_renderer.mesh_instances) {
+        if (instances.empty())
+            continue;
+
+        Mesh &mesh = s_default_pack.meshes.at(mesh_id);
+        mesh.vao.vbo_instanced.set_data(
+            instances.data(), instances.size() * sizeof(MeshInstance));
+        draw_indexed_instanced(s_renderer.default_shader, mesh.vao,
+                               instances.size());
+    }
 }
 
 void submit_quad(const glm::vec3 &position) {
-    MeshInstance &ins = s_renderer.mesh_instances.emplace_back();
+    std::vector<MeshInstance> &instances =
+        s_renderer.mesh_instances.at(AssetPack::QUAD_ID);
+    MeshInstance &ins = instances.emplace_back();
+    ins.transform = glm::translate(glm::mat4(1.0f), position) *
+                    glm::scale(glm::mat4(1.0f), glm::vec3(1.0f));
+}
+
+void submit_cube(const glm::vec3 &position) {
+    std::vector<MeshInstance> &instances =
+        s_renderer.mesh_instances.at(AssetPack::CUBE_ID);
+    MeshInstance &ins = instances.emplace_back();
     ins.transform = glm::translate(glm::mat4(1.0f), position) *
                     glm::scale(glm::mat4(1.0f), glm::vec3(1.0f));
 }

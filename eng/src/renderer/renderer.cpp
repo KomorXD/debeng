@@ -1,5 +1,6 @@
 #include "eng/renderer/renderer.hpp"
 #include "eng/renderer/opengl.hpp"
+#include "eng/renderer/primitives.hpp"
 #include "glm/ext/matrix_transform.hpp"
 #include "GLFW/glfw3.h"
 #include <vector>
@@ -8,6 +9,7 @@ namespace eng::renderer {
 
 struct Mesh {
     VertexArray vao;
+    std::string name;
 };
 
 struct MeshInstance {
@@ -49,6 +51,42 @@ void opengl_msg_cb(unsigned source, unsigned type, unsigned id,
     }
 }
 
+Mesh create_mesh(VertexData vertex_data) {
+    Mesh mesh{};
+    auto &[vertices, indices] = vertex_data;
+
+    mesh.vao = VertexArray::create();
+    mesh.vao.bind();
+
+    VertexBuffer vbo = VertexBuffer::create();
+    vbo.allocate(vertices.data(), vertices.size() * sizeof(Vertex),
+                 vertices.size());
+
+    VertexBufferLayout layout;
+    layout.push_float(3); // 0 - position
+    layout.push_float(3); // 1 - normal
+    layout.push_float(3); // 2 - tangent
+    layout.push_float(3); // 3 - bitangent
+    layout.push_float(2); // 4 - texture uv
+
+    IndexBuffer ibo = IndexBuffer::create();
+    ibo.allocate(indices.data(), indices.size());
+    mesh.vao.add_buffers(vbo, ibo, layout);
+
+    layout.clear();
+    layout.push_float(4); // 5 - transform
+    layout.push_float(4); // 6 - transform
+    layout.push_float(4); // 7 - transform
+    layout.push_float(4); // 8 - transform
+
+    vbo = VertexBuffer::create();
+    vbo.allocate(nullptr, 128 * sizeof(MeshInstance));
+    mesh.vao.add_instanced_vertex_buffer(vbo, layout, 5);
+    mesh.vao.unbind();
+
+    return mesh;
+}
+
 bool init() {
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
         return false;
@@ -56,6 +94,8 @@ bool init() {
 
     GL_CALL(glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS,
                           &s_renderer.gpu.texture_units));
+
+    printf("MAX_TEXTURE_UNITS: %d\n", s_renderer.gpu.texture_units);
 
     GL_CALL(glEnable(GL_DEBUG_OUTPUT));
     GL_CALL(glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS));
@@ -83,40 +123,11 @@ bool init() {
                                     "resources/shaders/fs.glsl");
 
     {
-	s_renderer.quad_mesh.vao = VertexArray::create();
-	s_renderer.quad_mesh.vao.bind();
+	Mesh quad_mesh = create_mesh(cube_vertex_data());
+	quad_mesh.name = "Quad";
 
-	float vertices[] = {
-	    -0.5f, -0.5f, 0.0f, 0.0f, 0.0f,
-	     0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
-	     0.5f,  0.5f, 0.0f, 1.0f, 1.0f,
-	    -0.5f,  0.5f, 0.0f, 0.0f, 1.0f
-	};
-	VertexBuffer vbo = VertexBuffer::create();
-	vbo.allocate(vertices, 5 * 4 * sizeof(float), 5 * 4);
-
-	uint32_t indices[] = {
-	    0, 1, 2,
-	    2, 3, 0
-	};
-	IndexBuffer ibo = IndexBuffer::create();
-	ibo.allocate(indices, 3 * 2);
-
-	VertexBufferLayout layout;
-	layout.push_float(3);
-	layout.push_float(2);
-	s_renderer.quad_mesh.vao.add_buffers(vbo, ibo, layout);
-
-	layout.clear();
-	layout.push_float(4);
-	layout.push_float(4);
-	layout.push_float(4);
-	layout.push_float(4);
-
-	VertexBuffer ivbo = VertexBuffer::create();
-	ivbo.allocate(nullptr, 4 * 4 * 16 * sizeof(float));
-	s_renderer.quad_mesh.vao.add_instanced_vertex_buffer(ivbo, layout, 2);
-	s_renderer.quad_mesh.vao.unbind();
+	s_renderer.quad_mesh = quad_mesh;
+	s_renderer.mesh_instances.reserve(128);
     }
 
     // TODO: setup stuff when it comes
@@ -130,7 +141,6 @@ void shutdown() {
 
 void scene_begin(const CameraData &camera) {
     s_camera = camera;
-
     s_renderer.mesh_instances.clear();
 }
 

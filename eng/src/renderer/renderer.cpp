@@ -7,6 +7,10 @@
 namespace eng::renderer {
 
 struct GPU {
+    char *vendor;
+    char *opengl_version;
+    char *device_name;
+
     GLint texture_units = 0;
 };
 
@@ -44,10 +48,17 @@ bool init() {
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
         return false;
 
+    GPU &gpu_spec = s_renderer.gpu;
     GL_CALL(glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS,
-                          &s_renderer.gpu.texture_units));
+                          &gpu_spec.texture_units));
+    GL_CALL(gpu_spec.vendor = (char *)glGetString(GL_VENDOR));
+    GL_CALL(gpu_spec.device_name = (char *)glGetString(GL_RENDERER));
+    GL_CALL(gpu_spec.opengl_version = (char *)glGetString(GL_VERSION));
 
-    printf("MAX_TEXTURE_UNITS: %d\n", s_renderer.gpu.texture_units);
+    printf("GPU Vendor: %s\n", gpu_spec.vendor);
+    printf("GPU Device: %s\n", gpu_spec.device_name);
+    printf("OpenGL version: %s\n", gpu_spec.opengl_version);
+    printf("Max texture units: %d\n", gpu_spec.texture_units);
 
     GL_CALL(glEnable(GL_DEBUG_OUTPUT));
     GL_CALL(glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS));

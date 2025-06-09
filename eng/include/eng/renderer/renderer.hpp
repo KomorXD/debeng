@@ -34,9 +34,13 @@ void submit_cube(const glm::vec3 &position);
 
 void draw_to_screen_quad();
 
-void draw_arrays(const Shader &shader, const VertexArray &vao, uint32_t count);
-void draw_indexed_instanced(const Shader &shader, const VertexArray &vao,
-                            uint32_t count);
+void draw_arrays(const Shader &shader, const VertexArray &vao,
+                 uint32_t vertices_count);
+void draw_arrays_instanced(const Shader &shader, const VertexArray &vao,
+                           uint32_t vertices_count, uint32_t instances_count);
+void draw_elements(const Shader &shader, const VertexArray &vao);
+void draw_elements_instanced(const Shader &shader, const VertexArray &vao,
+                             uint32_t instances_count);
 
 } // namespace eng
 

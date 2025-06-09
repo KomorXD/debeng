@@ -148,7 +148,7 @@ void scene_end() {
         Mesh &mesh = s_default_pack.meshes.at(mesh_id);
         mesh.vao.vbo_instanced.set_data(
             instances.data(), instances.size() * sizeof(MeshInstance));
-        draw_indexed_instanced(s_renderer.default_shader, mesh.vao,
+        draw_elements_instanced(s_renderer.default_shader, mesh.vao,
                                instances.size());
     }
 }
@@ -175,17 +175,38 @@ void draw_to_screen_quad() {
     GL_CALL(glEnable(GL_DEPTH_TEST));
 }
 
-void draw_arrays(const Shader &shader, const VertexArray &vao, uint32_t count) {
+void draw_arrays(const Shader &shader, const VertexArray &vao,
+                 uint32_t vertices_count) {
+    vao.bind();
+    shader.bind();
 
+    GL_CALL(glDrawArrays(GL_TRIANGLES, 0, vertices_count));
 }
 
-void draw_indexed_instanced(const Shader &shader, const VertexArray &vao,
-                            uint32_t count) {
+void draw_arrays_instanced(const Shader &shader, const VertexArray &vao,
+                           uint32_t vertices_count, uint32_t instances_count) {
+    vao.bind();
+    shader.bind();
+
+    GL_CALL(glDrawArraysInstanced(GL_TRIANGLES, 0, vertices_count,
+                                  instances_count));
+}
+
+void draw_elements(const Shader &shader, const VertexArray &vao) {
+    vao.bind();
+    shader.bind();
+
+    GL_CALL(glDrawElements(GL_TRIANGLES, vao.ibo.indices_count, GL_UNSIGNED_INT,
+                           nullptr));
+}
+
+void draw_elements_instanced(const Shader &shader, const VertexArray &vao,
+                             uint32_t instances_count) {
     vao.bind();
     shader.bind();
 
     GL_CALL(glDrawElementsInstanced(GL_TRIANGLES, vao.ibo.indices_count,
-                                    GL_UNSIGNED_INT, nullptr, count));
+                                    GL_UNSIGNED_INT, nullptr, instances_count));
 }
 
 } // namespace eng::Renderer

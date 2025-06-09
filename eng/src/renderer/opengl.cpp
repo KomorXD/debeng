@@ -549,7 +549,7 @@ GLint opengl_texture_type(ColorAttachmentType type) {
         return GL_TEXTURE_CUBE_MAP_ARRAY;
     default:
         assert(true && "Unsupported texture type passed");
-        break;
+        return {};
     }
 }
 
@@ -578,7 +578,7 @@ void Framebuffer::unbind() const {
 void Framebuffer::add_renderbuffer(RenderbufferSpec spec) {
     assert(id != 0 &&
            "Trying to create renderbuffer for invalid framebuffer object");
-    assert(rbo.id != 0 && "Trying to overwrite existing renderbuffer without "
+    assert(rbo.id == 0 && "Trying to overwrite existing renderbuffer without "
                           "destroying it first");
 
     bind();

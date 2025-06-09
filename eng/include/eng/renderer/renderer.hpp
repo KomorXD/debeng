@@ -32,6 +32,9 @@ void scene_end();
 void submit_quad(const glm::vec3 &position);
 void submit_cube(const glm::vec3 &position);
 
+void draw_to_screen_quad();
+
+void draw_arrays(const Shader &shader, const VertexArray &vao, uint32_t count);
 void draw_indexed_instanced(const Shader &shader, const VertexArray &vao,
                             uint32_t count);
 

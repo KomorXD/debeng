@@ -18,6 +18,9 @@ struct Renderer {
     GPU gpu;
     Shader default_shader;
 
+    VertexArray screen_quad_vao;
+    Shader screen_quad_shader;
+
     std::unordered_map<AssetID, std::vector<MeshInstance>> mesh_instances;
 };
 
@@ -89,6 +92,34 @@ bool init() {
     for (auto &[mesh_id, instances] : s_default_pack.meshes)
         s_renderer.mesh_instances[mesh_id].reserve(128);
 
+    float screen_quad_vertices[] = {
+    //    position      texture_uv
+        -1.0f, -1.0f,   0.0f, 0.0f,
+         1.0f, -1.0f,   1.0f, 0.0f,
+         1.0f,  1.0f,   1.0f, 1.0f,
+
+         1.0f,  1.0f,   1.0f, 1.0f,
+        -1.0f,  1.0f,   0.0f, 1.0f,
+        -1.0f, -1.0f,   0.0f, 0.0f
+    };
+
+    s_renderer.screen_quad_vao = VertexArray::create();
+    s_renderer.screen_quad_vao.bind();
+
+    VertexBuffer vbo = VertexBuffer::create();
+    vbo.allocate(screen_quad_vertices, sizeof(screen_quad_vertices));
+
+    VertexBufferLayout layout;
+    layout.push_float(2); // 0 - position
+    layout.push_float(2); // 1 - texture UV
+    s_renderer.screen_quad_vao.add_vertex_buffer(vbo, layout);
+
+    s_renderer.screen_quad_shader = Shader::create();
+    s_renderer.screen_quad_shader.build("resources/shaders/screen_quad.vert",
+                                        "resources/shaders/screen_quad.frag");
+    s_renderer.screen_quad_shader.bind();
+    s_renderer.screen_quad_shader.set_uniform_1i("u_screen_texture", 0);
+
     return true;
 }
 
@@ -136,6 +167,16 @@ void submit_cube(const glm::vec3 &position) {
     MeshInstance &ins = instances.emplace_back();
     ins.transform = glm::translate(glm::mat4(1.0f), position) *
                     glm::scale(glm::mat4(1.0f), glm::vec3(1.0f));
+}
+
+void draw_to_screen_quad() {
+    GL_CALL(glDisable(GL_DEPTH_TEST));
+    draw_arrays(s_renderer.screen_quad_shader, s_renderer.screen_quad_vao, 6);
+    GL_CALL(glEnable(GL_DEPTH_TEST));
+}
+
+void draw_arrays(const Shader &shader, const VertexArray &vao, uint32_t count) {
+
 }
 
 void draw_indexed_instanced(const Shader &shader, const VertexArray &vao,

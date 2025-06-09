@@ -107,13 +107,13 @@ struct VertexArray {
 
 enum class TextureFormat {
     RGBA8,
-	RGB8,
-	RGBA16F,
-	RGB16F,
-	RG16F,
-	RGB32F,
-	R11_G11_B10,
-	DEPTH_32F,
+    RGB8,
+    RGBA16F,
+    RGB16F,
+    RG16F,
+    RGB32F,
+    R11_G11_B10,
+    DEPTH_32F,
 
     COUNT
 };
@@ -144,6 +144,88 @@ struct Texture {
 
     std::string path;
     std::string name;
+};
+
+enum class RenderbufferType {
+    DEPTH,
+    STENICL,
+    DEPTH_STENCIL,
+
+    COUNT
+};
+
+struct RenderbufferDetails {
+    GLint type;
+    GLint attachment_type;
+};
+
+struct RenderbufferSpec {
+    RenderbufferType type;
+    glm::ivec2 size;
+};
+
+struct Renderbuffer {
+    GLuint id = 0;
+    RenderbufferSpec spec;
+};
+
+RenderbufferDetails rbo_details(const RenderbufferSpec &spec);
+
+enum class ColorAttachmentType {
+    TEX_2D,
+    TEX_2D_MULTISAMPLE,
+    TEX_2D_ARRAY,
+    TEX_2D_ARRAY_SHADOW,
+    TEX_CUBEMAP,
+    TEX_CUBEMAP_ARRAY,
+
+    COUNT
+};
+
+GLint opengl_texture_type(ColorAttachmentType type);
+
+struct ColorAttachmentSpec {
+    ColorAttachmentType type;
+    TextureFormat format;
+
+    GLint wrap;
+    GLint min_filter;
+    GLint mag_filter;
+
+    glm::vec4 border_color;
+    glm::ivec2 size;
+
+    int32_t layers = 1;
+    bool gen_minmaps = false;
+};
+
+struct ColorAttachment {
+    GLuint id = 0;
+    ColorAttachmentSpec spec;
+};
+
+struct Framebuffer {
+    static Framebuffer create();
+
+    void destroy();
+
+    void bind() const;
+    void unbind() const;
+
+    void add_renderbuffer(RenderbufferSpec spec);
+    void add_color_attachment(ColorAttachmentSpec spec);
+
+    void bind_renderbuffer() const;
+    void bind_color_attachment(uint32_t index, uint32_t slot = 0) const;
+
+    void remove_renderbuffer();
+    void remove_color_attachment(uint32_t index);
+
+    bool is_complete() const;
+
+    GLuint id = 0;
+    Renderbuffer rbo;
+    std::vector<ColorAttachment> color_attachments;
 };
 
 #endif

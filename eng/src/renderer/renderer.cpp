@@ -88,8 +88,9 @@ bool init() {
     s_renderer.default_shader.build("resources/shaders/vs.glsl",
                                     "resources/shaders/fs.glsl");
 
-    for (auto &[mesh_id, instances] : s_asset_pack->meshes)
-        s_renderer.mesh_instances[mesh_id].reserve(128);
+    s_renderer.mesh_instances[eng::AssetPack::QUAD_ID].reserve(128);
+    s_renderer.mesh_instances[eng::AssetPack::CUBE_ID].reserve(128);
+    s_renderer.mesh_instances[eng::AssetPack::SPHERE_ID].reserve(128);
 
     float screen_quad_vertices[] = {
     //    position      texture_uv
@@ -152,6 +153,12 @@ void scene_end() {
         draw_elements_instanced(s_renderer.default_shader, mesh.vao,
                                instances.size());
     }
+}
+
+void submit_mesh(const glm::mat4 &transform, AssetID mesh_id) {
+    std::vector<MeshInstance> &instances = s_renderer.mesh_instances[mesh_id];
+    MeshInstance &instance = instances.emplace_back();
+    instance.transform = transform;
 }
 
 void submit_quad(const glm::vec3 &position) {

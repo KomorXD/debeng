@@ -30,6 +30,7 @@ void shutdown();
 void scene_begin(const CameraData &camera, AssetPack &asset_pack);
 void scene_end();
 
+void submit_mesh(const glm::mat4 &transform, AssetID mesh_id);
 void submit_quad(const glm::vec3 &position);
 void submit_cube(const glm::vec3 &position);
 

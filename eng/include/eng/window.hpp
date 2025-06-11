@@ -23,8 +23,8 @@ struct WindowSpec {
 
 struct Window {
     // Initializes GLFW context, must be done before creating the first window.
-    static bool init();
-    static std::optional<Window> create(const WindowSpec &spec);
+    [[nodiscard]] static bool init();
+    [[nodiscard]] static std::optional<Window> create(const WindowSpec &spec);
 
     // Terminates GLFW context and destroys every window
     static void terminate();
@@ -32,7 +32,7 @@ struct Window {
     /* Necessary to do each time the location of window object changes, so
        that events are caught properly. */
     void update_user_pointer();
-    bool is_open() const;
+    [[nodiscard]] bool is_open() const;
     void update();
     void close();
 

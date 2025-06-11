@@ -85,8 +85,9 @@ bool init() {
     GL_CALL(glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS));
 
     s_renderer.default_shader = Shader::create();
-    s_renderer.default_shader.build("resources/shaders/vs.glsl",
-                                    "resources/shaders/fs.glsl");
+    assert(s_renderer.default_shader.build("resources/shaders/vs.glsl",
+                                           "resources/shaders/fs.glsl") &&
+           "Default shaders not found");
 
     s_renderer.mesh_instances[eng::AssetPack::QUAD_ID].reserve(128);
     s_renderer.mesh_instances[eng::AssetPack::CUBE_ID].reserve(128);
@@ -115,8 +116,10 @@ bool init() {
     s_renderer.screen_quad_vao.add_vertex_buffer(vbo, layout);
 
     s_renderer.screen_quad_shader = Shader::create();
-    s_renderer.screen_quad_shader.build("resources/shaders/screen_quad.vert",
-                                        "resources/shaders/screen_quad.frag");
+    assert(s_renderer.screen_quad_shader.build(
+               "resources/shaders/screen_quad.vert",
+               "resources/shaders/screen_quad.frag") &&
+           "Screen quad shader not found");
     s_renderer.screen_quad_shader.bind();
     s_renderer.screen_quad_shader.set_uniform_1i("u_screen_texture", 0);
 

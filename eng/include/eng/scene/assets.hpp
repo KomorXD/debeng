@@ -19,18 +19,18 @@ struct Mesh {
 };
 
 struct AssetPack {
-    static AssetPack create(const std::string &pack_name);
-
-    void destroy();
-
-    std::string name;
-
-    std::map<AssetID, Mesh> meshes;
-    Mesh &add_mesh(Mesh mesh);
+    [[nodiscard]] static AssetPack create(const std::string &pack_name);
 
     static constexpr AssetID QUAD_ID = 1;
     static constexpr AssetID CUBE_ID = 2;
     static constexpr AssetID SPHERE_ID = 3;
+
+    void destroy();
+
+    [[nodiscard]] Mesh &add_mesh(Mesh mesh);
+
+    std::string name;
+    std::map<AssetID, Mesh> meshes;
 };
 
 } // namespace eng

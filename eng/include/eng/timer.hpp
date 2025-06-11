@@ -8,7 +8,7 @@ struct Timer {
     void stop();
     void resume();
 
-    float elapsed_time_ms();
+    [[nodiscard]] float elapsed_time_ms();
 
     std::chrono::steady_clock::time_point start_timepoint{};
     uint32_t accumulated_time_ms = 0;

@@ -21,9 +21,9 @@ struct VertexData {
 
 void calculate_tangents(Vertex &v0, Vertex &v1, Vertex &v2);
 
-VertexData quad_vertex_data();
-VertexData cube_vertex_data();
-VertexData uv_sphere_vertex_data();
+[[nodiscard]] VertexData quad_vertex_data();
+[[nodiscard]] VertexData cube_vertex_data();
+[[nodiscard]] VertexData uv_sphere_vertex_data();
 
 } // namespace eng
 

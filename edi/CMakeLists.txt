@@ -37,3 +37,8 @@ set_target_properties(${PROJECT_NAME}
     PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/out/bin/${PROJECT_NAME}/"
 )
+
+target_compile_options(${PROJECT_NAME}
+    PRIVATE
+        -Wall -Wpedantic -Werror
+)

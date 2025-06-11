@@ -156,13 +156,13 @@ enum class Key {
     Menu = 348
 };
 
-bool is_key_pressed(Key key);
+[[nodiscard]] bool is_key_pressed(Key key);
 
-bool is_mouse_btn_pressed(MouseButton button);
+[[nodiscard]] bool is_mouse_btn_pressed(MouseButton button);
 
-glm::vec2 get_mouse_position();
+[[nodiscard]] glm::vec2 get_mouse_position();
 
-glm::vec2 get_mouse_move_delta();
+[[nodiscard]] glm::vec2 get_mouse_move_delta();
 
 void hide_cursor();
 

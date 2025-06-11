@@ -32,7 +32,7 @@ Mesh create_mesh(VertexData vertex_data) {
     layout.push_float(4); // 8 - transform
 
     vbo = VertexBuffer::create();
-    vbo.allocate(nullptr, 128 * sizeof(MeshInstance));
+    vbo.allocate(nullptr, 4096 * sizeof(MeshInstance));
     mesh.vao.add_instanced_vertex_buffer(vbo, layout, 5);
     mesh.vao.unbind();
 
@@ -46,19 +46,19 @@ AssetPack AssetPack::create(const std::string &pack_name) {
     {
         Mesh quad_mesh = create_mesh(quad_vertex_data());
         quad_mesh.name = "Quad";
-        pack.add_mesh(quad_mesh);
+        (void)pack.add_mesh(quad_mesh);
     }
 
     {
         Mesh cube_mesh = create_mesh(cube_vertex_data());
         cube_mesh.name = "Cube";
-        pack.add_mesh(cube_mesh);
+        (void)pack.add_mesh(cube_mesh);
     }
 
     {
         Mesh sphere_mesh = create_mesh(uv_sphere_vertex_data());
         sphere_mesh.name = "Sphere";
-        pack.add_mesh(sphere_mesh);
+        (void)pack.add_mesh(sphere_mesh);
     }
 
     return pack;

@@ -55,3 +55,15 @@ target_link_libraries(${PROJECT_NAME}
         ${GLFW_LIBRARIES}
         ${GLAD_LIBRARIES}
 )
+
+set_source_files_properties(
+    ${PROJECT_SORUCES}
+        PROPERTIES
+            COMPILE_FLAGS "-Wall -Wpedantic -Werror"
+)
+
+set_source_files_properties(
+    ${PROJECT_VENDORS}
+        PROPERTIES
+            COMPILE_FLAGS "-w"
+)

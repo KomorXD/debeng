@@ -14,10 +14,10 @@
 
 void gl_clear_errors();
 
-bool gl_check_errors(const char *func, const char *filename, int32_t line);
+[[nodiscard]] bool gl_check_errors(const char *func, const char *filename, int32_t line);
 
 struct VertexBuffer {
-    static VertexBuffer create();
+    [[nodiscard]] static VertexBuffer create();
 
     void allocate(const void *data, uint64_t size, uint32_t count = 0);
     void destroy();
@@ -31,7 +31,7 @@ struct VertexBuffer {
 };
 
 struct IndexBuffer {
-    static IndexBuffer create();
+    [[nodiscard]] static IndexBuffer create();
 
     void allocate(const uint32_t *data, uint32_t count);
     void destroy();
@@ -44,16 +44,18 @@ struct IndexBuffer {
 };
 
 struct Shader {
-    static Shader create();
-    static GLuint compile(GLenum type, const std::string &src);
+    [[nodiscard]] static Shader create();
+    [[nodiscard]] static GLuint compile(GLenum type, const std::string &src);
 
-    bool build(const std::string &vs_path, const std::string &fs_path);
+    [[nodiscard]] bool build(const std::string &vs_path,
+                             const std::string &fs_path);
     void destroy();
 
     void bind() const;
     void unbind() const;
 
-    std::optional<GLint> get_uniform_location(const std::string &name);
+    [[nodiscard]] std::optional<GLint>
+    get_uniform_location(const std::string &name);
     void set_uniform_1i(const std::string &name, int32_t val);
     void set_uniform_1f(const std::string &name, float val);
     void set_uniform_2f(const std::string &name, const glm::vec2 &val);
@@ -66,7 +68,7 @@ struct Shader {
 };
 
 struct VertexBufferElement {
-    static size_t get_size_of_type(GLenum type);
+    [[nodiscard]] static size_t get_size_of_type(GLenum type);
 
     GLenum type = 0;
     GLint count = 0;
@@ -82,7 +84,7 @@ struct VertexBufferLayout {
 };
 
 struct VertexArray {
-    static VertexArray create();
+    [[nodiscard]] static VertexArray create();
 
     void destroy();
 
@@ -125,12 +127,13 @@ struct TextureFormatDetails {
     GLenum bpp;
 };
 
-TextureFormatDetails format_details(TextureFormat format);
+[[nodiscard]] TextureFormatDetails format_details(TextureFormat format);
 
 struct Texture {
-    static Texture create(const std::string &path, TextureFormat format);
-    static Texture create(const void *data, int32_t width, int32_t height,
-                          TextureFormat format);
+    [[nodiscard]] static Texture create(const std::string &path,
+                                        TextureFormat format);
+    [[nodiscard]] static Texture create(const void *data, int32_t width,
+                                        int32_t height, TextureFormat format);
 
     void destroy();
 
@@ -169,7 +172,7 @@ struct Renderbuffer {
     RenderbufferSpec spec;
 };
 
-RenderbufferDetails rbo_details(const RenderbufferSpec &spec);
+[[nodiscard]] RenderbufferDetails rbo_details(const RenderbufferSpec &spec);
 
 enum class ColorAttachmentType {
     TEX_2D,
@@ -182,7 +185,7 @@ enum class ColorAttachmentType {
     COUNT
 };
 
-GLint opengl_texture_type(ColorAttachmentType type);
+[[nodiscard]] GLint opengl_texture_type(ColorAttachmentType type);
 
 struct ColorAttachmentSpec {
     ColorAttachmentType type;
@@ -205,7 +208,7 @@ struct ColorAttachment {
 };
 
 struct Framebuffer {
-    static Framebuffer create();
+    [[nodiscard]] static Framebuffer create();
 
     void destroy();
 
@@ -221,7 +224,7 @@ struct Framebuffer {
     void remove_renderbuffer();
     void remove_color_attachment(uint32_t index);
 
-    bool is_complete() const;
+    [[nodiscard]] bool is_complete() const;
 
     GLuint id = 0;
     Renderbuffer rbo;

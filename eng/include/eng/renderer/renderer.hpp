@@ -23,7 +23,7 @@ void opengl_msg_cb(unsigned source, unsigned type, unsigned id,
                    unsigned severity, int length, const char *msg,
                    const void *user_param);
 
-bool init();
+[[nodiscard]] bool init();
 
 void shutdown();
 

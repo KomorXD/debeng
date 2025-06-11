@@ -12,15 +12,15 @@ struct SpectatorCamera {
         TRACKBALL
     };
 
-    glm::vec3 up_dir() const;
-    glm::vec3 right_dir() const;
-    glm::vec3 forward_dir() const;
-    glm::quat orientation() const;
+    [[nodiscard]] glm::vec3 up_dir() const;
+    [[nodiscard]] glm::vec3 right_dir() const;
+    [[nodiscard]] glm::vec3 forward_dir() const;
+    [[nodiscard]] glm::quat orientation() const;
 
-    glm::mat4 projection() const;
-    glm::mat4 view() const;
+    [[nodiscard]] glm::mat4 projection() const;
+    [[nodiscard]] glm::mat4 view() const;
 
-    renderer::CameraData camera_render_data() const;
+    [[nodiscard]] renderer::CameraData camera_render_data() const;
 
     void update_with_input(float timestep);
     void fps_update(float timestep);

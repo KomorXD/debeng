@@ -26,7 +26,7 @@ struct Renderer {
 
 static Renderer s_renderer{};
 static CameraData s_camera{};
-static AssetPack s_default_pack{};
+static const AssetPack *s_asset_pack{};
 
 void opengl_msg_cb(unsigned source, unsigned type, unsigned id,
                    unsigned severity, int length, const char *msg,
@@ -88,8 +88,7 @@ bool init() {
     s_renderer.default_shader.build("resources/shaders/vs.glsl",
                                     "resources/shaders/fs.glsl");
 
-    s_default_pack = AssetPack::create("default");
-    for (auto &[mesh_id, instances] : s_default_pack.meshes)
+    for (auto &[mesh_id, instances] : s_asset_pack->meshes)
         s_renderer.mesh_instances[mesh_id].reserve(128);
 
     float screen_quad_vertices[] = {
@@ -124,12 +123,14 @@ bool init() {
 }
 
 void shutdown() {
-    s_default_pack.destroy();
     s_renderer.default_shader.destroy();
 }
 
-void scene_begin(const CameraData &camera) {
+void scene_begin(const CameraData &camera, AssetPack &asset_pack) {
     s_camera = camera;
+    s_asset_pack = &asset_pack;
+
+    assert(s_asset_pack && "Empty asset pack object");
 
     for (auto &[mesh_id, instances] : s_renderer.mesh_instances)
         instances.clear();
@@ -145,7 +146,7 @@ void scene_end() {
         if (instances.empty())
             continue;
 
-        Mesh &mesh = s_default_pack.meshes.at(mesh_id);
+        const Mesh &mesh = s_asset_pack->meshes.at(mesh_id);
         mesh.vao.vbo_instanced.set_data(
             instances.data(), instances.size() * sizeof(MeshInstance));
         draw_elements_instanced(s_renderer.default_shader, mesh.vao,

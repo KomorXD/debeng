@@ -2,6 +2,7 @@
 #define RENDERER_HPP
 
 #include "eng/renderer/opengl.hpp"
+#include "eng/scene/assets.hpp"
 #include <glm/glm.hpp>
 
 namespace eng::renderer {
@@ -26,7 +27,7 @@ bool init();
 
 void shutdown();
 
-void scene_begin(const CameraData &camera);
+void scene_begin(const CameraData &camera, AssetPack &asset_pack);
 void scene_end();
 
 void submit_quad(const glm::vec3 &position);

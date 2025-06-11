@@ -30,6 +30,7 @@ struct AssetPack {
 
     static constexpr AssetID QUAD_ID = 1;
     static constexpr AssetID CUBE_ID = 2;
+    static constexpr AssetID SPHERE_ID = 3;
 };
 
 } // namespace eng

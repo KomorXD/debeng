@@ -55,6 +55,12 @@ AssetPack AssetPack::create(const std::string &pack_name) {
         pack.add_mesh(cube_mesh);
     }
 
+    {
+        Mesh sphere_mesh = create_mesh(uv_sphere_vertex_data());
+        sphere_mesh.name = "Sphere";
+        pack.add_mesh(sphere_mesh);
+    }
+
     return pack;
 }
 

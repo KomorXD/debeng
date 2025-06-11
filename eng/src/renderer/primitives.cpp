@@ -1,4 +1,5 @@
 #include "eng/renderer/primitives.hpp"
+#include "glm/gtc/constants.hpp"
 
 namespace eng {
 
@@ -105,6 +106,55 @@ VertexData cube_vertex_data() {
     }
 
     return { vertices, indices };
+}
+
+VertexData uv_sphere_vertex_data() {
+    constexpr float RADIUS = 0.5f;
+    constexpr int32_t slices = 48;
+    constexpr int32_t stacks = 48;
+
+    std::vector<Vertex> vertices;
+    for (int32_t stack = 0; stack <= stacks; stack++) {
+        float phi = glm::pi<float>() * (float)stack / stacks;
+        float sin_phi = glm::sin(phi);
+        float cos_phi = glm::cos(phi);
+
+        for (int32_t slice = 0; slice <= slices; slice++) {
+            float theta = 2.0f * glm::pi<float>() * (float)slice / slices;
+            float sin_theta = glm::sin(theta);
+            float cos_theta = glm::cos(theta);
+
+            Vertex vertex{};
+            vertex.position = vertex.normal =
+                RADIUS *
+                glm::vec3(cos_theta * sin_phi, cos_phi, sin_theta * sin_phi);
+            vertex.tangent =
+                glm::normalize(glm::vec3(-sin_theta, 0.0f, cos_theta));
+            vertex.bitangent =
+                glm::normalize(glm::cross(vertex.normal, vertex.tangent));
+            vertex.texture_uv = {(float)slice / slices,
+                                 1.0f - (float)stack / stacks};
+            vertices.push_back(vertex);
+        }
+    }
+
+    std::vector<uint32_t> indices;
+    for (int32_t stack = 0; stack < stacks; stack++) {
+        for (int32_t slice = 0; slice < slices; slice++) {
+            int32_t next_slice = slice + 1;
+            int32_t next_stack = (stack + 1) % (stacks + 1);
+
+            indices.push_back(next_stack * (slices + 1) + next_slice);
+            indices.push_back(next_stack * (slices + 1) + slice);
+            indices.push_back(stack * (slices + 1) + slice);
+
+            indices.push_back(stack * (slices + 1) + next_slice);
+            indices.push_back(next_stack * (slices + 1) + next_slice);
+            indices.push_back(stack * (slices + 1) + slice);
+        }
+    }
+
+    return {vertices, indices};
 }
 
 } // namespace eng

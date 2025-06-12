@@ -221,6 +221,10 @@ struct Framebuffer {
     void bind_renderbuffer() const;
     void bind_color_attachment(uint32_t index, uint32_t slot = 0) const;
 
+    void resize_renderbuffer(const glm::ivec2 &size);
+    void resize_color_attachment(uint32_t index, const glm::ivec2 &size);
+    void resize_everything(const glm::ivec2 &size);
+
     void remove_renderbuffer();
     void remove_color_attachment(uint32_t index);
 

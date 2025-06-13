@@ -25,12 +25,16 @@ struct AssetPack {
     static constexpr AssetID CUBE_ID = 2;
     static constexpr AssetID SPHERE_ID = 3;
 
+    static constexpr AssetID TEXTURE_WHITE = 1;
+
     void destroy();
 
     [[nodiscard]] Mesh &add_mesh(Mesh mesh);
+    [[nodiscard]] Texture &add_texture(Texture &texture);
 
     std::string name;
     std::map<AssetID, Mesh> meshes;
+    std::map<AssetID, Texture> textures;
 };
 
 } // namespace eng

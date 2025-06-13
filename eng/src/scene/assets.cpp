@@ -61,12 +61,22 @@ AssetPack AssetPack::create(const std::string &pack_name) {
         (void)pack.add_mesh(sphere_mesh);
     }
 
+    {
+        uint8_t white_pixel[] = { 255, 255, 255, 255 };
+        Texture default_albedo =
+            Texture::create(white_pixel, 1, 1, TextureFormat::RGBA8);
+        pack.add_texture(default_albedo);
+    }
+
     return pack;
 }
 
 void AssetPack::destroy() {
     for (auto &[mesh_id, mesh] : meshes)
         mesh.vao.destroy();
+
+    for (auto &[tex_id, texture] : textures)
+        texture.destroy();
 
     meshes.clear();
 }
@@ -80,6 +90,18 @@ Mesh &AssetPack::add_mesh(Mesh mesh) {
     Mesh &new_mesh = meshes[mesh.id];
     new_mesh = mesh;
     return new_mesh;
+}
+
+Texture &AssetPack::add_texture(Texture &texture) {
+    AssetID id = 0;
+    if (textures.empty())
+        id = 1;
+    else
+        id = textures.rbegin()->first + 1;
+
+    Texture &new_texture = textures[id];
+    new_texture = texture;
+    return new_texture;
 }
 
 } // namespace eng

@@ -43,7 +43,7 @@ struct AssetPack {
 
     [[nodiscard]] Mesh &add_mesh(Mesh mesh);
     [[nodiscard]] Texture &add_texture(Texture &texture);
-    [[nodiscard]] AssetID add_material(Material &material);
+    [[nodiscard]] Material &add_material(Material &material);
 
     std::string name;
     std::map<AssetID, Mesh> meshes;

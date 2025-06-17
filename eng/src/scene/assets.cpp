@@ -65,13 +65,13 @@ AssetPack AssetPack::create(const std::string &pack_name) {
         uint8_t white_pixel[] = { 255, 255, 255, 255 };
         Texture default_albedo =
             Texture::create(white_pixel, 1, 1, TextureFormat::RGBA8);
-        pack.add_texture(default_albedo);
+        (void)pack.add_texture(default_albedo);
     }
 
     {
         Material def_mat;
         def_mat.name = "Default material";
-        pack.add_material(def_mat);
+        (void)pack.add_material(def_mat);
     }
 
     return pack;
@@ -110,7 +110,7 @@ Texture &AssetPack::add_texture(Texture &texture) {
     return new_texture;
 }
 
-AssetID AssetPack::add_material(Material &material) {
+Material &AssetPack::add_material(Material &material) {
     AssetID id = 0;
     if (materials.empty())
         id = 1;
@@ -119,6 +119,7 @@ AssetID AssetPack::add_material(Material &material) {
 
     Material &new_material = materials[id];
     new_material = material;
+    return new_material;
 }
 
 } // namespace eng

@@ -797,3 +797,45 @@ bool Framebuffer::is_complete() const {
     GL_CALL(return glCheckFramebufferStatus(GL_FRAMEBUFFER) ==
                    GL_FRAMEBUFFER_COMPLETE);
 }
+
+UniformBuffer UniformBuffer::create(const void *data, uint32_t size) {
+    UniformBuffer ubo;
+    GL_CALL(glGenBuffers(1, &ubo.id));
+    GL_CALL(glBindBuffer(GL_UNIFORM_BUFFER, ubo.id));
+    GL_CALL(glBufferData(GL_UNIFORM_BUFFER, size, data, GL_DYNAMIC_DRAW));
+
+    return ubo;
+}
+
+void UniformBuffer::destroy() {
+    assert(id != 0 && "Trying to destroy invalid uniform buffer object");
+
+    GL_CALL(glDeleteBuffers(1, &id));
+    id = 0;
+}
+
+void UniformBuffer::bind() const {
+    assert(id != 0 && "Trying to bind invalid uniform buffer object");
+
+    GL_CALL(glBindBuffer(GL_UNIFORM_BUFFER, id));
+}
+
+void UniformBuffer::unbind() const {
+    GL_CALL(glBindBuffer(GL_UNIFORM_BUFFER, 0));
+}
+
+void UniformBuffer::bind_buffer_range(uint32_t index, uint32_t offset,
+                                      uint32_t size) {
+    assert(id != 0 && "Trying to bind range of invalid uniform buffer object");
+
+    GL_CALL(glBindBufferRange(GL_UNIFORM_BUFFER, index, id, (GLintptr)offset,
+                              size));
+}
+
+void UniformBuffer::set_data(const void *data, uint32_t size,
+                             uint32_t offset) const {
+    assert(id != 0 && "Trying to set data of invalid uniform buffer object");
+
+    GL_CALL(glBindBuffer(GL_UNIFORM_BUFFER, id));
+    GL_CALL(glBufferSubData(GL_UNIFORM_BUFFER, (GLintptr)offset, size, data));
+}

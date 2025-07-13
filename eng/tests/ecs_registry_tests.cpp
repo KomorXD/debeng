@@ -138,3 +138,148 @@ TEST(Registry, SharingArchetype) {
 
     reg.destroy();
 }
+
+TEST(RegistryView, SingleComponentSameArchetype) {
+    constexpr int expected[] = {1, 2, 3};
+
+    Registry reg = Registry::create();
+
+    EntityID ent = reg.create_entity();
+    reg.add_component<int>(ent) = expected[0];
+
+    ent = reg.create_entity();
+    reg.add_component<int>(ent) = expected[1];
+
+    ent = reg.create_entity();
+    reg.add_component<int>(ent) = expected[2];
+
+    int counter = 0;
+    RegistryView rview = reg.view<int>();
+    ASSERT_EQ(rview.entities.size(), 3)
+        << "Different number of entities in view than expected";
+
+    for (EntityID ent : rview.entities) {
+        int &val = rview.get<int>(ent);
+        ASSERT_EQ(val, expected[counter])
+            << "Incorrect value retreived from view";
+        counter++;
+    }
+
+    reg.destroy();
+}
+
+TEST(RegistryView, SingleComponentMultipleArchetypes) {
+    constexpr int expected[] = {1, 2, 3, 4};
+
+    Registry reg = Registry::create();
+
+    EntityID ent = reg.create_entity();
+    reg.add_component<int>(ent) = expected[0];
+
+    ent = reg.create_entity();
+    reg.add_component<int>(ent) = expected[1];
+    (void)reg.add_component<float>(ent);
+
+    ent = reg.create_entity();
+    reg.add_component<int>(ent) = expected[2];
+    (void)reg.add_component<char>(ent);
+
+    ent = reg.create_entity();
+    (void)reg.add_component<double>(ent);
+
+    int counter = 0;
+    RegistryView rview = reg.view<int>();
+    ASSERT_EQ(rview.entities.size(), 3)
+        << "Different number of entities in view than expected";
+
+    for (EntityID ent : rview.entities) {
+        int &val = rview.get<int>(ent);
+        ASSERT_EQ(val, expected[counter])
+            << "Incorrect value retreived from view";
+        counter++;
+    }
+
+    reg.destroy();
+}
+
+TEST(RegistryView, MultipleComponentsSameArchetype) {
+    constexpr int expected_ints[] = {1, 2, 3};
+    constexpr float expected_floats[] = {1.0f, 2.0f, 3.0f};
+
+    Registry reg = Registry::create();
+
+    EntityID ent = reg.create_entity();
+    reg.add_component<int>(ent) = expected_ints[0];
+    reg.add_component<float>(ent) = expected_floats[0];
+
+    ent = reg.create_entity();
+    reg.add_component<int>(ent) = expected_ints[1];
+    reg.add_component<float>(ent) = expected_floats[1];
+
+    ent = reg.create_entity();
+    reg.add_component<int>(ent) = expected_ints[2];
+    reg.add_component<float>(ent) = expected_floats[2];
+
+    int counter = 0;
+    RegistryView rview = reg.view<int, float>();
+    ASSERT_EQ(rview.entities.size(), 3)
+        << "Different number of entities in view than expected";
+
+    for (EntityID ent : rview.entities) {
+        int &val_int = rview.get<int>(ent);
+        float &val_float = rview.get<float>(ent);
+
+        ASSERT_EQ(val_int, expected_ints[counter])
+            << "Incorrect int value retreived from view";
+        ASSERT_EQ(val_float, expected_floats[counter])
+            << "Incorrect float value retreived from view";
+
+        counter++;
+    }
+
+    reg.destroy();
+}
+
+TEST(RegistryView, MultipleComponentsMultipleArchetypes) {
+    constexpr int expected_ints[] = {1, 2};
+    constexpr float expected_floats[] = {1.0f, 2.0f};
+
+    Registry reg = Registry::create();
+
+    EntityID ent = reg.create_entity();
+    (void)reg.add_component<int>(ent);
+
+    ent = reg.create_entity();
+    reg.add_component<int>(ent) = expected_ints[0];
+    reg.add_component<float>(ent) = expected_floats[0];
+
+    ent = reg.create_entity();
+    reg.add_component<int>(ent) = expected_ints[1];
+    reg.add_component<float>(ent) = expected_floats[1];
+
+    ent = reg.create_entity();
+    (void)reg.add_component<int>(ent);
+    (void)reg.add_component<char>(ent);
+
+    ent = reg.create_entity();
+    (void)reg.add_component<double>(ent);
+
+    int counter = 0;
+    RegistryView rview = reg.view<int, float>();
+    ASSERT_EQ(rview.entities.size(), 2)
+        << "Different number of entities in view than expected";
+
+    for (EntityID ent : rview.entities) {
+        int &val_int = rview.get<int>(ent);
+        float &val_float = rview.get<float>(ent);
+
+        ASSERT_EQ(val_int, expected_ints[counter])
+            << "Incorrect int value retreived from view";
+        ASSERT_EQ(val_float, expected_floats[counter])
+            << "Incorrect float value retreived from view";
+
+        counter++;
+    }
+
+    reg.destroy();
+}

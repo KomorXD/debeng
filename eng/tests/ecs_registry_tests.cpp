@@ -283,3 +283,69 @@ TEST(RegistryView, MultipleComponentsMultipleArchetypes) {
 
     reg.destroy();
 }
+
+TEST(RegistryView, ExcludeOne) {
+    constexpr int expected_ints[] = {1, 2};
+
+    Registry reg = Registry::create();
+
+    EntityID ent = reg.create_entity();
+    reg.add_component<int>(ent) = expected_ints[0];
+
+    ent = reg.create_entity();
+    (void)reg.add_component<int>(ent);
+    (void)reg.add_component<float>(ent);
+
+    ent = reg.create_entity();
+    (void)reg.add_component<int>(ent);
+    (void)reg.add_component<float>(ent);
+
+    ent = reg.create_entity();
+    reg.add_component<int>(ent) = expected_ints[1];
+    (void)reg.add_component<char>(ent);
+
+    int counter = 0;
+    RegistryView rview = reg.view<int>(eng::ecs::exclude<float>);
+    ASSERT_EQ(rview.entities.size(), 2)
+        << "Different number of entities in view than expected";
+
+    for (EntityID ent : rview.entities) {
+        int &val_int = rview.get<int>(ent);
+
+        ASSERT_EQ(val_int, expected_ints[counter])
+            << "Incorrect int value retreived from view";
+
+        counter++;
+    }
+
+    reg.destroy();
+}
+
+TEST(RegistryView, ExcludeMany) {
+    constexpr int expected = 12;
+    Registry reg = Registry::create();
+
+    EntityID ent = reg.create_entity();
+    reg.add_component<int>(ent) = expected;
+
+    ent = reg.create_entity();
+    (void)reg.add_component<int>(ent);
+    (void)reg.add_component<float>(ent);
+
+    ent = reg.create_entity();
+    (void)reg.add_component<int>(ent);
+    (void)reg.add_component<float>(ent);
+
+    ent = reg.create_entity();
+    (void)reg.add_component<int>(ent);
+    (void)reg.add_component<char>(ent);
+
+    RegistryView rview = reg.view<int>(eng::ecs::exclude<float, char>);
+    ASSERT_EQ(rview.entities.size(), 1)
+        << "Different number of entities in view than expected";
+
+    int &val_int = rview.get<int>(rview.entities[0]);
+    ASSERT_EQ(val_int, expected) << "Incorrect int value retreived from view";
+
+    reg.destroy();
+}

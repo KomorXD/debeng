@@ -70,6 +70,15 @@ using ArchetypeMap = std::unordered_map<ArchetypeID, ArchetypeRecord>;
 
 struct Registry;
 
+using exclude_fn = std::vector<ComponentHash> (*)(void);
+template <typename... Components>
+[[nodiscard]] std::vector<ComponentHash> exclude() {
+    std::vector<ComponentHash> comp_hashes;
+    ((comp_hashes.push_back(typeid(Components).hash_code())), ...);
+
+    return comp_hashes;
+}
+
 struct RegistryView {
     template <typename T>
     [[nodiscard]] T &get(EntityID ent);
@@ -210,12 +219,15 @@ struct Registry {
 
         TODO: come up with a faster/better way of doing this. */
     template <typename... Components>
-    [[nodiscard]] RegistryView view() {
+    [[nodiscard]] RegistryView view(exclude_fn excl_fn = exclude<>) {
         std::vector<ComponentHash> comp_hashes;
         ((comp_hashes.push_back(typeid(Components).hash_code())), ...);
 
         RegistryView rview;
         rview.reg = this;
+
+        if (comp_hashes.empty())
+            return rview;
 
         for (ComponentHash comp_hash : comp_hashes)
             rview.queried_types.insert(comp_hash);
@@ -224,6 +236,19 @@ struct Registry {
             who have this component. */
         const size_t first_comp_hash = comp_hashes[0];
         ArchetypeMap &amap = component_index[first_comp_hash];
+
+        std::vector<ComponentHash> excluded_comp_hashes = excl_fn();
+        auto archetype_excluded = [&](ArchetypeID aid) {
+            for (ComponentHash curr_hash : excluded_comp_hashes) {
+                ArchetypeMap &curr_amap = component_index[curr_hash];
+
+                if (curr_amap.contains(aid)) {
+                    return true;
+                }
+            }
+
+            return false;
+        };
 
         auto archetype_shares_components = [&](ArchetypeID aid) {
             /*  To check if archetype has other components, we look at
@@ -247,7 +272,7 @@ struct Registry {
         /*  Iterate over every archetype ID and check if it also has all the
             other components this call requires. */
         for (auto &[aid, arecord] : amap) {
-            if (!archetype_shares_components(aid))
+            if (archetype_excluded(aid) || !archetype_shares_components(aid))
                 continue;
 
             relevant_aids.push_back(aid);

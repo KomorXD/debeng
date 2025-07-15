@@ -66,11 +66,11 @@ struct ArchetypeRecord {
     size_t column = 0;
 };
 
-using ArchetypeMap = std::unordered_map<ArchetypeID, ArchetypeRecord>;
-
-struct Registry;
+using ArchetypeMap = std::map<ArchetypeID, ArchetypeRecord>;
 
 using exclude_fn = std::vector<ComponentHash> (*)(void);
+
+/*  Helper function for vectorizing components to exclude from registry view. */
 template <typename... Components>
 [[nodiscard]] std::vector<ComponentHash> exclude() {
     std::vector<ComponentHash> comp_hashes;
@@ -79,14 +79,57 @@ template <typename... Components>
     return comp_hashes;
 }
 
-struct RegistryView {
-    template <typename T>
-    [[nodiscard]] T &get(EntityID ent);
+/*  View into registry of one component, based on a query provided to
+    RegistryView. */
+struct ComponentView {
 
-    Registry *reg = nullptr;
-    std::vector<EntityID> entities;
-    std::unordered_set<ComponentHash> queried_types;
+    /*  Return reference to a component at IDX. IDX can be greater than one
+        container's size - it will look into the next one. */
+    template <typename T>
+    T &at(size_t idx) {
+        assert(component_hash == typeid(T).hash_code() &&
+               "Incorrect component access");
+
+        for (size_t i = 0; i < combined_view.size(); i++) {
+            cont::TypelessVector *vec = combined_view[i];
+
+            if (vec->count > idx)
+                return vec->at<T>(idx);
+
+            idx -= vec->count;
+        }
+
+        assert(false && "Trying to access component outside of view");
+        __builtin_unreachable();
+    }
+
+    ComponentHash component_hash = 0x00;
+    std::vector<cont::TypelessVector *> combined_view;
 };
+
+/*  View into registry components, based on a query provided from
+    Registry::view(). */
+struct RegistryView {
+    struct Entry {
+        EntityID entity_id;
+        size_t idx = 0;
+    };
+
+    template <typename T>
+    [[nodiscard]] T &get(Entry entry) {
+        const ComponentHash hash = typeid(T).hash_code();
+        assert(queried_components.contains(hash));
+
+        ComponentView &view = comp_view.at(hash);
+        return view.at<T>(entry.idx);
+    }
+
+    std::vector<Entry> entity_entries;
+    std::unordered_map<ComponentHash, ComponentView> comp_view;
+    std::unordered_set<ComponentHash> queried_components;
+};
+
+struct Registry;
 
 /*  Creates new archetype based on SOURCE that additionally has component
     of type T. If such archetype already exists, it will return it. */
@@ -215,32 +258,28 @@ struct Registry {
     }
 
     /*  Get wrapped array of entites who have all components specified in
-        the template arguments.
-
-        TODO: come up with a faster/better way of doing this. */
+        the template arguments. */
     template <typename... Components>
     [[nodiscard]] RegistryView view(exclude_fn excl_fn = exclude<>) {
         std::vector<ComponentHash> comp_hashes;
         ((comp_hashes.push_back(typeid(Components).hash_code())), ...);
 
         RegistryView rview;
-        rview.reg = this;
-
         if (comp_hashes.empty())
             return rview;
 
         for (ComponentHash comp_hash : comp_hashes)
-            rview.queried_types.insert(comp_hash);
+            rview.queried_components.insert(comp_hash);
 
         /*  Get first component's archetype map to access IDs of archetypes
             who have this component. */
         const size_t first_comp_hash = comp_hashes[0];
-        ArchetypeMap &amap = component_index[first_comp_hash];
+        ArchetypeMap &amap = component_index.at(first_comp_hash);
 
         std::vector<ComponentHash> excluded_comp_hashes = excl_fn();
         auto archetype_excluded = [&](ArchetypeID aid) {
             for (ComponentHash curr_hash : excluded_comp_hashes) {
-                ArchetypeMap &curr_amap = component_index[curr_hash];
+                ArchetypeMap &curr_amap = component_index.at(curr_hash);
 
                 if (curr_amap.contains(aid)) {
                     return true;
@@ -269,22 +308,33 @@ struct Registry {
         };
 
         std::vector<ArchetypeID> relevant_aids;
+        size_t ent_entry_idx = 0;
         /*  Iterate over every archetype ID and check if it also has all the
             other components this call requires. */
         for (auto &[aid, arecord] : amap) {
             if (archetype_excluded(aid) || !archetype_shares_components(aid))
                 continue;
 
-            relevant_aids.push_back(aid);
-        }
+            Archetype *atype = arecord.atype;
+            for (auto &[type, column] : atype->column_index) {
+                if (std::find(comp_hashes.begin(), comp_hashes.end(), type) ==
+                        comp_hashes.end() ||
+                    std::find(excluded_comp_hashes.begin(),
+                              excluded_comp_hashes.end(),
+                              type) != excluded_comp_hashes.end())
+                    continue;
 
-        for (ArchetypeID aid : relevant_aids) {
+                ComponentView &cview = rview.comp_view[type];
+                cview.combined_view.push_back(&atype->components[column]);
+                cview.component_hash = type;
+            }
+
             EntitySet &eset = arch_entity_index[aid];
+            std::vector<EntityID> entities;
             for (EntityID eid : eset)
-                rview.entities.push_back(eid);
+                rview.entity_entries.push_back({eid, ent_entry_idx++});
         }
 
-        std::sort(rview.entities.begin(), rview.entities.end());
         return rview;
     }
 
@@ -452,17 +502,6 @@ Archetype *trimmed_archetype(Registry &reg, Archetype &source) {
     source.edges[comp_hash].remove = &reg.archetype_index[new_type];
 
     return &reg.archetype_index[new_type];
-}
-
-template <typename T>
-T &RegistryView::get(EntityID ent) {
-    assert(reg != nullptr && "Incomplete view");
-
-    const size_t comp_hash = typeid(T).hash_code();
-    assert(queried_types.contains(comp_hash) &&
-           "Trying to access component that wasn't queried");
-
-    return reg->get_component<T>(ent);
 }
 
 } // namespace eng::ecs

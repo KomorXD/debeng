@@ -155,10 +155,10 @@ TEST(RegistryView, SingleComponentSameArchetype) {
 
     int counter = 0;
     RegistryView rview = reg.view<int>();
-    ASSERT_EQ(rview.entities.size(), 3)
+    ASSERT_EQ(rview.entity_entries.size(), 3)
         << "Different number of entities in view than expected";
 
-    for (EntityID ent : rview.entities) {
+    for (auto &ent : rview.entity_entries) {
         int &val = rview.get<int>(ent);
         ASSERT_EQ(val, expected[counter])
             << "Incorrect value retreived from view";
@@ -189,10 +189,10 @@ TEST(RegistryView, SingleComponentMultipleArchetypes) {
 
     int counter = 0;
     RegistryView rview = reg.view<int>();
-    ASSERT_EQ(rview.entities.size(), 3)
+    ASSERT_EQ(rview.entity_entries.size(), 3)
         << "Different number of entities in view than expected";
 
-    for (EntityID ent : rview.entities) {
+    for (auto &ent : rview.entity_entries) {
         int &val = rview.get<int>(ent);
         ASSERT_EQ(val, expected[counter])
             << "Incorrect value retreived from view";
@@ -222,10 +222,10 @@ TEST(RegistryView, MultipleComponentsSameArchetype) {
 
     int counter = 0;
     RegistryView rview = reg.view<int, float>();
-    ASSERT_EQ(rview.entities.size(), 3)
+    ASSERT_EQ(rview.entity_entries.size(), 3)
         << "Different number of entities in view than expected";
 
-    for (EntityID ent : rview.entities) {
+    for (auto &ent : rview.entity_entries) {
         int &val_int = rview.get<int>(ent);
         float &val_float = rview.get<float>(ent);
 
@@ -266,10 +266,10 @@ TEST(RegistryView, MultipleComponentsMultipleArchetypes) {
 
     int counter = 0;
     RegistryView rview = reg.view<int, float>();
-    ASSERT_EQ(rview.entities.size(), 2)
+    ASSERT_EQ(rview.entity_entries.size(), 2)
         << "Different number of entities in view than expected";
 
-    for (EntityID ent : rview.entities) {
+    for (auto &ent : rview.entity_entries) {
         int &val_int = rview.get<int>(ent);
         float &val_float = rview.get<float>(ent);
 
@@ -306,10 +306,10 @@ TEST(RegistryView, ExcludeOne) {
 
     int counter = 0;
     RegistryView rview = reg.view<int>(eng::ecs::exclude<float>);
-    ASSERT_EQ(rview.entities.size(), 2)
+    ASSERT_EQ(rview.entity_entries.size(), 2)
         << "Different number of entities in view than expected";
 
-    for (EntityID ent : rview.entities) {
+    for (auto &ent : rview.entity_entries) {
         int &val_int = rview.get<int>(ent);
 
         ASSERT_EQ(val_int, expected_ints[counter])
@@ -341,10 +341,10 @@ TEST(RegistryView, ExcludeMany) {
     (void)reg.add_component<char>(ent);
 
     RegistryView rview = reg.view<int>(eng::ecs::exclude<float, char>);
-    ASSERT_EQ(rview.entities.size(), 1)
+    ASSERT_EQ(rview.entity_entries.size(), 1)
         << "Different number of entities in view than expected";
 
-    int &val_int = rview.get<int>(rview.entities[0]);
+    int &val_int = rview.get<int>(rview.entity_entries[0]);
     ASSERT_EQ(val_int, expected) << "Incorrect int value retreived from view";
 
     reg.destroy();

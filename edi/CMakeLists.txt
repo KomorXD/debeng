@@ -35,7 +35,8 @@ target_link_libraries(${PROJECT_NAME}
 
 set_target_properties(${PROJECT_NAME}
     PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/out/bin/${PROJECT_NAME}/"
+        RUNTIME_OUTPUT_DIRECTORY 
+            "${CMAKE_SOURCE_DIR}/out/bin/${PROJECT_NAME}-${CMAKE_BUILD_TYPE}"
 )
 
 target_compile_options(${PROJECT_NAME}

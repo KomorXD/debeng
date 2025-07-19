@@ -10,7 +10,7 @@
 #include <unordered_set>
 #include <vector>
 
-#include "typeless_vec.hpp"
+#include "vector_wrapper.hpp"
 
 namespace eng::ecs {
 
@@ -39,7 +39,7 @@ struct Archetype {
     Type type;
 
     /*  Components data stored in type erased storage. */
-    std::vector<cont::TypelessVector> components;
+    std::vector<cont::GenericVectorWrapper *> components;
 
     /*  Mapping component's hash <=> index in COMPONENTS vector for fast
         lookup. */
@@ -91,12 +91,12 @@ struct ComponentView {
                "Incorrect component access");
 
         for (size_t i = 0; i < combined_view.size(); i++) {
-            cont::TypelessVector *vec = combined_view[i];
+            cont::VectorWrapper<T> &vec = combined_view[i]->as_vec<T>();
 
-            if (vec->count > idx)
-                return vec->at<T>(idx);
+            if (vec.storage.size() > idx)
+                return vec.storage[idx];
 
-            idx -= vec->count;
+            idx -= vec.storage.size();
         }
 
         assert(false && "Trying to access component outside of view");
@@ -104,7 +104,7 @@ struct ComponentView {
     }
 
     ComponentHash component_hash = 0x00;
-    std::vector<cont::TypelessVector *> combined_view;
+    std::vector<cont::GenericVectorWrapper *> combined_view;
 };
 
 /*  View into registry components, based on a query provided from
@@ -143,10 +143,12 @@ template <typename T>
 
 /*  Extends entity by moving it into an archetype with extra component
     with component with it. */
+template <typename T>
 void extend_entity(Registry &reg, Archetype &curr_atype, Archetype &next_atype,
                    EntityID entity_id);
 
 /*  Trims entity by moving it into an archetype with less components. */
+template <typename T>
 void trim_entity(Registry &reg, Archetype &curr_atype, Archetype &next_atype,
                  EntityID entity_id);
 
@@ -166,8 +168,8 @@ struct Registry {
 
     /*  Add component of type T to an entity of ENTITY_ID id. Entity must exist
         and it mustn't have component T already. */
-    template <typename T>
-    [[nodiscard]] T &add_component(EntityID entity_id) {
+    template <typename T, typename... Args>
+    T &add_component(EntityID entity_id, Args &&...args) {
         auto ent_itr = entity_index.find(entity_id);
         assert(ent_itr != entity_index.end() && "No such entity registered");
         assert(!has_component<T>(entity_id) &&
@@ -181,14 +183,15 @@ struct Registry {
         if (!next_atype)
             next_atype = extended_archetype<T>(*this, atype);
 
-        extend_entity(*this, atype, *next_atype, entity_id);
+        extend_entity<T>(*this, atype, *next_atype, entity_id);
 
         size_t new_comp_vec_idx = next_atype->column_index.at(comp_hash);
-        cont::TypelessVector &new_comp_vec =
-            next_atype->components.at(new_comp_vec_idx);
+        cont::VectorWrapper<T> &new_comp_vec =
+            next_atype->components[new_comp_vec_idx]->as_vec<T>();
 
-        T &new_data = new_comp_vec.append<T>(T{});
-        record.row = new_comp_vec.count - 1;
+        T &new_data =
+            new_comp_vec.storage.emplace_back(std::forward<Args>(args)...);
+        record.row = new_comp_vec.storage.size() - 1;
 
         return new_data;
     }
@@ -210,7 +213,7 @@ struct Registry {
         if (!next_atype)
             next_atype = trimmed_archetype<T>(*this, atype);
 
-        trim_entity(*this, atype, *next_atype, entity_id);
+        trim_entity<T>(*this, atype, *next_atype, entity_id);
     }
 
     /*  Check if entity of ENTITY_ID id has component of type T and return
@@ -252,9 +255,10 @@ struct Registry {
         assert(amap.count(atype.id) != 0);
 
         ArchetypeRecord &arecord = amap.at(atype.id);
-        cont::TypelessVector &column = atype.components.at(arecord.column);
+        cont::VectorWrapper<T> &column =
+            atype.components.at(arecord.column)->as_vec<T>();
 
-        return column.at<T>(record.row);
+        return column.storage[record.row];
     }
 
     /*  Get wrapped array of entites who have all components specified in
@@ -325,7 +329,7 @@ struct Registry {
                     continue;
 
                 ComponentView &cview = rview.comp_view[type];
-                cview.combined_view.push_back(&atype->components[column]);
+                cview.combined_view.push_back(atype->components[column]);
                 cview.component_hash = type;
             }
 
@@ -389,30 +393,33 @@ Archetype *extended_archetype(Registry &reg, Archetype &source) {
     /*  Copy existing storage for components into the new archetype,
         since it is based on SOURCE. */
     for (size_t i = 0; i < source.components.size(); i++)
-        new_archetype.components.push_back(source.components[i].clone_empty());
+        new_archetype.components.push_back(source.components[i]->clone_empty());
 
     /*  Same as type entry, we want actual data vectors to be sorted in
         the same way. */
     if (!new_archetype.components.empty()) {
-        cont::TypelessVector dummy;
-        dummy.type_hash = comp_hash;
+        cont::GenericVectorWrapper *dummy = cont::VectorWrapper<T>::create();
+        dummy->type_hash = comp_hash;
 
-        auto vec_ub = std::upper_bound(new_archetype.components.begin(),
-                                       new_archetype.components.end(), dummy,
-                                       [&](const cont::TypelessVector &lhs,
-                                           const cont::TypelessVector &rhs) {
-                                           return lhs.type_hash < rhs.type_hash;
-                                       });
+        auto vec_ub =
+            std::upper_bound(new_archetype.components.begin(),
+                             new_archetype.components.end(), dummy,
+                             [&](const cont::GenericVectorWrapper *lhs,
+                                 const cont::GenericVectorWrapper *rhs) {
+                                 return lhs->type_hash < rhs->type_hash;
+                             });
         new_archetype.components.insert(vec_ub,
-                                        cont::TypelessVector::create<T>());
+                                        cont::VectorWrapper<T>::create());
+
+        delete dummy;
     } else {
-        new_archetype.components.push_back(cont::TypelessVector::create<T>());
+        new_archetype.components.push_back(cont::VectorWrapper<T>::create());
     }
 
     /*  Fill in column_index for fast access to proper data given
         component's hash. */
     for (size_t i = 0; i < new_archetype.components.size(); i++) {
-        size_t curr_comp_hash = new_archetype.components[i].type_hash;
+        size_t curr_comp_hash = new_archetype.components[i]->type_hash;
         new_archetype.column_index.insert(std::make_pair(curr_comp_hash, i));
     }
 
@@ -467,18 +474,18 @@ Archetype *trimmed_archetype(Registry &reg, Archetype &source) {
         since it is based on SOURCE. Don't copy data for the component
         we're trying to remove. */
     for (size_t i = 0; i < source.components.size(); i++) {
-        cont::TypelessVector &vv = source.components[i];
-        if (vv.type_hash == comp_hash)
+        cont::GenericVectorWrapper *cont = source.components[i];
+        if (cont->type_hash == comp_hash)
             continue;
 
-        new_archetype.components.push_back(source.components[i].clone_empty());
+        new_archetype.components.push_back(cont->clone_empty());
     }
 
     /*  Fill in column_index for fast access to proper data given
         component's hash. */
     for (size_t i = 0; i < new_archetype.components.size(); i++)
         new_archetype.column_index.insert(
-            std::make_pair(new_archetype.components[i].type_hash, i));
+            std::make_pair(new_archetype.components[i]->type_hash, i));
 
     reg.archetype_index.insert(std::make_pair(new_type, new_archetype));
     Archetype *inserted_atype = &reg.archetype_index.at(new_type);
@@ -502,6 +509,70 @@ Archetype *trimmed_archetype(Registry &reg, Archetype &source) {
     source.edges[comp_hash].remove = &reg.archetype_index[new_type];
 
     return &reg.archetype_index[new_type];
+}
+
+template <typename T>
+void extend_entity(Registry &reg, Archetype &curr_atype, Archetype &next_atype,
+                   EntityID entity_id) {
+    assert(&curr_atype != &next_atype &&
+           "Trying to move to the same archetype");
+
+    auto ent_itr = reg.entity_index.find(entity_id);
+    assert(ent_itr != reg.entity_index.end() && "No such entity registered");
+
+    EntityRecord &curr_record = ent_itr->second;
+    size_t curr_row = curr_record.row;
+
+    /*  Copy entity's data from CURR_ATYPE to NEXT_ATYPE. */
+    for (auto &[hash, index] : curr_atype.column_index) {
+        size_t target_idx = next_atype.column_index.at(hash);
+
+        cont::GenericVectorWrapper *curr_cont = curr_atype.components[index];
+        cont::GenericVectorWrapper *next_cont =
+            next_atype.components[target_idx];
+        (void)curr_cont->transfer_element(next_cont, curr_row);
+    }
+
+    curr_record.archetype = &next_atype;
+    reg.arch_entity_index.at(curr_atype.id).erase(entity_id);
+    reg.arch_entity_index[next_atype.id].insert(entity_id);
+}
+
+template <typename T>
+void trim_entity(Registry &reg, Archetype &curr_atype, Archetype &next_atype,
+                 EntityID entity_id) {
+    assert(&curr_atype != &next_atype &&
+           "Trying to move to the same archetype");
+
+    auto ent_itr = reg.entity_index.find(entity_id);
+    assert(ent_itr != reg.entity_index.end() && "No such entity registered");
+
+    EntityRecord &curr_record = ent_itr->second;
+    size_t curr_row = curr_record.row;
+
+    /*  Copy entity's data from CURR_ATYPE to NEXT_ATYPE. */
+    for (auto &[hash, index] : next_atype.column_index) {
+        size_t curr_idx = curr_atype.column_index.at(hash);
+        size_t next_idx = next_atype.column_index.at(hash);
+
+        cont::GenericVectorWrapper *curr_cont = curr_atype.components[curr_idx];
+        cont::GenericVectorWrapper *next_cont = next_atype.components[next_idx];
+
+        size_t new_idx = curr_cont->transfer_element(next_cont, curr_row);
+        curr_record.row = new_idx;
+    }
+
+    curr_record.archetype = &next_atype;
+    reg.arch_entity_index.at(curr_atype.id).erase(entity_id);
+    reg.arch_entity_index[next_atype.id].insert(entity_id);
+
+    /*  We probably removed an element in the middle, adjust rows for
+        other entities. */
+    for (EntityID ent : reg.arch_entity_index[curr_atype.id]) {
+        EntityRecord &record = reg.entity_index[ent];
+        if (record.row > curr_row)
+            record.row--;
+    }
 }
 
 } // namespace eng::ecs

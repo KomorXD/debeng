@@ -1,5 +1,4 @@
 #include "eng/containers/registry.hpp"
-#include "eng/containers/typeless_vec.hpp"
 
 namespace eng::ecs {
 
@@ -20,8 +19,8 @@ void Registry::destroy() {
     component_index.clear();
 
     for (auto &[type, atype] : archetype_index) {
-        for (cont::TypelessVector &vec : atype.components)
-            vec.clear();
+        for (cont::GenericVectorWrapper *cont : atype.components)
+            delete cont;
 
         atype.column_index.clear();
     }
@@ -61,74 +60,8 @@ void Registry::destroy_entity(EntityID entity_id) {
             record.row--;
     }
 
-    for (cont::TypelessVector &vec : atype->components)
-        vec.erase_raw(row);
-}
-
-void extend_entity(Registry &reg, Archetype &curr_atype, Archetype &next_atype,
-                   EntityID entity_id) {
-    assert(&curr_atype != &next_atype &&
-           "Trying to move to the same archetype");
-
-    auto ent_itr = reg.entity_index.find(entity_id);
-    assert(ent_itr != reg.entity_index.end() && "No such entity registered");
-
-    EntityRecord &curr_record = ent_itr->second;
-    size_t curr_row = curr_record.row;
-
-    /*  Copy entity's data from CURR_ATYPE to NEXT_ATYPE. */
-    for (auto &[hash, index] : curr_atype.column_index) {
-        cont::TypelessVector &curr_vec = curr_atype.components[index];
-        uint8_t *source = curr_vec.at_raw(curr_row);
-
-        size_t target_idx = next_atype.column_index.at(hash);
-        cont::TypelessVector &next_vec = next_atype.components[target_idx];
-
-        (void)next_vec.append_raw(source);
-        curr_vec.erase_raw(curr_row);
-    }
-
-    curr_record.archetype = &next_atype;
-    reg.arch_entity_index.at(curr_atype.id).erase(entity_id);
-    reg.arch_entity_index[next_atype.id].insert(entity_id);
-}
-
-void trim_entity(Registry &reg, Archetype &curr_atype, Archetype &next_atype,
-                 EntityID entity_id) {
-    assert(&curr_atype != &next_atype &&
-           "Trying to move to the same archetype");
-
-    auto ent_itr = reg.entity_index.find(entity_id);
-    assert(ent_itr != reg.entity_index.end() && "No such entity registered");
-
-    EntityRecord &curr_record = ent_itr->second;
-    size_t curr_row = curr_record.row;
-
-    /*  Copy entity's data from CURR_ATYPE to NEXT_ATYPE. */
-    for (auto &[hash, index] : next_atype.column_index) {
-        size_t curr_idx = curr_atype.column_index.at(hash);
-        cont::TypelessVector &curr_vec = curr_atype.components[curr_idx];
-        uint8_t *source = curr_vec.at_raw(curr_row);
-
-        size_t next_idx = next_atype.column_index.at(hash);
-        cont::TypelessVector &next_vec = next_atype.components[next_idx];
-
-        (void)next_vec.append_raw(source);
-        curr_vec.erase_raw(curr_row);
-
-        curr_record.row = next_vec.count - 1;
-    }
-
-    curr_record.archetype = &next_atype;
-    reg.arch_entity_index.at(curr_atype.id).erase(entity_id);
-    reg.arch_entity_index[next_atype.id].insert(entity_id);
-
-    /*  We probably removed an element in the middle, adjust rows for
-        other entities. */
-    for (EntityID ent : reg.arch_entity_index[curr_atype.id]) {
-        EntityRecord &record = reg.entity_index[ent];
-        if (record.row > curr_row)
-            record.row--;
+    for (cont::GenericVectorWrapper *cont : atype->components) {
+        cont->erase(row);
     }
 }
 

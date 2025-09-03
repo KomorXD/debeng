@@ -1,4 +1,5 @@
 #include "eng/renderer/renderer.hpp"
+#include "eng/renderer/opengl.hpp"
 #include "eng/scene/assets.hpp"
 #include "glm/ext/matrix_transform.hpp"
 #include "GLFW/glfw3.h"
@@ -18,6 +19,8 @@ struct Renderer {
     GPU gpu;
     Shader default_shader;
 
+    UniformBuffer camera_uni_buffer;
+
     VertexArray screen_quad_vao;
     Shader screen_quad_shader;
 
@@ -25,7 +28,6 @@ struct Renderer {
 };
 
 static Renderer s_renderer{};
-static CameraData s_camera{};
 static const AssetPack *s_asset_pack{};
 
 void opengl_msg_cb(unsigned source, unsigned type, unsigned id,
@@ -123,27 +125,32 @@ bool init() {
     s_renderer.screen_quad_shader.bind();
     s_renderer.screen_quad_shader.set_uniform_1i("u_screen_texture", 0);
 
+    s_renderer.camera_uni_buffer =
+        UniformBuffer::create(nullptr, sizeof(CameraData));
+    s_renderer.camera_uni_buffer.bind_buffer_range(0, 0, sizeof(CameraData));
+
     return true;
 }
 
 void shutdown() {
     s_renderer.default_shader.destroy();
+    s_renderer.camera_uni_buffer.destroy();
 }
 
 void scene_begin(const CameraData &camera, AssetPack &asset_pack) {
-    s_camera = camera;
     s_asset_pack = &asset_pack;
 
     assert(s_asset_pack && "Empty asset pack object");
 
     for (auto &[mesh_id, instances] : s_renderer.mesh_instances)
         instances.clear();
+
+    s_renderer.camera_uni_buffer.bind();
+    s_renderer.camera_uni_buffer.set_data(&camera, sizeof(CameraData));
 }
 
 void scene_end() {
     s_renderer.default_shader.bind();
-    s_renderer.default_shader.set_uniform_mat4(
-        "u_view_proj", s_camera.projection * s_camera.view);
     s_renderer.default_shader.set_uniform_1i("u_texture", 0);
 
     for (auto &[mesh_id, instances] : s_renderer.mesh_instances) {

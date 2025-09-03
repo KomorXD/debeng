@@ -38,14 +38,16 @@ glm::mat4 SpectatorCamera::view() const {
 
 renderer::CameraData SpectatorCamera::camera_render_data() const {
     renderer::CameraData cdata;
-    cdata.view = view();
-    cdata.far_clip = far_clip;
-    cdata.near_clip = near_clip;
     cdata.projection = projection();
-    cdata.position = position;
+    cdata.view = view();
+    cdata.view_projection = cdata.projection * cdata.view;
+    cdata.position = glm::vec4(position, 1.0f);
+    cdata.viewport = viewport;
+
     cdata.gamma = gamma;
     cdata.exposure = exposure;
-    cdata.viewport = viewport;
+    cdata.near_clip = near_clip;
+    cdata.far_clip = far_clip;
 
     return cdata;
 }

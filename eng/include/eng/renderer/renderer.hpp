@@ -8,11 +8,12 @@
 namespace eng::renderer {
 
 struct CameraData {
+    glm::mat4 view_projection;
     glm::mat4 projection;
     glm::mat4 view;
-    glm::vec3 position;
+    glm::vec4 position;
     glm::vec2 viewport;
-    
+
     float exposure;
     float gamma;
     float near_clip;

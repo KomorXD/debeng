@@ -21,8 +21,8 @@ Entity Scene::spawn_entity(const std::string &name) {
     Entity ent;
     ent.owning_reg = &registry;
     ent.handle = registry.create_entity();
-    ent.name = name;
-    (void)ent.add_component<Transform>();
+    ent.add_component<Name>().name = name;
+    ent.add_component<Transform>();
 
     entities.push_back(ent);
 

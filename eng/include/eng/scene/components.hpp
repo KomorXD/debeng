@@ -3,8 +3,13 @@
 
 #include "glm/ext/matrix_float4x4.hpp"
 #include "glm/ext/vector_float3.hpp"
+#include <string>
 
 namespace eng {
+
+struct Name {
+    std::string name;
+};
 
 struct Transform {
     glm::vec3 position{0.0f, 0.0f, 0.0f};

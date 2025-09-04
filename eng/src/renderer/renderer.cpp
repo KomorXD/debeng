@@ -17,6 +17,9 @@ struct GPU {
 };
 
 struct Renderer {
+    static constexpr int32_t MAX_MESH_INSTANCES = 128;
+    static constexpr int32_t MAX_POINT_LIGHTS = 128;
+
     GPU gpu;
     Shader default_shader;
 
@@ -95,9 +98,12 @@ bool init() {
                                            "resources/shaders/base.frag") &&
            "Default shaders not found");
 
-    s_renderer.mesh_instances[eng::AssetPack::QUAD_ID].reserve(128);
-    s_renderer.mesh_instances[eng::AssetPack::CUBE_ID].reserve(128);
-    s_renderer.mesh_instances[eng::AssetPack::SPHERE_ID].reserve(128);
+    s_renderer.mesh_instances[eng::AssetPack::QUAD_ID].reserve(
+        s_renderer.MAX_MESH_INSTANCES);
+    s_renderer.mesh_instances[eng::AssetPack::CUBE_ID].reserve(
+        s_renderer.MAX_MESH_INSTANCES);
+    s_renderer.mesh_instances[eng::AssetPack::SPHERE_ID].reserve(
+        s_renderer.MAX_MESH_INSTANCES);
 
     float screen_quad_vertices[] = {
     //    position      texture_uv
@@ -133,7 +139,8 @@ bool init() {
         UniformBuffer::create(nullptr, sizeof(CameraData));
     s_renderer.camera_uni_buffer.bind_buffer_range(0, 0, sizeof(CameraData));
 
-    uint32_t size = 128 * sizeof(PointLightData) + sizeof(int32_t);
+    uint32_t size =
+        s_renderer.MAX_POINT_LIGHTS * sizeof(PointLightData) + sizeof(int32_t);
     s_renderer.point_lights_uni_buffer = UniformBuffer::create(nullptr, size);
     s_renderer.point_lights_uni_buffer.bind_buffer_range(1, 0, size);
 
@@ -167,7 +174,7 @@ void scene_end() {
     s_renderer.point_lights_uni_buffer.set_data(s_renderer.point_lights.data(),
                                                 count * sizeof(PointLightData));
 
-    int32_t offset = 128 * sizeof(PointLightData);
+    int32_t offset = s_renderer.MAX_POINT_LIGHTS * sizeof(PointLightData);
     s_renderer.point_lights_uni_buffer.set_data(&count, sizeof(int32_t), offset);
 
     s_renderer.default_shader.bind();

@@ -30,6 +30,7 @@ Mesh create_mesh(VertexData vertex_data) {
     layout.push_float(4); // 6 - transform
     layout.push_float(4); // 7 - transform
     layout.push_float(4); // 8 - transform
+    layout.push_float(1); // 9 - material idx
 
     vbo = VertexBuffer::create();
     vbo.allocate(nullptr, 4096 * sizeof(MeshInstance));

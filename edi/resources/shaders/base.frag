@@ -1,6 +1,7 @@
 #version 430 core
 
 #define MAX_POINT_LIGHTS ${MAX_POINT_LIGHTS}
+#define MAX_MATERIALS ${MAX_MATERIALS}
 
 in VS_OUT {
     vec3 world_space_position;
@@ -8,6 +9,7 @@ in VS_OUT {
     vec3 eye_position;
     vec3 normal;
     vec2 texture_uv;
+    flat float material_idx;
 } fs_in;
 
 out vec4 final_color;
@@ -23,6 +25,16 @@ layout (std140, binding = 1) uniform PointLights {
     PointLight lights[MAX_POINT_LIGHTS];
     int count;
 } u_points_lights;
+
+struct Material {
+    vec4 color;
+    vec2 tiling_factor;
+    vec2 texture_offset;
+};
+
+layout (std140, binding = 2) uniform Materials {
+    Material materials[MAX_MATERIALS];
+} u_materials;
 
 vec3 diffuse_impact(PointLight light) {
     vec3 pos = light.position_and_linear.xyz;
@@ -50,7 +62,10 @@ vec3 specular_impact(PointLight light) {
 }
 
 void main() {
-    vec4 albedo = texture(u_texture, fs_in.texture_uv);
+    Material mat = u_materials.materials[int(fs_in.material_idx)];
+    vec2 tex_coords
+        = fs_in.texture_uv * mat.tiling_factor + mat.texture_offset;
+    vec4 albedo = texture(u_texture, tex_coords) * mat.color;
 
     vec3 ambient = vec3(0.1);
     vec3 diffuse = vec3(0.0);

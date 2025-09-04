@@ -26,6 +26,12 @@ struct PointLightData {
     glm::vec4 color_and_quadratic;
 };
 
+struct MaterialData {
+    glm::vec4 color = glm::vec4(1.0f);
+    glm::vec2 tiling_factor = glm::vec2(1.0f);
+    glm::vec2 texture_offset = glm::vec2(0.0f);
+};
+
 void opengl_msg_cb(unsigned source, unsigned type, unsigned id,
                    unsigned severity, int length, const char *msg,
                    const void *user_param);
@@ -37,7 +43,8 @@ void shutdown();
 void scene_begin(const CameraData &camera, AssetPack &asset_pack);
 void scene_end();
 
-void submit_mesh(const glm::mat4 &transform, AssetID mesh_id);
+void submit_mesh(const glm::mat4 &transform, AssetID mesh_id,
+                 AssetID material_id);
 void submit_quad(const glm::vec3 &position);
 void submit_cube(const glm::vec3 &position);
 

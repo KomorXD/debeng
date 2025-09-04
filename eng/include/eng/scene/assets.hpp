@@ -8,6 +8,7 @@ namespace eng {
 
 struct MeshInstance {
     glm::mat4 transform;
+    float material_idx = 0.0f;
 };
 
 using AssetID = int32_t;

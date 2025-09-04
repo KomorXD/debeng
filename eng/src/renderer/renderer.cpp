@@ -19,6 +19,7 @@ struct GPU {
 struct Renderer {
     static constexpr int32_t MAX_MESH_INSTANCES = 128;
     static constexpr int32_t MAX_POINT_LIGHTS = 128;
+    static constexpr int32_t MAX_MATERIALS = 128;
 
     GPU gpu;
     Shader default_shader;
@@ -27,6 +28,9 @@ struct Renderer {
 
     UniformBuffer point_lights_uni_buffer;
     std::vector<PointLightData> point_lights;
+
+    UniformBuffer material_uni_buffer;
+    std::vector<MaterialData> materials;
 
     VertexArray screen_quad_vao;
     Shader screen_quad_shader;
@@ -100,8 +104,15 @@ bool init() {
         spec.vertex_shader.path = "resources/shaders/base.vert";
         spec.fragment_shader.path = "resources/shaders/base.frag";
         spec.fragment_shader.replacements = {
-            {"${MAX_POINT_LIGHTS}",
-             std::to_string(s_renderer.MAX_POINT_LIGHTS)}};
+            {
+                "${MAX_POINT_LIGHTS}",
+                std::to_string(s_renderer.MAX_POINT_LIGHTS)
+            },
+            {
+                "${MAX_MATERIALS}",
+                std::to_string(s_renderer.MAX_MATERIALS)
+            }
+        };
 
         assert(s_renderer.default_shader.build(spec) &&
                "Default shaders not found");
@@ -149,14 +160,18 @@ bool init() {
     s_renderer.screen_quad_shader.bind();
     s_renderer.screen_quad_shader.set_uniform_1i("u_screen_texture", 0);
 
-    s_renderer.camera_uni_buffer =
-        UniformBuffer::create(nullptr, sizeof(CameraData));
-    s_renderer.camera_uni_buffer.bind_buffer_range(0, 0, sizeof(CameraData));
+    uint32_t size = sizeof(CameraData);
+    s_renderer.camera_uni_buffer = UniformBuffer::create(nullptr, size);
+    s_renderer.camera_uni_buffer.bind_buffer_range(0, 0, size);
 
-    uint32_t size =
+    size =
         s_renderer.MAX_POINT_LIGHTS * sizeof(PointLightData) + sizeof(int32_t);
     s_renderer.point_lights_uni_buffer = UniformBuffer::create(nullptr, size);
     s_renderer.point_lights_uni_buffer.bind_buffer_range(1, 0, size);
+
+    size = s_renderer.MAX_MATERIALS * sizeof(MaterialData);
+    s_renderer.material_uni_buffer = UniformBuffer::create(nullptr, size);
+    s_renderer.material_uni_buffer.bind_buffer_range(2, 0, size);
 
     return true;
 }
@@ -165,6 +180,7 @@ void shutdown() {
     s_renderer.default_shader.destroy();
     s_renderer.camera_uni_buffer.destroy();
     s_renderer.point_lights_uni_buffer.destroy();
+    s_renderer.material_uni_buffer.destroy();
 }
 
 void scene_begin(const CameraData &camera, AssetPack &asset_pack) {
@@ -173,6 +189,7 @@ void scene_begin(const CameraData &camera, AssetPack &asset_pack) {
     assert(s_asset_pack && "Empty asset pack object");
 
     s_renderer.point_lights.clear();
+    s_renderer.materials.clear();
 
     for (auto &[mesh_id, instances] : s_renderer.mesh_instances)
         instances.clear();
@@ -185,11 +202,14 @@ void scene_end() {
     s_renderer.point_lights_uni_buffer.bind();
 
     int32_t count = s_renderer.point_lights.size();
+    int32_t offset = s_renderer.MAX_POINT_LIGHTS * sizeof(PointLightData);
     s_renderer.point_lights_uni_buffer.set_data(s_renderer.point_lights.data(),
                                                 count * sizeof(PointLightData));
-
-    int32_t offset = s_renderer.MAX_POINT_LIGHTS * sizeof(PointLightData);
     s_renderer.point_lights_uni_buffer.set_data(&count, sizeof(int32_t), offset);
+
+    count = s_renderer.materials.size();
+    s_renderer.material_uni_buffer.set_data(s_renderer.materials.data(),
+                                            count * sizeof(MaterialData));
 
     s_renderer.default_shader.bind();
     s_renderer.default_shader.set_uniform_1i("u_texture", 0);
@@ -206,10 +226,18 @@ void scene_end() {
     }
 }
 
-void submit_mesh(const glm::mat4 &transform, AssetID mesh_id) {
+void submit_mesh(const glm::mat4 &transform, AssetID mesh_id,
+                 AssetID material_id) {
     std::vector<MeshInstance> &instances = s_renderer.mesh_instances[mesh_id];
     MeshInstance &instance = instances.emplace_back();
     instance.transform = transform;
+    instance.material_idx = (float)s_renderer.materials.size();
+
+    const Material &mat = s_asset_pack->materials.at(material_id);
+    MaterialData &mat_data = s_renderer.materials.emplace_back();
+    mat_data.color = mat.color;
+    mat_data.tiling_factor = mat.tiling_factor;
+    mat_data.texture_offset = mat.texture_offset;
 }
 
 void submit_quad(const glm::vec3 &position) {

@@ -88,18 +88,19 @@ void AssetPack::destroy() {
     meshes.clear();
 }
 
-Mesh &AssetPack::add_mesh(Mesh mesh) {
+AssetID AssetPack::add_mesh(Mesh mesh) {
+    AssetID id = 0;
     if (meshes.empty())
-        mesh.id = 1;
+        id = 1;
     else
-        mesh.id = meshes.rbegin()->first + 1;
+        id = meshes.rbegin()->first + 1;
 
-    Mesh &new_mesh = meshes[mesh.id];
+    Mesh &new_mesh = meshes[id];
     new_mesh = mesh;
-    return new_mesh;
+    return id;
 }
 
-Texture &AssetPack::add_texture(Texture &texture) {
+AssetID AssetPack::add_texture(Texture &texture) {
     AssetID id = 0;
     if (textures.empty())
         id = 1;
@@ -108,10 +109,10 @@ Texture &AssetPack::add_texture(Texture &texture) {
 
     Texture &new_texture = textures[id];
     new_texture = texture;
-    return new_texture;
+    return id;
 }
 
-Material &AssetPack::add_material(Material &material) {
+AssetID AssetPack::add_material(Material &material) {
     AssetID id = 0;
     if (materials.empty())
         id = 1;
@@ -120,7 +121,7 @@ Material &AssetPack::add_material(Material &material) {
 
     Material &new_material = materials[id];
     new_material = material;
-    return new_material;
+    return id;
 }
 
 } // namespace eng

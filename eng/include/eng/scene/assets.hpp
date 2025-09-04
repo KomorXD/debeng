@@ -14,7 +14,6 @@ struct MeshInstance {
 using AssetID = int32_t;
 
 struct Mesh {
-    AssetID id;
     std::string name;
     VertexArray vao;
 };
@@ -42,9 +41,9 @@ struct AssetPack {
 
     void destroy();
 
-    [[nodiscard]] Mesh &add_mesh(Mesh mesh);
-    [[nodiscard]] Texture &add_texture(Texture &texture);
-    [[nodiscard]] Material &add_material(Material &material);
+    [[nodiscard]] AssetID add_mesh(Mesh mesh);
+    [[nodiscard]] AssetID add_texture(Texture &texture);
+    [[nodiscard]] AssetID add_material(Material &material);
 
     std::string name;
     std::map<AssetID, Mesh> meshes;

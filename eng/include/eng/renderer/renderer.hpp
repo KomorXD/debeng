@@ -30,6 +30,10 @@ struct MaterialData {
     glm::vec4 color = glm::vec4(1.0f);
     glm::vec2 tiling_factor = glm::vec2(1.0f);
     glm::vec2 texture_offset = glm::vec2(0.0f);
+
+    int32_t albedo_idx = -1;
+
+    glm::vec3 padding;
 };
 
 void opengl_msg_cb(unsigned source, unsigned type, unsigned id,

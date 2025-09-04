@@ -25,6 +25,7 @@ struct Renderer {
     static constexpr int32_t MAX_MESH_INSTANCES = 128;
     static constexpr int32_t MAX_POINT_LIGHTS = 128;
     static constexpr int32_t MAX_MATERIALS = 128;
+    static constexpr int32_t MAX_TEXTURES = 16;
 
     GPU gpu;
     Shader default_shader;
@@ -36,6 +37,8 @@ struct Renderer {
 
     UniformBuffer material_uni_buffer;
     std::vector<AssetID> material_ids;
+
+    std::vector<AssetID> texture_ids;
 
     VertexArray screen_quad_vao;
     Shader screen_quad_shader;
@@ -130,6 +133,10 @@ bool init() {
             {
                 "${MAX_MATERIALS}",
                 std::to_string(s_renderer.MAX_MATERIALS)
+            },
+            {
+                "${MAX_TEXTURES}",
+                std::to_string(s_renderer.MAX_TEXTURES)
             }
         };
 
@@ -212,6 +219,7 @@ void scene_begin(const CameraData &camera, AssetPack &asset_pack) {
 
     s_renderer.point_lights.clear();
     s_renderer.material_ids.clear();
+    s_renderer.texture_ids.clear();
 
     for (auto &[mesh_id, instances] : s_renderer.mesh_instances)
         instances.clear();
@@ -229,23 +237,47 @@ void scene_end() {
                                                 count * sizeof(PointLightData));
     s_renderer.point_lights_uni_buffer.set_data(&count, sizeof(int32_t), offset);
 
+    s_renderer.default_shader.bind();
 
     std::vector<MaterialData> materials;
     materials.reserve(s_renderer.material_ids.size());
+
     for (AssetID id : s_renderer.material_ids) {
         const Material &mat = s_asset_pack->materials.at(id);
         MaterialData &mat_data = materials.emplace_back();
         mat_data.color = mat.color;
         mat_data.tiling_factor = mat.tiling_factor;
         mat_data.texture_offset = mat.texture_offset;
+
+        std::vector<AssetID> &texture_ids = s_renderer.texture_ids;
+        for (int32_t i = 0; i < texture_ids.size(); i++) {
+            if (texture_ids[i] != mat.albedo_texture_id)
+                continue;
+
+            mat_data.albedo_idx = i;
+        }
+
+        if (mat_data.albedo_idx == -1) {
+            mat_data.albedo_idx = texture_ids.size();
+            texture_ids.push_back(mat.albedo_texture_id);
+        }
     }
 
     count = materials.size();
     s_renderer.material_uni_buffer.set_data(materials.data(),
                                             count * sizeof(MaterialData));
 
-    s_renderer.default_shader.bind();
-    s_renderer.default_shader.set_uniform_1i("u_texture", 0);
+    int32_t slot = 0;
+    for (int32_t i = 0; i < s_renderer.texture_ids.size(); i++) {
+        AssetID tex_id = s_renderer.texture_ids[i];
+        const Texture &tex = s_asset_pack->textures.at(tex_id);
+
+        tex.bind(slot);
+        s_renderer.default_shader.set_uniform_1i(
+            "u_textures[" + std::to_string(i) + "]", slot);
+
+        slot++;
+    }
 
     for (auto &[mesh_id, instances] : s_renderer.mesh_instances) {
         if (instances.empty())

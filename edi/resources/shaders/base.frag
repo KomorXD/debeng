@@ -6,6 +6,8 @@
 #define MATERIALS_BINDING ${MATERIALS_BINDING}
 #define MAX_MATERIALS ${MAX_MATERIALS}
 
+#define MAX_TEXTURES ${MAX_TEXTURES}
+
 in VS_OUT {
     vec3 world_space_position;
     vec3 view_space_position;
@@ -16,8 +18,6 @@ in VS_OUT {
 } fs_in;
 
 out vec4 final_color;
-
-uniform sampler2D u_texture;
 
 struct PointLight {
     vec4 position_and_linear;
@@ -33,11 +33,15 @@ struct Material {
     vec4 color;
     vec2 tiling_factor;
     vec2 texture_offset;
+
+    int albedo_idx;
 };
 
 layout (std140, binding = MATERIALS_BINDING) uniform Materials {
     Material materials[MAX_MATERIALS];
 } u_materials;
+
+uniform sampler2D u_textures[MAX_TEXTURES];
 
 vec3 diffuse_impact(PointLight light) {
     vec3 pos = light.position_and_linear.xyz;
@@ -68,7 +72,7 @@ void main() {
     Material mat = u_materials.materials[int(fs_in.material_idx)];
     vec2 tex_coords
         = fs_in.texture_uv * mat.tiling_factor + mat.texture_offset;
-    vec4 albedo = texture(u_texture, tex_coords) * mat.color;
+    vec4 albedo = texture(u_textures[mat.albedo_idx], tex_coords) * mat.color;
 
     vec3 ambient = vec3(0.1);
     vec3 diffuse = vec3(0.0);

@@ -498,6 +498,10 @@ Texture Texture::create(const void *data, int32_t width, int32_t height,
 
 
     auto [internal, pixel_format, type, bpp] = format_details(format);
+    tex.width = width;
+    tex.height = height;
+    tex.bpp = bpp;
+
     GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, internal, tex.width, tex.height, 0,
                          pixel_format, type, data));
     GL_CALL(glGenerateMipmap(GL_TEXTURE_2D));

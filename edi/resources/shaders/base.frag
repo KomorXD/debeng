@@ -1,6 +1,9 @@
 #version 430 core
 
+#define POINT_LIGHTS_BINDING ${POINT_LIGHTS_BINDING}
 #define MAX_POINT_LIGHTS ${MAX_POINT_LIGHTS}
+
+#define MATERIALS_BINDING ${MATERIALS_BINDING}
 #define MAX_MATERIALS ${MAX_MATERIALS}
 
 in VS_OUT {
@@ -21,7 +24,7 @@ struct PointLight {
     vec4 color_and_quadratic;
 };
 
-layout (std140, binding = 1) uniform PointLights {
+layout (std140, binding = POINT_LIGHTS_BINDING) uniform PointLights {
     PointLight lights[MAX_POINT_LIGHTS];
     int count;
 } u_points_lights;
@@ -32,7 +35,7 @@ struct Material {
     vec2 texture_offset;
 };
 
-layout (std140, binding = 2) uniform Materials {
+layout (std140, binding = MATERIALS_BINDING) uniform Materials {
     Material materials[MAX_MATERIALS];
 } u_materials;
 

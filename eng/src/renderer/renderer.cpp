@@ -18,6 +18,10 @@ struct GPU {
 };
 
 struct Renderer {
+    static constexpr int32_t CAMERA_BINDING = 0;
+    static constexpr int32_t POINT_LIGHTS_BINDING = 1;
+    static constexpr int32_t MATERIALS_BINDING = 2;
+
     static constexpr int32_t MAX_MESH_INSTANCES = 128;
     static constexpr int32_t MAX_POINT_LIGHTS = 128;
     static constexpr int32_t MAX_MATERIALS = 128;
@@ -103,11 +107,25 @@ bool init() {
     {
         ShaderSpec spec;
         spec.vertex_shader.path = "resources/shaders/base.vert";
+        spec.vertex_shader.replacements = {
+            {
+                "${CAMERA_BINDING}",
+                std::to_string(s_renderer.CAMERA_BINDING)
+            }
+        };
         spec.fragment_shader.path = "resources/shaders/base.frag";
         spec.fragment_shader.replacements = {
             {
+                "${POINT_LIGHTS_BINDING}",
+                std::to_string(s_renderer.POINT_LIGHTS_BINDING)
+            },
+            {
                 "${MAX_POINT_LIGHTS}",
                 std::to_string(s_renderer.MAX_POINT_LIGHTS)
+            },
+            {
+                "${MATERIALS_BINDING}",
+                std::to_string(s_renderer.MATERIALS_BINDING)
             },
             {
                 "${MAX_MATERIALS}",
@@ -163,16 +181,19 @@ bool init() {
 
     uint32_t size = sizeof(CameraData);
     s_renderer.camera_uni_buffer = UniformBuffer::create(nullptr, size);
-    s_renderer.camera_uni_buffer.bind_buffer_range(0, 0, size);
+    s_renderer.camera_uni_buffer.bind_buffer_range(s_renderer.CAMERA_BINDING, 0,
+                                                   size);
 
     size =
         s_renderer.MAX_POINT_LIGHTS * sizeof(PointLightData) + sizeof(int32_t);
     s_renderer.point_lights_uni_buffer = UniformBuffer::create(nullptr, size);
-    s_renderer.point_lights_uni_buffer.bind_buffer_range(1, 0, size);
+    s_renderer.point_lights_uni_buffer.bind_buffer_range(
+        s_renderer.POINT_LIGHTS_BINDING, 0, size);
 
     size = s_renderer.MAX_MATERIALS * sizeof(MaterialData);
     s_renderer.material_uni_buffer = UniformBuffer::create(nullptr, size);
-    s_renderer.material_uni_buffer.bind_buffer_range(2, 0, size);
+    s_renderer.material_uni_buffer.bind_buffer_range(
+        s_renderer.MATERIALS_BINDING, 0, size);
 
     return true;
 }

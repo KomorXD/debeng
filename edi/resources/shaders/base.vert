@@ -1,5 +1,7 @@
 #version 430 core
 
+#define CAMERA_BINDING ${CAMERA_BINDING}
+
 layout (location = 0) in vec3 a_pos;
 layout (location = 1) in vec3 a_normal;
 layout (location = 2) in vec3 a_tangent;
@@ -8,7 +10,7 @@ layout (location = 4) in vec2 a_texture_uv;
 layout (location = 5) in mat4 a_transform;
 layout (location = 9) in float a_material_idx;
 
-layout (std140, binding = 0) uniform Camera {
+layout (std140, binding = CAMERA_BINDING) uniform Camera {
     mat4 view_projection;
     mat4 projection;
     mat4 view;

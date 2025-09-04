@@ -19,6 +19,14 @@ struct Transform {
     glm::mat4 to_mat4() const;
 };
 
+struct PointLight {
+    glm::vec3 color{1.0f};
+    float intensity = 1.0f;
+
+    float linear = 0.09f;
+    float quadratic = 0.032f;
+};
+
 } // namespace eng
 
 #endif

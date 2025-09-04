@@ -1,6 +1,7 @@
 #include "eng/renderer/renderer.hpp"
 #include "eng/renderer/opengl.hpp"
 #include "eng/scene/assets.hpp"
+#include "eng/scene/components.hpp"
 #include "glm/ext/matrix_transform.hpp"
 #include "GLFW/glfw3.h"
 #include <vector>
@@ -20,6 +21,9 @@ struct Renderer {
     Shader default_shader;
 
     UniformBuffer camera_uni_buffer;
+
+    UniformBuffer point_lights_uni_buffer;
+    std::vector<PointLightData> point_lights;
 
     VertexArray screen_quad_vao;
     Shader screen_quad_shader;
@@ -129,18 +133,25 @@ bool init() {
         UniformBuffer::create(nullptr, sizeof(CameraData));
     s_renderer.camera_uni_buffer.bind_buffer_range(0, 0, sizeof(CameraData));
 
+    uint32_t size = 128 * sizeof(PointLightData) + sizeof(int32_t);
+    s_renderer.point_lights_uni_buffer = UniformBuffer::create(nullptr, size);
+    s_renderer.point_lights_uni_buffer.bind_buffer_range(1, 0, size);
+
     return true;
 }
 
 void shutdown() {
     s_renderer.default_shader.destroy();
     s_renderer.camera_uni_buffer.destroy();
+    s_renderer.point_lights_uni_buffer.destroy();
 }
 
 void scene_begin(const CameraData &camera, AssetPack &asset_pack) {
     s_asset_pack = &asset_pack;
 
     assert(s_asset_pack && "Empty asset pack object");
+
+    s_renderer.point_lights.clear();
 
     for (auto &[mesh_id, instances] : s_renderer.mesh_instances)
         instances.clear();
@@ -150,6 +161,15 @@ void scene_begin(const CameraData &camera, AssetPack &asset_pack) {
 }
 
 void scene_end() {
+    s_renderer.point_lights_uni_buffer.bind();
+
+    int32_t count = s_renderer.point_lights.size();
+    s_renderer.point_lights_uni_buffer.set_data(s_renderer.point_lights.data(),
+                                                count * sizeof(PointLightData));
+
+    int32_t offset = 128 * sizeof(PointLightData);
+    s_renderer.point_lights_uni_buffer.set_data(&count, sizeof(int32_t), offset);
+
     s_renderer.default_shader.bind();
     s_renderer.default_shader.set_uniform_1i("u_texture", 0);
 
@@ -185,6 +205,14 @@ void submit_cube(const glm::vec3 &position) {
     MeshInstance &ins = instances.emplace_back();
     ins.transform = glm::translate(glm::mat4(1.0f), position) *
                     glm::scale(glm::mat4(1.0f), glm::vec3(1.0f));
+}
+
+void submit_point_light(const glm::vec3 &position, const PointLight &light) {
+    PointLightData &light_data = s_renderer.point_lights.emplace_back();
+    light_data.position_and_linear =
+        glm::vec4(position, light.linear);
+    light_data.color_and_quadratic =
+        glm::vec4(light.color * light.intensity, light.quadratic);
 }
 
 void draw_to_screen_quad() {

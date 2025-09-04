@@ -3,6 +3,7 @@
 
 #include "eng/renderer/opengl.hpp"
 #include "eng/scene/assets.hpp"
+#include "eng/scene/components.hpp"
 #include <glm/glm.hpp>
 
 namespace eng::renderer {
@@ -20,6 +21,11 @@ struct CameraData {
     float far_clip;
 };
 
+struct PointLightData {
+    glm::vec4 position_and_linear;
+    glm::vec4 color_and_quadratic;
+};
+
 void opengl_msg_cb(unsigned source, unsigned type, unsigned id,
                    unsigned severity, int length, const char *msg,
                    const void *user_param);
@@ -34,6 +40,8 @@ void scene_end();
 void submit_mesh(const glm::mat4 &transform, AssetID mesh_id);
 void submit_quad(const glm::vec3 &position);
 void submit_cube(const glm::vec3 &position);
+
+void submit_point_light(const glm::vec3 &position, const PointLight &light);
 
 void draw_to_screen_quad();
 

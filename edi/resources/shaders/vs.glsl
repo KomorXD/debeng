@@ -20,9 +20,21 @@ layout (std140, binding = 0) uniform Camera {
     float far_clip;
 } u_camera;
 
-out vec2 tex_pos;
+out VS_OUT {
+    vec3 world_space_position;
+    vec3 view_space_position;
+    vec3 eye_position;
+    vec3 normal;
+    vec2 texture_uv;
+} vs_out;
 
 void main() {
+    vs_out.world_space_position = (a_transform * vec4(a_pos, 1.0)).xyz;
+    vs_out.view_space_position
+        = (u_camera.view * vec4(vs_out.world_space_position, 1.0f)).xyz;
+    vs_out.eye_position = u_camera.position.xyz;
+    vs_out.normal = a_normal;
+    vs_out.texture_uv = a_texture_uv;
+
     gl_Position = u_camera.view_projection * a_transform * vec4(a_pos, 1.0);
-    tex_pos = a_texture_uv;
 }

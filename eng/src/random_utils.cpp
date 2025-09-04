@@ -16,3 +16,15 @@ std::optional<std::string> get_file_content(const std::string &path) {
 
     return ss.str();
 }
+
+void replace_all(std::string &source, const std::string &pattern,
+                 const std::string &replacement) {
+    if (pattern.empty())
+        return;
+
+    size_t start = std::string::npos;
+    while ((start = source.find(pattern)) != std::string::npos) {
+        source.replace(start, pattern.length(), replacement);
+        start += pattern.length();
+    }
+}

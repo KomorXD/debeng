@@ -94,9 +94,18 @@ bool init() {
     GL_CALL(glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS));
 
     s_renderer.default_shader = Shader::create();
-    assert(s_renderer.default_shader.build("resources/shaders/base.vert",
-                                           "resources/shaders/base.frag") &&
-           "Default shaders not found");
+
+    {
+        ShaderSpec spec;
+        spec.vertex_shader.path = "resources/shaders/base.vert";
+        spec.fragment_shader.path = "resources/shaders/base.frag";
+        spec.fragment_shader.replacements = {
+            {"${MAX_POINT_LIGHTS}",
+             std::to_string(s_renderer.MAX_POINT_LIGHTS)}};
+
+        assert(s_renderer.default_shader.build(spec) &&
+               "Default shaders not found");
+    }
 
     s_renderer.mesh_instances[eng::AssetPack::QUAD_ID].reserve(
         s_renderer.MAX_MESH_INSTANCES);
@@ -128,10 +137,15 @@ bool init() {
     s_renderer.screen_quad_vao.add_vertex_buffer(vbo, layout);
 
     s_renderer.screen_quad_shader = Shader::create();
-    assert(s_renderer.screen_quad_shader.build(
-               "resources/shaders/screen_quad.vert",
-               "resources/shaders/screen_quad.frag") &&
-           "Screen quad shader not found");
+
+    {
+        ShaderSpec spec;
+        spec.vertex_shader.path = "resources/shaders/screen_quad.vert";
+        spec.fragment_shader.path = "resources/shaders/screen_quad.frag";
+        assert(s_renderer.screen_quad_shader.build(spec) &&
+               "Screen quad shader not found");
+    }
+
     s_renderer.screen_quad_shader.bind();
     s_renderer.screen_quad_shader.set_uniform_1i("u_screen_texture", 0);
 

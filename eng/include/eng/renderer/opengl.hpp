@@ -43,12 +43,26 @@ struct IndexBuffer {
     uint32_t indices_count = 0;
 };
 
+struct StringReplacement {
+    std::string pattern;
+    std::string target;
+};
+
+struct ShaderDescriptor {
+    std::string path;
+    std::vector<StringReplacement> replacements;
+};
+
+struct ShaderSpec {
+    ShaderDescriptor vertex_shader;
+    ShaderDescriptor fragment_shader;
+};
+
 struct Shader {
     [[nodiscard]] static Shader create();
     [[nodiscard]] static GLuint compile(GLenum type, const std::string &src);
 
-    [[nodiscard]] bool build(const std::string &vs_path,
-                             const std::string &fs_path);
+    [[nodiscard]] bool build(const ShaderSpec &spec);
     void destroy();
 
     void bind() const;

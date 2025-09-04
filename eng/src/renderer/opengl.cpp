@@ -132,11 +132,16 @@ GLuint Shader::compile(GLenum type, const std::string &src) {
     return id;
 }
 
-bool Shader::build(const std::string &vs_path, const std::string &fs_path) {
+bool Shader::build(const ShaderSpec &spec) {
     assert(id != 0 && "Trying to build shader on invalid shader object");
 
-    std::string vs_src = get_file_content(vs_path).value();
-    std::string fs_src = get_file_content(fs_path).value();
+    std::string vs_src = get_file_content(spec.vertex_shader.path).value();
+    for (const StringReplacement &rep : spec.vertex_shader.replacements)
+        replace_all(vs_src, rep.pattern, rep.target);
+
+    std::string fs_src = get_file_content(spec.fragment_shader.path).value();
+    for (const StringReplacement &rep : spec.fragment_shader.replacements)
+        replace_all(fs_src, rep.pattern, rep.target);
 
     GLuint vs_id = compile(GL_VERTEX_SHADER, vs_src);
     GLuint fs_id = compile(GL_FRAGMENT_SHADER, fs_src);

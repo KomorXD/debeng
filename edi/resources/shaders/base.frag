@@ -1,5 +1,7 @@
 #version 430 core
 
+#define MAX_POINT_LIGHTS ${MAX_POINT_LIGHTS}
+
 in VS_OUT {
     vec3 world_space_position;
     vec3 view_space_position;
@@ -18,7 +20,7 @@ struct PointLight {
 };
 
 layout (std140, binding = 1) uniform PointLights {
-    PointLight lights[128];
+    PointLight lights[MAX_POINT_LIGHTS];
     int count;
 } u_points_lights;
 

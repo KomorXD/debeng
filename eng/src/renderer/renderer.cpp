@@ -4,6 +4,7 @@
 #include "eng/scene/components.hpp"
 #include "glm/ext/matrix_transform.hpp"
 #include "GLFW/glfw3.h"
+#include <algorithm>
 #include <vector>
 
 namespace eng::renderer {
@@ -30,7 +31,7 @@ struct Renderer {
     std::vector<PointLightData> point_lights;
 
     UniformBuffer material_uni_buffer;
-    std::vector<MaterialData> materials;
+    std::vector<AssetID> material_ids;
 
     VertexArray screen_quad_vao;
     Shader screen_quad_shader;
@@ -189,7 +190,7 @@ void scene_begin(const CameraData &camera, AssetPack &asset_pack) {
     assert(s_asset_pack && "Empty asset pack object");
 
     s_renderer.point_lights.clear();
-    s_renderer.materials.clear();
+    s_renderer.material_ids.clear();
 
     for (auto &[mesh_id, instances] : s_renderer.mesh_instances)
         instances.clear();
@@ -207,8 +208,19 @@ void scene_end() {
                                                 count * sizeof(PointLightData));
     s_renderer.point_lights_uni_buffer.set_data(&count, sizeof(int32_t), offset);
 
-    count = s_renderer.materials.size();
-    s_renderer.material_uni_buffer.set_data(s_renderer.materials.data(),
+
+    std::vector<MaterialData> materials;
+    materials.reserve(s_renderer.material_ids.size());
+    for (AssetID id : s_renderer.material_ids) {
+        const Material &mat = s_asset_pack->materials.at(id);
+        MaterialData &mat_data = materials.emplace_back();
+        mat_data.color = mat.color;
+        mat_data.tiling_factor = mat.tiling_factor;
+        mat_data.texture_offset = mat.texture_offset;
+    }
+
+    count = materials.size();
+    s_renderer.material_uni_buffer.set_data(materials.data(),
                                             count * sizeof(MaterialData));
 
     s_renderer.default_shader.bind();
@@ -231,13 +243,19 @@ void submit_mesh(const glm::mat4 &transform, AssetID mesh_id,
     std::vector<MeshInstance> &instances = s_renderer.mesh_instances[mesh_id];
     MeshInstance &instance = instances.emplace_back();
     instance.transform = transform;
-    instance.material_idx = (float)s_renderer.materials.size();
 
-    const Material &mat = s_asset_pack->materials.at(material_id);
-    MaterialData &mat_data = s_renderer.materials.emplace_back();
-    mat_data.color = mat.color;
-    mat_data.tiling_factor = mat.tiling_factor;
-    mat_data.texture_offset = mat.texture_offset;
+    std::vector<AssetID> &material_ids = s_renderer.material_ids;
+
+    auto it =
+        std::lower_bound(material_ids.begin(), material_ids.end(), material_id);
+
+    if (it != material_ids.end() && (*it) == material_id) {
+        instance.material_idx = (float)std::distance(material_ids.begin(), it);
+        return;
+    }
+
+    it = material_ids.insert(it, material_id);
+    instance.material_idx = std::distance(material_ids.begin(), it);
 }
 
 void submit_quad(const glm::vec3 &position) {

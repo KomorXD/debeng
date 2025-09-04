@@ -1,6 +1,7 @@
 #ifndef COMPONENTS_HPP
 #define COMPONENTS_HPP
 
+#include "eng/scene/assets.hpp"
 #include "glm/ext/matrix_float4x4.hpp"
 #include "glm/ext/vector_float3.hpp"
 #include <string>
@@ -17,6 +18,14 @@ struct Transform {
     glm::vec3 scale{1.0f, 1.0f, 1.0f};
 
     glm::mat4 to_mat4() const;
+};
+
+struct MeshComp {
+    AssetID id = 1;
+};
+
+struct MaterialComp {
+    AssetID id = 1;
 };
 
 struct PointLight {

@@ -91,8 +91,8 @@ bool init() {
     GL_CALL(glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS));
 
     s_renderer.default_shader = Shader::create();
-    assert(s_renderer.default_shader.build("resources/shaders/vs.glsl",
-                                           "resources/shaders/fs.glsl") &&
+    assert(s_renderer.default_shader.build("resources/shaders/base.vert",
+                                           "resources/shaders/base.frag") &&
            "Default shaders not found");
 
     s_renderer.mesh_instances[eng::AssetPack::QUAD_ID].reserve(128);

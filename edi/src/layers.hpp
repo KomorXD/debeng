@@ -4,6 +4,7 @@
 #include "eng/event.hpp"
 #include "eng/renderer/camera.hpp"
 #include "eng/renderer/opengl.hpp"
+#include "eng/scene/entity.hpp"
 #include "eng/scene/scene.hpp"
 #include "eng/window.hpp"
 #include <memory>
@@ -34,12 +35,16 @@ struct EditorLayer : public Layer {
     virtual void on_tick(uint32_t tickrate) override;
     virtual void on_render() override;
 
+    void render_entity_panel();
+
     eng::Scene scene;
     eng::AssetPack asset_pack;
 
     Framebuffer main_fbo;
 
     eng::SpectatorCamera camera;
+
+    std::optional<eng::Entity> selected_entity;
 };
 
 #endif // LAYER_HPP

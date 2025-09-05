@@ -38,6 +38,8 @@ std::unique_ptr<Layer> EditorLayer::create(const eng::WindowSpec &win_spec) {
     ent.add_component<eng::MaterialComp>().id =
         eng::AssetPack::DEFAULT_MATERIAL;
 
+    layer->selected_entity = ent;
+
     ent = layer->scene.spawn_entity("light");
     ent.get_component<eng::Transform>().position = glm::vec3(2.0f, 2.0f, 1.0f);
     ent.add_component<eng::PointLight>().intensity = 3.0f;
@@ -117,7 +119,7 @@ void EditorLayer::on_render() {
 
         ImGui::DockBuilderDockWindow("dock_left", left);
         ImGui::DockBuilderDockWindow("dock_main", dockspace_id);
-        ImGui::DockBuilderDockWindow("dock_right", right);
+        ImGui::DockBuilderDockWindow("Entity panel", right);
         ImGui::DockBuilderFinish(dockspace_id);
     }
 
@@ -139,8 +141,8 @@ void EditorLayer::on_render() {
     ImGui::PopStyleVar();
     ImGui::End();
 
-    ImGui::Begin("dock_right");
-    ImGui::Text("right");
+    ImGui::Begin("Entity panel");
+    render_entity_panel();
     ImGui::End();
 
     glm::ivec2 avail_region_iv2 = {(int32_t)avail_region.x,
@@ -178,4 +180,65 @@ void EditorLayer::on_render() {
     eng::renderer::scene_end();
 
     main_fbo.unbind();
+}
+
+void EditorLayer::render_entity_panel() {
+    if (!selected_entity.has_value())
+        return;
+
+    eng::Entity ent = selected_entity.value();
+
+    eng::Name &name = ent.get_component<eng::Name>();
+    char buf[128] = { 0 };
+    strncpy(buf, name.name.data(), 128);
+
+    float horizontal_size = ImGui::CalcTextSize("Name").x;
+    ImGui::Indent(16.0f);
+    ImGui::PrettyInputText("Name", buf, horizontal_size);
+    ImGui::Unindent(16.0f);
+
+    name.name = buf;
+
+    eng::Transform &transform = ent.get_component<eng::Transform>();
+    ImGui::PushID(1);
+    if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
+        horizontal_size = ImGui::CalcTextSize("Position").x;
+        ImGui::Indent(16.0f);
+        ImGui::PrettyDragFloat3("Position", &transform.position[0], 0.05f, 0.0f,
+                                0.0f, "%.3f", horizontal_size);
+        ImGui::PrettyDragFloat3("Rotation", &transform.rotation[0], 0.05f, 0.0f,
+                                0.0f, "%.3f", horizontal_size);
+        ImGui::PrettyDragFloat3("Scale", &transform.scale[0], 0.05f, 0.0f, 0.0f,
+                                "%.3f", horizontal_size);
+        ImGui::Unindent(16.0f);
+    }
+    ImGui::PopID();
+
+    ImGui::PushID(2);
+    if (ent.has_component<eng::MeshComp>()) {
+        eng::MeshComp &mesh_comp = ent.get_component<eng::MeshComp>();
+
+        if (ImGui::CollapsingHeader("Mesh", ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Indent(8.0f);
+            ImGui::BeginPrettyCombo(
+                "Mesh", asset_pack.meshes.at(mesh_comp.id).name.c_str(),
+                [this, &mesh_comp]() {
+                    const std::map<eng::AssetID, eng::Mesh> &meshes =
+                        asset_pack.meshes;
+
+                    for (const auto &[id, meshData] : meshes) {
+                        if (ImGui::Selectable(meshData.name.c_str(),
+                                              id == mesh_comp.id)) {
+                            mesh_comp.id = id;
+                        }
+                    }
+                });
+
+            if (ImGui::PrettyButton("Remove component"))
+                ent.remove_component<eng::MeshComp>();
+
+            ImGui::Unindent(8.0f);
+        }
+    }
+    ImGui::PopID();
 }

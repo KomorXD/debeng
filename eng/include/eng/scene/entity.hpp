@@ -32,6 +32,11 @@ struct Entity {
         return owning_reg->get_component<T>(handle);
     }
 
+    template <typename T>
+    [[nodiscard]] bool has_component() {
+        return owning_reg->has_component<T>(handle);
+    }
+
     ecs::EntityID handle;
     ecs::Registry *owning_reg = nullptr;
 };

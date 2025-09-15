@@ -64,6 +64,17 @@ void draw_elements(const Shader &shader, const VertexArray &vao);
 void draw_elements_instanced(const Shader &shader, const VertexArray &vao,
                              uint32_t instances_count);
 
+enum class RenderPassMode {
+    BASE,
+    FLAT,
+
+    COUNT
+};
+
+RenderPassMode render_mode();
+const char *render_mode_str(RenderPassMode mode);
+void set_render_mode(RenderPassMode mode);
+
 } // namespace eng
 
 #endif

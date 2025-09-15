@@ -181,7 +181,7 @@ void EditorLayer::on_render() {
     ImGui::End();
 
     ImGui::Begin("dock_left");
-    ImGui::Text("left");
+    render_control_panel();
     ImGui::End();
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {0.0f, 0.0f});
@@ -242,6 +242,22 @@ void EditorLayer::on_render() {
     eng::renderer::scene_end();
 
     main_fbo.unbind();
+}
+
+void EditorLayer::render_control_panel() {
+    eng::renderer::RenderPassMode curr_mode = eng::renderer::render_mode();
+    ImGui::BeginPrettyCombo(
+        "Render", eng::renderer::render_mode_str(curr_mode), [&curr_mode]() {
+            if (ImGui::Selectable(
+                    "Base", curr_mode == eng::renderer::RenderPassMode::BASE))
+                eng::renderer::set_render_mode(
+                    eng::renderer::RenderPassMode::BASE);
+            else if (ImGui::Selectable("Flat",
+                                       curr_mode ==
+                                           eng::renderer::RenderPassMode::FLAT))
+                eng::renderer::set_render_mode(
+                    eng::renderer::RenderPassMode::FLAT);
+        });
 }
 
 void EditorLayer::render_entity_panel() {

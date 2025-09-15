@@ -28,7 +28,11 @@ struct Renderer {
     static constexpr int32_t MAX_TEXTURES = 16;
 
     GPU gpu;
-    Shader default_shader;
+    Shader base_shader;
+    Shader flat_shader;
+
+    Shader *current_shader = nullptr;
+    RenderPassMode render_mode = RenderPassMode::BASE;
 
     UniformBuffer camera_uni_buffer;
 
@@ -105,7 +109,8 @@ bool init() {
     GL_CALL(glStencilMask(0x00));
     GL_CALL(glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS));
 
-    s_renderer.default_shader = Shader::create();
+    s_renderer.base_shader = Shader::create();
+    s_renderer.current_shader = &s_renderer.base_shader;
 
     {
         ShaderSpec spec;
@@ -140,7 +145,38 @@ bool init() {
             }
         };
 
-        assert(s_renderer.default_shader.build(spec) &&
+        assert(s_renderer.base_shader.build(spec) &&
+               "Default shaders not found");
+    }
+
+    s_renderer.flat_shader = Shader::create();
+
+    {
+        ShaderSpec spec;
+        spec.vertex_shader.path = "resources/shaders/flat.vert";
+        spec.vertex_shader.replacements = {
+            {
+                "${CAMERA_BINDING}",
+                std::to_string(s_renderer.CAMERA_BINDING)
+            }
+        };
+        spec.fragment_shader.path = "resources/shaders/flat.frag";
+        spec.fragment_shader.replacements = {
+            {
+                "${MATERIALS_BINDING}",
+                std::to_string(s_renderer.MATERIALS_BINDING)
+            },
+            {
+                "${MAX_MATERIALS}",
+                std::to_string(s_renderer.MAX_MATERIALS)
+            },
+            {
+                "${MAX_TEXTURES}",
+                std::to_string(s_renderer.MAX_TEXTURES)
+            }
+        };
+
+        assert(s_renderer.flat_shader.build(spec) &&
                "Default shaders not found");
     }
 
@@ -206,7 +242,10 @@ bool init() {
 }
 
 void shutdown() {
-    s_renderer.default_shader.destroy();
+    s_renderer.base_shader.destroy();
+    s_renderer.flat_shader.destroy();
+    s_renderer.current_shader = nullptr;
+
     s_renderer.camera_uni_buffer.destroy();
     s_renderer.point_lights_uni_buffer.destroy();
     s_renderer.material_uni_buffer.destroy();
@@ -237,7 +276,7 @@ void scene_end() {
                                                 count * sizeof(PointLightData));
     s_renderer.point_lights_uni_buffer.set_data(&count, sizeof(int32_t), offset);
 
-    s_renderer.default_shader.bind();
+    s_renderer.current_shader->bind();
 
     std::vector<MaterialData> materials;
     materials.reserve(s_renderer.material_ids.size());
@@ -273,7 +312,7 @@ void scene_end() {
         const Texture &tex = s_asset_pack->textures.at(tex_id);
 
         tex.bind(slot);
-        s_renderer.default_shader.set_uniform_1i(
+        s_renderer.current_shader->set_uniform_1i(
             "u_textures[" + std::to_string(i) + "]", slot);
 
         slot++;
@@ -286,8 +325,8 @@ void scene_end() {
         const Mesh &mesh = s_asset_pack->meshes.at(mesh_id);
         mesh.vao.vbo_instanced.set_data(
             instances.data(), instances.size() * sizeof(MeshInstance));
-        draw_elements_instanced(s_renderer.default_shader, mesh.vao,
-                               instances.size());
+        draw_elements_instanced(*s_renderer.current_shader, mesh.vao,
+                                instances.size());
     }
 }
 
@@ -374,6 +413,25 @@ void draw_elements_instanced(const Shader &shader, const VertexArray &vao,
 
     GL_CALL(glDrawElementsInstanced(GL_TRIANGLES, vao.ibo.indices_count,
                                     GL_UNSIGNED_INT, nullptr, instances_count));
+}
+
+RenderPassMode render_mode() {
+    return s_renderer.render_mode;
+}
+
+const char *render_mode_str(RenderPassMode mode) {
+    assert(mode < RenderPassMode::COUNT && "Invalid render pass mode");
+
+    const char *names[] = {"Base", "Flat"};
+    return names[(int32_t)mode];
+}
+
+void set_render_mode(RenderPassMode mode) {
+    assert(mode < RenderPassMode::COUNT && "Invalid render pass mode");
+
+    Shader *shaders[] = {&s_renderer.base_shader, &s_renderer.flat_shader};
+    s_renderer.current_shader = shaders[(int32_t)mode];
+    s_renderer.render_mode = mode;
 }
 
 } // namespace eng::Renderer

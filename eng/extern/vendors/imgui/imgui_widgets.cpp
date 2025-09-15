@@ -3007,6 +3007,7 @@ void ImGui::BeginPrettyCombo(const char *label, const char *preview,
         ImGui::TableSetupColumn("Data", ImGuiTableColumnFlags_WidthStretch);
 
         ImGui::TableNextColumn();
+        ImGui::AlignTextToFramePadding();
         ImGui::Text(label);
 
         ImGui::TableNextColumn();

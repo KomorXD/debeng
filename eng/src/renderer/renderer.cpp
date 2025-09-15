@@ -292,10 +292,11 @@ void scene_end() {
 }
 
 void submit_mesh(const glm::mat4 &transform, AssetID mesh_id,
-                 AssetID material_id) {
+                 AssetID material_id, int32_t ent_id) {
     std::vector<MeshInstance> &instances = s_renderer.mesh_instances[mesh_id];
     MeshInstance &instance = instances.emplace_back();
     instance.transform = transform;
+    instance.entity_id = ent_id;
 
     std::vector<AssetID> &material_ids = s_renderer.material_ids;
 

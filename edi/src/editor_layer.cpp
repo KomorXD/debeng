@@ -24,8 +24,15 @@ std::unique_ptr<Layer> EditorLayer::create(const eng::WindowSpec &win_spec) {
     layer->main_fbo.add_color_attachment({.type = ColorAttachmentType::TEX_2D,
                                           .format = TextureFormat::RGBA8,
                                           .wrap = GL_CLAMP_TO_EDGE,
-                                          .min_filter = GL_LINEAR,
-                                          .mag_filter = GL_LINEAR,
+                                          .min_filter = GL_NEAREST,
+                                          .mag_filter = GL_NEAREST,
+                                          .size = window_size,
+                                          .gen_minmaps = false});
+    layer->main_fbo.add_color_attachment({.type = ColorAttachmentType::TEX_2D,
+                                          .format = TextureFormat::RGBA8,
+                                          .wrap = GL_CLAMP_TO_EDGE,
+                                          .min_filter = GL_NEAREST,
+                                          .mag_filter = GL_NEAREST,
                                           .size = window_size,
                                           .gen_minmaps = false});
 
@@ -34,9 +41,28 @@ std::unique_ptr<Layer> EditorLayer::create(const eng::WindowSpec &win_spec) {
     layer->scene = eng::Scene::create("New scene");
 
     eng::Entity ent = layer->scene.spawn_entity("ent1");
+    ent.get_component<eng::Transform>().position = glm::vec3(2.0f, 0.0f, 0.0f);
     ent.add_component<eng::MeshComp>().id = eng::AssetPack::CUBE_ID;
     ent.add_component<eng::MaterialComp>().id =
         eng::AssetPack::DEFAULT_MATERIAL;
+
+    eng::Material mat;
+    mat.name = "xd";
+    mat.color = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
+
+    eng::AssetID mat_id = layer->asset_pack.add_material(mat);
+    ent = layer->scene.spawn_entity("ent2");
+    ent.get_component<eng::Transform>().position = glm::vec3(-2.0f, 0.0f, 0.0f);
+    ent.add_component<eng::MeshComp>().id = eng::AssetPack::CUBE_ID;
+    ent.add_component<eng::MaterialComp>().id = mat_id;
+
+    mat.color = glm::vec4(0.0f, 1.0f, 0.0f, 1.0f);
+
+    mat_id = layer->asset_pack.add_material(mat);
+    ent = layer->scene.spawn_entity("ent3");
+    ent.get_component<eng::Transform>().position = glm::vec3(0.0f, 0.0f, 0.0f);
+    ent.add_component<eng::MeshComp>().id = eng::AssetPack::CUBE_ID;
+    ent.add_component<eng::MaterialComp>().id = mat_id;
 
     layer->selected_entity = ent;
 
@@ -71,6 +97,35 @@ void EditorLayer::on_event(eng::Event &event) {
         }
 
         break;
+
+    case eng::EventType::MouseButtonPressed: {
+        glm::vec2 mouse_pos = eng::get_mouse_position();
+        glm::vec2 viewport_end = viewport_pos + camera.viewport;
+        bool mouse_in_viewport =
+            mouse_pos.x > viewport_pos.x && mouse_pos.x < viewport_end.x &&
+            mouse_pos.y > viewport_pos.y && mouse_pos.y < viewport_end.y;
+
+        if (event.mouse_button.button == eng::MouseButton::Left &&
+            mouse_in_viewport) {
+            glm::vec2 local_mouse_pos = mouse_pos - viewport_pos;
+            glm::u8vec4 pixel = main_fbo.pixel_at(local_mouse_pos, 1);
+
+            if (pixel == glm::u8vec4(0)) {
+                selected_entity = std::nullopt;
+                return;
+            }
+
+            uint32_t red_contrib = pixel.r * 65025;
+            uint32_t green_contrib = pixel.g * 255;
+            uint32_t blue_contrib = pixel.b;
+            uint32_t id = red_contrib + green_contrib + blue_contrib;
+            selected_entity =
+                eng::Entity{.handle = id, .owning_reg = &scene.registry};
+        }
+
+        break;
+    }
+
     default:
         break;
     }
@@ -135,8 +190,11 @@ void EditorLayer::on_render() {
                      ImGuiWindowFlags_NoTitleBar |
                      ImGuiWindowFlags_NoBringToFrontOnFocus);
 
-    ImVec2 avail_region = ImGui::GetContentRegionAvail();
-    ImGui::Image((ImTextureID)main_fbo.color_attachments[0].id, avail_region,
+    ImVec2 content_reg = ImGui::GetContentRegionAvail();
+    ImVec2 content_pos = ImGui::GetWindowPos();
+    viewport_pos = glm::vec2(content_pos.x, content_pos.y);
+
+    ImGui::Image((ImTextureID)main_fbo.color_attachments[0].id, content_reg,
                  {0.0f, 1.0f}, {1.0f, 0.0f});
     ImGui::PopStyleVar();
     ImGui::End();
@@ -145,17 +203,20 @@ void EditorLayer::on_render() {
     render_entity_panel();
     ImGui::End();
 
-    glm::ivec2 avail_region_iv2 = {(int32_t)avail_region.x,
-                                   (int32_t)avail_region.y};
+    glm::ivec2 avail_region_iv2 = {(int32_t)content_reg.x,
+                                   (int32_t)content_reg.y};
     camera.viewport = avail_region_iv2;
 
     main_fbo.bind();
     main_fbo.resize_everything(avail_region_iv2);
     main_fbo.bind_renderbuffer();
-    main_fbo.bind_color_attachment(0);
+    main_fbo.draw_to_color_attachment(0, 0);
+    main_fbo.draw_to_color_attachment(1, 1);
+    main_fbo.fill_draw_buffers();
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glClearColor(0.33f, 0.33f, 0.33f, 1.0f);
 
+    main_fbo.clear_color_attachment(1);
     eng::renderer::scene_begin(camera.camera_render_data(), asset_pack);
 
     eng::ecs::RegistryView rview =
@@ -174,7 +235,8 @@ void EditorLayer::on_render() {
         eng::MeshComp &mesh = rview.get<eng::MeshComp>(entry);
         eng::MaterialComp &mat = rview.get<eng::MaterialComp>(entry);
 
-        eng::renderer::submit_mesh(transform.to_mat4(), mesh.id, mat.id);
+        eng::renderer::submit_mesh(transform.to_mat4(), mesh.id, mat.id,
+                                   entry.entity_id);
     }
 
     eng::renderer::scene_end();

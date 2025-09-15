@@ -45,6 +45,8 @@ struct EditorLayer : public Layer {
     eng::SpectatorCamera camera;
 
     std::optional<eng::Entity> selected_entity;
+
+    glm::vec2 viewport_pos;
 };
 
 #endif // LAYER_HPP

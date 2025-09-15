@@ -334,9 +334,16 @@ struct Registry {
             }
 
             EntitySet &eset = arch_entity_index[aid];
+
+            /*  Needs to be in reverse order... FIXME: this... */
             std::vector<EntityID> entities;
             for (EntityID eid : eset)
+                entities.push_back(eid);
+
+            for (int32_t i = entities.size() - 1; i >= 0; i--) {
+                EntityID eid = entities[i];
                 rview.entity_entries.push_back({eid, ent_entry_idx++});
+            }
         }
 
         return rview;

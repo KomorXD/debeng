@@ -235,12 +235,22 @@ struct Framebuffer {
     void bind_renderbuffer() const;
     void bind_color_attachment(uint32_t index, uint32_t slot = 0) const;
 
+    void draw_to_color_attachment(uint32_t index, uint32_t target_attachment,
+                                  int32_t mip = 0);
+
+    void clear_color_attachment(uint32_t attachment_index,
+                                uint32_t mip = 0) const;
+
     void resize_renderbuffer(const glm::ivec2 &size);
     void resize_color_attachment(uint32_t index, const glm::ivec2 &size);
     void resize_everything(const glm::ivec2 &size);
 
     void remove_renderbuffer();
     void remove_color_attachment(uint32_t index);
+
+    void fill_draw_buffers();
+
+    glm::u8vec4 pixel_at(const glm::vec2 &coords, int32_t attachment_idx) const;
 
     [[nodiscard]] bool is_complete() const;
 

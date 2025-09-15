@@ -692,6 +692,29 @@ void Framebuffer::bind_color_attachment(uint32_t index, uint32_t slot) const {
     GL_CALL(glBindTexture(tex_type, tex_id));
 }
 
+void Framebuffer::draw_to_color_attachment(uint32_t index,
+                                           uint32_t target_attachment,
+                                           int32_t mip) {
+    assert(index < color_attachments.size() &&
+           "Trying to draw to invalid color attachment");
+
+    const auto &[id, spec] = color_attachments[index];
+    bind();
+    GL_CALL(glFramebufferTexture2D(GL_FRAMEBUFFER,
+                                   GL_COLOR_ATTACHMENT0 + target_attachment,
+                                   opengl_texture_type(spec.type), id, mip));
+}
+
+void Framebuffer::clear_color_attachment(uint32_t attachment_index,
+                                         uint32_t mip) const {
+    assert(attachment_index < color_attachments.size() &&
+           "Trying to clear invalid color attachment");
+
+    const auto &[id, spec] = color_attachments[attachment_index];
+    TextureFormatDetails tex_details = format_details(spec.format);
+    GL_CALL(glClearTexImage(id, mip, tex_details.format, GL_FLOAT, 0));
+}
+
 void Framebuffer::resize_renderbuffer(const glm::ivec2 &size) {
     assert(id != 0 && "Trying to alter invalid framebuffer object");
     assert(rbo.id != 0 && "Trying to resize invalid renderbuffer object");
@@ -800,6 +823,26 @@ void Framebuffer::remove_color_attachment(uint32_t index) {
     GL_CALL(glDeleteTextures(1, &color_attach.id));
 
     color_attachments.erase(color_attachments.begin() + index);
+}
+
+void Framebuffer::fill_draw_buffers() {
+    std::vector<GLenum> buffers(color_attachments.size());
+    for (uint32_t i = 0; i < color_attachments.size(); i++)
+        buffers[i] = GL_COLOR_ATTACHMENT0 + i;
+
+    GL_CALL(glDrawBuffers(buffers.size(), buffers.data()));
+}
+
+glm::u8vec4 Framebuffer::pixel_at(const glm::vec2 &coords,
+                                  int32_t attachment_idx) const {
+    glm::u8vec4 pixel;
+
+    bind();
+    GL_CALL(glReadBuffer(GL_COLOR_ATTACHMENT0 + attachment_idx));
+    GL_CALL(glReadPixels((GLint)coords.x, (GLint)coords.y, 1, 1, GL_RGBA,
+                         GL_UNSIGNED_BYTE, &pixel[0]));
+
+    return pixel;
 }
 
 bool Framebuffer::is_complete() const {

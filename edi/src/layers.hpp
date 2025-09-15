@@ -4,6 +4,7 @@
 #include "eng/event.hpp"
 #include "eng/renderer/camera.hpp"
 #include "eng/renderer/opengl.hpp"
+#include "eng/scene/assets.hpp"
 #include "eng/scene/entity.hpp"
 #include "eng/scene/scene.hpp"
 #include "eng/window.hpp"
@@ -46,6 +47,7 @@ struct EditorLayer : public Layer {
     eng::SpectatorCamera camera;
 
     std::optional<eng::Entity> selected_entity;
+    eng::AssetID outline_material;
 
     glm::vec2 viewport_pos;
 };

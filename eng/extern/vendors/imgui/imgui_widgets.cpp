@@ -2971,6 +2971,81 @@ void ImGui::PrettyDragFloat3(const char *label, float v[3], float speed,
     ImGui::PopID();
 }
 
+void ImGui::PrettyDragFloat4(const char *label, float v[4], float speed,
+                             float min, float max, const char *format,
+                             float label_width) {
+    ImGui::PushID(label);
+
+    if (ImGui::BeginTable("#Float4", 2)) {
+        ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed,
+                                label_width);
+        ImGui::TableSetupColumn("Data", ImGuiTableColumnFlags_WidthStretch);
+
+        ImGui::TableNextColumn();
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text(label);
+
+        ImGui::TableNextColumn();
+        ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x / 4.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 10.0f));
+        ImGui::PushStyleColor(ImGuiCol_FrameBg,
+                              ImVec4(0.8f, 0.1f, 0.15f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_FrameBgHovered,
+                              ImVec4(0.9f, 0.2f, 0.25f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_FrameBgActive,
+                              ImVec4(0.8f, 0.1f, 0.15f, 1.0f));
+
+        ImGui::SameLine();
+        ImGui::DragFloat("##X", &v[0], speed, min, max, format);
+        ImGui::SameLine();
+
+        ImGui::PopStyleColor(3);
+
+        ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.2f, 0.7f, 0.2f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_FrameBgHovered,
+                              ImVec4(0.3f, 0.8f, 0.3f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_FrameBgActive,
+                              ImVec4(0.2f, 0.7f, 0.2f, 1.0f));
+
+        ImGui::SameLine();
+        ImGui::DragFloat("##Y", &v[1], speed, min, max, format);
+        ImGui::SameLine();
+
+        ImGui::PopStyleColor(3);
+
+        ImGui::PushStyleColor(ImGuiCol_FrameBg,
+                              ImVec4(0.1f, 0.25f, 0.8f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_FrameBgHovered,
+                              ImVec4(0.2f, 0.35f, 0.9f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_FrameBgActive,
+                              ImVec4(0.1f, 0.25f, 0.8f, 1.0f));
+
+        ImGui::SameLine();
+        ImGui::DragFloat("##Z", &v[2], speed, min, max, format);
+
+        ImGui::PopStyleColor(3);
+
+        ImGui::PushStyleColor(ImGuiCol_FrameBg,
+                              ImVec4(0.8f, 0.8f, 0.8f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_FrameBgHovered,
+                              ImVec4(0.9f, 0.9f, 0.9f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_FrameBgActive,
+                              ImVec4(0.8f, 0.8f, 0.8f, 1.0f));
+
+        ImGui::SameLine();
+        ImGui::DragFloat("##W", &v[3], speed, min, max, format);
+
+        ImGui::PopStyleColor(3);
+        ImGui::PopStyleVar();
+        ImGui::PopItemWidth();
+
+        ImGui::EndTable();
+    }
+
+    ImGui::PopID();
+}
+
+
 void ImGui::PrettyInputText(const char *label, char *buf, float label_width) {
     ImGui::PushID(label);
 
@@ -3032,6 +3107,32 @@ void ImGui::BeginPrettyCombo(const char *label, const char *preview,
         ImGui::PopItemWidth();
         ImGui::EndTable();
     }
+}
+
+bool ImGui::TextureFrame(const char *label, ImTextureID tex_id,
+                         std::function<void(void)> info_body_func,
+                         float icon_size) {
+    bool pressed = false;
+
+    if (ImGui::BeginTable("#Texture", 2)) {
+        ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed,
+                                icon_size);
+        ImGui::TableSetupColumn("Data", ImGuiTableColumnFlags_WidthStretch);
+
+        ImGui::TableNextColumn();
+        ImGui::AlignTextToFramePadding();
+        icon_size = std::max(0.0f, icon_size - 32.0f);
+        pressed =
+            ImGui::ImageButton(label, tex_id, ImVec2(icon_size, icon_size),
+                               {0.0f, 1.0f}, {1.0f, 0.0f});
+
+        ImGui::TableNextColumn();
+        info_body_func();
+
+        ImGui::EndTable();
+    }
+
+    return pressed;
 }
 
 bool ImGui::DragFloat(const char* label, float* v, float v_speed, float v_min, float v_max, const char* format, ImGuiSliderFlags flags)

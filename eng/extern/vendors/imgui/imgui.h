@@ -629,11 +629,18 @@ namespace ImGui
                           float min = 0.0f, float max = 0.0f,
                           const char *format = "%.3f",
                           float label_width = 64.0f);
+    void PrettyDragFloat4(const char *label, float v[4], float speed = 1.0f,
+                          float min = 0.0f, float max = 0.0f,
+                          const char *format = "%.3f",
+                          float label_width = 64.0f);
     void PrettyInputText(const char *label, char *buf,
                          float label_width = 64.0f);
     void BeginPrettyCombo(const char *label, const char *preview,
                           std::function<void(void)> combo_body_f,
                           float label_width = 64.0f);
+    bool TextureFrame(const char *label, ImTextureID tex_id,
+                      std::function<void(void)> info_body_func,
+                      float icon_size);
 
     // Widgets: Regular Sliders
     // - CTRL+Click on any slider to turn them into an input box. Manually input values aren't clamped by default and can go off-bounds. Use ImGuiSliderFlags_AlwaysClamp to always clamp.

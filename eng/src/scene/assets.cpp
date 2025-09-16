@@ -67,7 +67,16 @@ AssetPack AssetPack::create(const std::string &pack_name) {
         uint8_t white_pixel[] = { 255, 255, 255, 255 };
         Texture default_albedo =
             Texture::create(white_pixel, 1, 1, TextureFormat::RGBA8);
+        default_albedo.name = "White";
         (void)pack.add_texture(default_albedo);
+    }
+
+    {
+        uint8_t normal_pixel[] = { 127, 127, 255, 255 };
+        Texture default_normal =
+            Texture::create(normal_pixel, 1, 1, TextureFormat::RGBA8);
+        default_normal.name = "Normal";
+        (void)pack.add_texture(default_normal);
     }
 
     {

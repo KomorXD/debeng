@@ -63,6 +63,7 @@ std::unique_ptr<Layer> EditorLayer::create(const eng::WindowSpec &win_spec) {
     ent.add_component<eng::PointLight>().intensity = 3.0f;
 
     eng::Material mat;
+    mat.name = "Outline";
     mat.color = glm::vec4(0.76f, 0.20f, 0.0f, 1.0f);
     layer->outline_material = layer->asset_pack.add_material(mat);
 
@@ -375,6 +376,85 @@ void EditorLayer::render_entity_panel() {
 
             if (ImGui::PrettyButton("Remove component"))
                 ent.remove_component<eng::MeshComp>();
+
+            ImGui::Unindent(8.0f);
+        }
+    }
+    ImGui::PopID();
+
+    ImGui::PushID(3);
+    if (ent.has_component<eng::MaterialComp>()) {
+        eng::MaterialComp &mat_comp = ent.get_component<eng::MaterialComp>();
+        eng::Material &mat = asset_pack.materials.at(mat_comp.id);
+
+        if (ImGui::CollapsingHeader("Material",
+                                    ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Indent(8.0f);
+            ImGui::BeginPrettyCombo(
+                "Material", mat.name.c_str(), [this, &mat_comp]() {
+                    const std::map<eng::AssetID, eng::Material> &materials =
+                        asset_pack.materials;
+
+                    for (const auto &[id, material] : materials) {
+                        if (ImGui::Selectable(material.name.c_str(),
+                                              id == mat_comp.id))
+                            mat_comp.id = id;
+                    }
+                });
+
+            float horizontal_size = ImGui::CalcTextSize("Factor").x;
+            ImGui::PrettyDragFloat2("Factor", &mat.tiling_factor[0], 0.01f,
+                                    0.0f, FLT_MAX, "%.2f", horizontal_size);
+            ImGui::PrettyDragFloat2("Offset", &mat.texture_offset[0], 0.01f,
+                                    0.0f, 0.0f, "%.2f", horizontal_size);
+
+            const char *avail_tex_group = "available_textures_group";
+            static eng::AssetID *selected_id = nullptr;
+
+            Texture &tex = asset_pack.textures.at(mat.albedo_texture_id);
+            if (ImGui::TextureFrame(
+                    "##Albedo", (ImTextureID)tex.id,
+                    [&tex, &mat]() {
+                        ImGui::Text("Diffuse texture");
+                        ImGui::Text("%s", tex.name.c_str());
+                        ImGui::PrettyDragFloat4("Color", &mat.color[0], 0.01f,
+                                                0.0f, 1.0f, "%.2f",
+                                                ImGui::CalcTextSize("Color").x);
+                    },
+                    96.0f)) {
+                selected_id = &mat.albedo_texture_id;
+                ImGui::OpenPopup(avail_tex_group);
+            }
+
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {10.0f, 10.0f});
+            if (ImGui::BeginPopup(avail_tex_group)) {
+                ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, {15.0f, 0.0f});
+
+                uint32_t count = 0;
+                for (const auto &[id, texture] : asset_pack.textures) {
+                    ImGui::PushID(count);
+
+                    if (ImGui::ImageButton(
+                            "#Texture", (ImTextureID)(texture.id),
+                            {64.0f, 64.0f}, {0.0f, 1.0f}, {1.0f, 0.0f})) {
+                        *selected_id = id;
+                    }
+
+                    if ((++count) % 3 == 0)
+                        ImGui::NewLine();
+                    else
+                        ImGui::SameLine();
+
+                    ImGui::PopID();
+                }
+
+                ImGui::PopStyleVar();
+                ImGui::EndPopup();
+            }
+            ImGui::PopStyleVar();
+
+            if (ImGui::PrettyButton("Remove component"))
+                ent.remove_component<eng::MaterialComp>();
 
             ImGui::Unindent(8.0f);
         }

@@ -37,6 +37,13 @@ std::unique_ptr<Layer> EditorLayer::create(const eng::WindowSpec &win_spec) {
                                           .mag_filter = GL_NEAREST,
                                           .size = window_size,
                                           .gen_minmaps = false});
+    layer->main_fbo.add_color_attachment({.type = ColorAttachmentType::TEX_2D,
+                                          .format = TextureFormat::RGBA8,
+                                          .wrap = GL_CLAMP_TO_EDGE,
+                                          .min_filter = GL_NEAREST,
+                                          .mag_filter = GL_NEAREST,
+                                          .size = window_size,
+                                          .gen_minmaps = false});
 
     layer->asset_pack = eng::AssetPack::create("default");
 
@@ -182,7 +189,7 @@ void EditorLayer::on_render() {
     ImVec2 content_pos = ImGui::GetWindowPos();
     viewport_pos = glm::vec2(content_pos.x, content_pos.y);
 
-    ImGui::Image((ImTextureID)main_fbo.color_attachments[0].id, content_reg,
+    ImGui::Image((ImTextureID)main_fbo.color_attachments[2].id, content_reg,
                  {0.0f, 1.0f}, {1.0f, 0.0f});
     ImGui::PopStyleVar();
     ImGui::End();
@@ -253,6 +260,11 @@ void EditorLayer::on_render() {
     }
 
     eng::renderer::scene_end();
+
+    main_fbo.bind_color_attachment(0);
+    main_fbo.draw_to_color_attachment(2, 2);
+    GL_CALL(glDrawBuffer(GL_COLOR_ATTACHMENT2));
+    eng::renderer::draw_to_screen_quad();
 
     if (selected_entity.has_value() &&
         selected_entity.value().has_component<eng::MeshComp>()) {

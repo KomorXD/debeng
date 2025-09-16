@@ -34,6 +34,9 @@ struct Renderer {
     Shader *current_shader = nullptr;
     RenderPassMode render_mode = RenderPassMode::BASE;
 
+    VertexArray screen_quad_vao;
+    Shader screen_quad_shader;
+
     UniformBuffer camera_uni_buffer;
 
     UniformBuffer point_lights_uni_buffer;
@@ -43,9 +46,6 @@ struct Renderer {
     std::vector<AssetID> material_ids;
 
     std::vector<AssetID> texture_ids;
-
-    VertexArray screen_quad_vao;
-    Shader screen_quad_shader;
 
     std::unordered_map<AssetID, std::vector<MeshInstance>> mesh_instances;
 };

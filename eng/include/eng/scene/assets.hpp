@@ -27,6 +27,7 @@ struct Material {
     glm::vec2 texture_offset = glm::vec2(0.0f);
 
     AssetID albedo_texture_id = 1;
+    AssetID normal_texture_id = 2;
 };
 
 struct AssetPack {
@@ -37,6 +38,7 @@ struct AssetPack {
     static constexpr AssetID SPHERE_ID = 3;
 
     static constexpr AssetID TEXTURE_WHITE = 1;
+    static constexpr AssetID TEXTURE_NORMAL = 2;
 
     static constexpr AssetID DEFAULT_MATERIAL = 1;
 

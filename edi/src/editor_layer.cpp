@@ -1,3 +1,4 @@
+#include "context.hpp"
 #include "eng/containers/registry.hpp"
 #include "eng/event.hpp"
 #include "eng/input.hpp"
@@ -51,15 +52,16 @@ std::unique_ptr<Layer> EditorLayer::create(const eng::WindowSpec &win_spec) {
 
     layer->scene = eng::Scene::create("New scene");
 
-    eng::Entity ent = layer->scene.spawn_entity("ent1");
-    ent.get_component<eng::Transform>().position = glm::vec3(2.0f, 0.0f, 0.0f);
-    ent.add_component<eng::MeshComp>().id = eng::AssetPack::CUBE_ID;
-    ent.add_component<eng::MaterialComp>().id =
-        eng::AssetPack::DEFAULT_MATERIAL;
+    for (int32_t i = 0; i < 100; i++) {
+        eng::Entity ent = layer->scene.spawn_entity("ent" + std::to_string(i));
+        ent.get_component<eng::Transform>().position =
+            glm::vec3((float)(i / 10) * 2.0f, 0.0f, (float)(i % 10) * 2.0f);
+        ent.add_component<eng::MeshComp>().id = eng::AssetPack::CUBE_ID;
+        ent.add_component<eng::MaterialComp>().id =
+            eng::AssetPack::DEFAULT_MATERIAL;
+    }
 
-    layer->selected_entity = ent;
-
-    ent = layer->scene.spawn_entity("light");
+    eng::Entity ent = layer->scene.spawn_entity("light");
     ent.get_component<eng::Transform>().position = glm::vec3(2.0f, 2.0f, 1.0f);
     ent.add_component<eng::PointLight>().intensity = 3.0f;
     ent.add_component<eng::MeshComp>().id = eng::AssetPack::CUBE_ID;
@@ -88,7 +90,7 @@ void EditorLayer::on_event(eng::Event &event) {
     switch (event.type) {
     case eng::EventType::KeyPressed:
         if (event.key.key == eng::Key::Escape)
-            eng::Window::main_window->close();
+            context()->close_app();
         else if (event.key.key == eng::Key::Q) {
             camera.control_mode = eng::SpectatorCamera::ControlMode::FPS;
             eng::disable_cursor();

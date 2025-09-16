@@ -122,6 +122,10 @@ void EditorLayer::on_event(eng::Event &event) {
         break;
     }
 
+    case eng::EventType::MouseWheelScrolled:
+        camera.scroll_update(event.mouse_scroll.offset_y);
+        break;
+
     default:
         break;
     }

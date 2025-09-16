@@ -7,7 +7,6 @@ namespace eng {
 
 struct SpectatorCamera {
     enum class ControlMode {
-        NONE,
         FPS,
         TRACKBALL
     };
@@ -23,6 +22,7 @@ struct SpectatorCamera {
     [[nodiscard]] renderer::CameraData camera_render_data() const;
 
     void update_with_input(float timestep);
+    void scroll_update(float offset);
     void fps_update(float timestep);
     void trackball_update(float timestep);
 

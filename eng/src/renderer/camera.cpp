@@ -67,6 +67,13 @@ void SpectatorCamera::update_with_input(float timestep) {
     }
 }
 
+void SpectatorCamera::scroll_update(float offset) {
+    if (control_mode != ControlMode::TRACKBALL)
+        return;
+
+    position += offset * forward_dir();
+}
+
 void SpectatorCamera::fps_update(float timestep) {
     glm::vec3 move(0.0f);
 

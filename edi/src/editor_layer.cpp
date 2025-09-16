@@ -96,14 +96,9 @@ void EditorLayer::on_event(eng::Event &event) {
         break;
 
     case eng::EventType::MouseButtonPressed: {
-        glm::vec2 mouse_pos = eng::get_mouse_position();
-        glm::vec2 viewport_end = viewport_pos + camera.viewport;
-        bool mouse_in_viewport =
-            mouse_pos.x > viewport_pos.x && mouse_pos.x < viewport_end.x &&
-            mouse_pos.y > viewport_pos.y && mouse_pos.y < viewport_end.y;
-
         if (event.mouse_button.button == eng::MouseButton::Left &&
-            mouse_in_viewport) {
+            viewport_hovered) {
+            glm::vec2 mouse_pos = eng::get_mouse_position();
             glm::vec2 local_mouse_pos = mouse_pos - viewport_pos;
             glm::u8vec4 pixel = main_fbo.pixel_at(local_mouse_pos, 1);
 
@@ -194,6 +189,7 @@ void EditorLayer::on_render() {
     ImVec2 content_reg = ImGui::GetContentRegionAvail();
     ImVec2 content_pos = ImGui::GetWindowPos();
     viewport_pos = glm::vec2(content_pos.x, content_pos.y);
+    viewport_hovered = ImGui::IsWindowHovered();
 
     ImGui::Image((ImTextureID)main_fbo.color_attachments[2].id, content_reg,
                  {0.0f, 1.0f}, {1.0f, 0.0f});

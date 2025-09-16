@@ -50,6 +50,7 @@ struct EditorLayer : public Layer {
     eng::AssetID outline_material;
 
     glm::vec2 viewport_pos;
+    bool viewport_hovered = false;
 };
 
 #endif // LAYER_HPP

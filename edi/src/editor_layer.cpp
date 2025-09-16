@@ -61,6 +61,9 @@ std::unique_ptr<Layer> EditorLayer::create(const eng::WindowSpec &win_spec) {
     ent = layer->scene.spawn_entity("light");
     ent.get_component<eng::Transform>().position = glm::vec3(2.0f, 2.0f, 1.0f);
     ent.add_component<eng::PointLight>().intensity = 3.0f;
+    ent.add_component<eng::MeshComp>().id = eng::AssetPack::CUBE_ID;
+    ent.add_component<eng::MaterialComp>().id =
+        eng::AssetPack::DEFAULT_MATERIAL;
 
     eng::Material mat;
     mat.name = "Outline";
@@ -213,9 +216,9 @@ void EditorLayer::on_render() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     glClearColor(0.33f, 0.33f, 0.33f, 1.0f);
 
+    eng::renderer::RenderPassMode orig_mode = eng::renderer::render_mode();
     if (selected_entity.has_value() &&
         selected_entity.value().has_component<eng::MeshComp>()) {
-        eng::renderer::RenderPassMode orig_mode = eng::renderer::render_mode();
 
         eng::Entity ent = selected_entity.value();
         eng::Transform &transform = ent.get_component<eng::Transform>();
@@ -251,7 +254,8 @@ void EditorLayer::on_render() {
     }
 
     rview =
-        scene.registry.view<eng::Transform, eng::MeshComp, eng::MaterialComp>();
+        scene.registry.view<eng::Transform, eng::MeshComp, eng::MaterialComp>(
+            eng::ecs::exclude<eng::PointLight>);
     for (eng::ecs::RegistryView::Entry &entry : rview.entity_entries) {
         eng::Transform &transform = rview.get<eng::Transform>(entry);
         eng::MeshComp &mesh = rview.get<eng::MeshComp>(entry);
@@ -262,6 +266,22 @@ void EditorLayer::on_render() {
     }
 
     eng::renderer::scene_end();
+
+    eng::renderer::scene_begin(camera.camera_render_data(), asset_pack);
+    eng::renderer::set_render_mode(eng::renderer::RenderPassMode::FLAT);
+    rview = scene.registry.view<eng::Transform, eng::MeshComp,
+                                eng::MaterialComp, eng::PointLight>();
+    for (eng::ecs::RegistryView::Entry &entry : rview.entity_entries) {
+        eng::Transform &transform = rview.get<eng::Transform>(entry);
+        eng::MeshComp &mesh = rview.get<eng::MeshComp>(entry);
+        eng::MaterialComp &mat = rview.get<eng::MaterialComp>(entry);
+
+        eng::renderer::submit_mesh(transform.to_mat4(), mesh.id, mat.id,
+                                   entry.entity_id);
+    }
+
+    eng::renderer::scene_end();
+    eng::renderer::set_render_mode(orig_mode);
 
     main_fbo.bind_color_attachment(0);
     main_fbo.draw_to_color_attachment(2, 2);

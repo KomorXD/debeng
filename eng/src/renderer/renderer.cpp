@@ -215,6 +215,13 @@ bool init() {
         ShaderSpec spec;
         spec.vertex_shader.path = "resources/shaders/screen_quad.vert";
         spec.fragment_shader.path = "resources/shaders/screen_quad.frag";
+        spec.fragment_shader.replacements = {
+            {
+                "${CAMERA_BINDING}",
+                std::to_string(s_renderer.CAMERA_BINDING)
+            }
+        };
+
         assert(s_renderer.screen_quad_shader.build(spec) &&
                "Screen quad shader not found");
     }

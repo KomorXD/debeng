@@ -10,6 +10,7 @@
 #include "imgui/imgui.h"
 #include "imgui/imgui_internal.h"
 #include "layers.hpp"
+#include <cfloat>
 
 std::unique_ptr<Layer> EditorLayer::create(const eng::WindowSpec &win_spec) {
     glm::ivec2 window_size = glm::ivec2(win_spec.width, win_spec.height);
@@ -24,7 +25,7 @@ std::unique_ptr<Layer> EditorLayer::create(const eng::WindowSpec &win_spec) {
     layer->main_fbo.add_renderbuffer(
         {RenderbufferType::DEPTH_STENCIL, window_size});
     layer->main_fbo.add_color_attachment({.type = ColorAttachmentType::TEX_2D,
-                                          .format = TextureFormat::RGBA8,
+                                          .format = TextureFormat::RGB16F,
                                           .wrap = GL_CLAMP_TO_EDGE,
                                           .min_filter = GL_NEAREST,
                                           .mag_filter = GL_NEAREST,
@@ -38,7 +39,7 @@ std::unique_ptr<Layer> EditorLayer::create(const eng::WindowSpec &win_spec) {
                                           .size = window_size,
                                           .gen_minmaps = false});
     layer->main_fbo.add_color_attachment({.type = ColorAttachmentType::TEX_2D,
-                                          .format = TextureFormat::RGBA8,
+                                          .format = TextureFormat::RGB16F,
                                           .wrap = GL_CLAMP_TO_EDGE,
                                           .min_filter = GL_NEAREST,
                                           .mag_filter = GL_NEAREST,
@@ -167,7 +168,7 @@ void EditorLayer::on_render() {
         ImGuiID right = ImGui::DockBuilderSplitNode(
             dockspace_id, ImGuiDir_Right, 0.2f, nullptr, &dockspace_id);
 
-        ImGui::DockBuilderDockWindow("dock_left", left);
+        ImGui::DockBuilderDockWindow("Control panel", left);
         ImGui::DockBuilderDockWindow("dock_main", dockspace_id);
         ImGui::DockBuilderDockWindow("Entity panel", right);
         ImGui::DockBuilderFinish(dockspace_id);
@@ -175,7 +176,7 @@ void EditorLayer::on_render() {
 
     ImGui::End();
 
-    ImGui::Begin("dock_left");
+    ImGui::Begin("Control panel");
     render_control_panel();
     ImGui::End();
 
@@ -295,19 +296,25 @@ void EditorLayer::on_render() {
 }
 
 void EditorLayer::render_control_panel() {
-    eng::renderer::RenderPassMode curr_mode = eng::renderer::render_mode();
-    ImGui::BeginPrettyCombo(
-        "Render", eng::renderer::render_mode_str(curr_mode), [&curr_mode]() {
-            if (ImGui::Selectable(
-                    "Base", curr_mode == eng::renderer::RenderPassMode::BASE))
-                eng::renderer::set_render_mode(
-                    eng::renderer::RenderPassMode::BASE);
-            else if (ImGui::Selectable("Flat",
-                                       curr_mode ==
-                                           eng::renderer::RenderPassMode::FLAT))
-                eng::renderer::set_render_mode(
-                    eng::renderer::RenderPassMode::FLAT);
-        });
+    ImGui::Text("%s", scene.name.c_str());
+    ImGui::Separator();
+
+    if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen)) {
+        float horizontal_size = ImGui::CalcTextSize("Near clip").x;
+        ImGui::Indent(16.0f);
+        ImGui::PrettyDragFloat3("Position", &camera.position[0], 0.05f, 0.0f,
+                                0.0f, "%.3f", horizontal_size);
+        ImGui::PrettyDragFloat("Exposure", &camera.exposure, 0.01f, 0.0f,
+                               FLT_MAX, "%.3f", horizontal_size);
+        ImGui::PrettyDragFloat("Gamma", &camera.gamma, 0.01f, 0.0f, FLT_MAX,
+                               "%.3f", horizontal_size);
+        ImGui::PrettyDragFloat("Near clip", &camera.near_clip, 0.01f, 0.0f,
+                               camera.far_clip, "%.3f", horizontal_size);
+        ImGui::PrettyDragFloat("Far clip", &camera.far_clip, 0.01f,
+                               camera.near_clip, FLT_MAX, "%.3f",
+                               horizontal_size);
+        ImGui::Unindent(16.0f);
+    }
 }
 
 void EditorLayer::render_entity_panel() {

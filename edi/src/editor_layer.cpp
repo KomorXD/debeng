@@ -407,18 +407,30 @@ void EditorLayer::render_entity_panel() {
             const char *avail_tex_group = "available_textures_group";
             static eng::AssetID *selected_id = nullptr;
 
-            Texture &tex = asset_pack.textures.at(mat.albedo_texture_id);
+            Texture *tex = &asset_pack.textures.at(mat.albedo_texture_id);
             if (ImGui::TextureFrame(
-                    "##Albedo", (ImTextureID)tex.id,
+                    "##Albedo", (ImTextureID)tex->id,
                     [&tex, &mat]() {
                         ImGui::Text("Diffuse texture");
-                        ImGui::Text("%s", tex.name.c_str());
+                        ImGui::Text("%s", tex->name.c_str());
                         ImGui::PrettyDragFloat4("Color", &mat.color[0], 0.01f,
                                                 0.0f, 1.0f, "%.2f",
                                                 ImGui::CalcTextSize("Color").x);
                     },
                     96.0f)) {
                 selected_id = &mat.albedo_texture_id;
+                ImGui::OpenPopup(avail_tex_group);
+            }
+
+            tex = &asset_pack.textures.at(mat.normal_texture_id);
+            if (ImGui::TextureFrame(
+                    "##Normal", (ImTextureID)tex->id,
+                    [&tex]() {
+                        ImGui::Text("Normal texture");
+                        ImGui::Text("%s", tex->name.c_str());
+                    },
+                    96.0f)) {
+                selected_id = &mat.normal_texture_id;
                 ImGui::OpenPopup(avail_tex_group);
             }
 

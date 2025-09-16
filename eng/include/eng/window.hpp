@@ -26,6 +26,8 @@ struct Window {
     [[nodiscard]] static bool init();
     [[nodiscard]] static std::optional<Window> create(const WindowSpec &spec);
 
+    static inline Window *main_window = nullptr;
+
     // Terminates GLFW context and destroys every window
     static void terminate();
 

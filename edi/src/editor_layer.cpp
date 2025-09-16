@@ -11,6 +11,7 @@
 #include "imgui/imgui_internal.h"
 #include "layers.hpp"
 #include <cfloat>
+#include <string>
 
 std::unique_ptr<Layer> EditorLayer::create(const eng::WindowSpec &win_spec) {
     glm::ivec2 window_size = glm::ivec2(win_spec.width, win_spec.height);
@@ -87,7 +88,7 @@ void EditorLayer::on_event(eng::Event &event) {
     switch (event.type) {
     case eng::EventType::KeyPressed:
         if (event.key.key == eng::Key::Escape)
-            eng::Window::terminate();
+            eng::Window::main_window->close();
         else if (event.key.key == eng::Key::Q) {
             camera.control_mode = eng::SpectatorCamera::ControlMode::FPS;
             eng::disable_cursor();

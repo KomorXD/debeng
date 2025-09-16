@@ -13,6 +13,8 @@
 struct Layer {
     virtual ~Layer() = default;
 
+    virtual void destroy() = 0;
+
     virtual void on_attach() = 0;
     virtual void on_detach() = 0;
 
@@ -26,7 +28,7 @@ struct EditorLayer : public Layer {
     virtual ~EditorLayer() = default;
 
     static std::unique_ptr<Layer> create(const eng::WindowSpec &win_spec);
-    void destroy();
+    virtual void destroy() override;
 
     virtual void on_attach() override;
     virtual void on_detach() override;

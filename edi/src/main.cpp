@@ -28,6 +28,7 @@ int main(int argc, char **argv) {
 
     eng::Window window = std::move(window_opt.value());
     window.update_user_pointer();
+    eng::Window::main_window = &window;
 
     if (!eng::renderer::init()) {
         fprintf(stderr, "Failed to load GL loader\n");
@@ -75,8 +76,13 @@ int main(int argc, char **argv) {
         window.update();
     }
 
+    active_layer->destroy();
+
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+
     eng::renderer::shutdown();
-    window.close();
     eng::Window::terminate();
 
     return 0;

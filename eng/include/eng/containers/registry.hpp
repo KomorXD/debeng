@@ -5,6 +5,7 @@
 #include <cassert>
 #include <cstdint>
 #include <map>
+#include <set>
 #include <typeinfo>
 #include <unordered_map>
 #include <unordered_set>
@@ -15,7 +16,7 @@
 namespace eng::ecs {
 
 using EntityID = uint32_t;
-using EntitySet = std::unordered_set<EntityID>;
+using EntitySet = std::set<EntityID>;
 
 using ArchetypeID = uint32_t;
 
@@ -334,16 +335,8 @@ struct Registry {
             }
 
             EntitySet &eset = arch_entity_index[aid];
-
-            /*  Needs to be in reverse order... FIXME: this... */
-            std::vector<EntityID> entities;
             for (EntityID eid : eset)
-                entities.push_back(eid);
-
-            for (int32_t i = entities.size() - 1; i >= 0; i--) {
-                EntityID eid = entities[i];
                 rview.entity_entries.push_back({eid, ent_entry_idx++});
-            }
         }
 
         return rview;

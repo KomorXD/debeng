@@ -32,8 +32,9 @@ struct MaterialData {
     glm::vec2 texture_offset = glm::vec2(0.0f);
 
     int32_t albedo_idx = -1;
+    int32_t normal_idx = -1;
 
-    glm::vec3 padding;
+    glm::vec2 padding;
 };
 
 void opengl_msg_cb(unsigned source, unsigned type, unsigned id,

@@ -12,7 +12,7 @@ in VS_OUT {
     vec3 world_space_position;
     vec3 view_space_position;
     vec3 eye_position;
-    vec3 normal;
+    mat3 TBN;
     vec2 texture_uv;
     flat float material_idx;
     flat float ent_id;
@@ -37,6 +37,7 @@ struct Material {
     vec2 texture_offset;
 
     int albedo_idx;
+    int normal_idx;
 };
 
 layout (std140, binding = MATERIALS_BINDING) uniform Materials {
@@ -45,19 +46,19 @@ layout (std140, binding = MATERIALS_BINDING) uniform Materials {
 
 uniform sampler2D u_textures[MAX_TEXTURES];
 
-vec3 diffuse_impact(PointLight light) {
+vec3 diffuse_impact(PointLight light, vec3 normal) {
     vec3 pos = light.position_and_linear.xyz;
     vec3 color = light.color_and_quadratic.xyz;
     float linear = light.position_and_linear.w;
     float quadratic = light.color_and_quadratic.w;
 
     vec3 light_dir = normalize(pos - fs_in.world_space_position);
-    float strength = max(dot(fs_in.normal, light_dir), 0.0);
+    float strength = max(dot(normal, light_dir), 0.0);
 
     return strength * color;
 }
 
-vec3 specular_impact(PointLight light) {
+vec3 specular_impact(PointLight light, vec3 normal) {
     vec3 pos = light.position_and_linear.xyz;
     vec3 color = light.color_and_quadratic.xyz;
 
@@ -65,7 +66,7 @@ vec3 specular_impact(PointLight light) {
     vec3 light_dir = normalize(pos - fs_in.world_space_position);
     vec3 halfway_dir = normalize(light_dir + view_dir);
 
-    float strength = pow(max(dot(fs_in.normal, halfway_dir), 0.0f), 32.0);
+    float strength = pow(max(dot(normal, halfway_dir), 0.0f), 32.0);
 
     return strength * color;
 }
@@ -84,6 +85,9 @@ void main() {
     vec2 tex_coords
         = fs_in.texture_uv * mat.tiling_factor + mat.texture_offset;
     vec4 albedo = texture(u_textures[mat.albedo_idx], tex_coords) * mat.color;
+    vec3 normal = texture(u_textures[mat.normal_idx], tex_coords).rgb;
+    normal = normal * 2.0 - 1.0;
+    normal = normalize(fs_in.TBN * normal);
 
     vec3 ambient = vec3(0.1);
     vec3 diffuse = vec3(0.0);
@@ -100,8 +104,8 @@ void main() {
             = 1.0 / (1.0 + linear * dist + quadratic * dist * dist);
 
         ambient += vec3(0.1) * attentuation;
-        diffuse += diffuse_impact(light) * attentuation;
-        specular += specular_impact(light) * attentuation;
+        diffuse += diffuse_impact(light, normal) * attentuation;
+        specular += specular_impact(light, normal) * attentuation;
     }
 
     final_color = vec4(ambient + diffuse + specular, 1.0) * albedo;

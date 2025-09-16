@@ -136,55 +136,19 @@ void EditorLayer::on_update(float ts) {
 
 void EditorLayer::on_tick(uint32_t tickrate) {}
 
+static void setup_dockspace();
+static void render_control_panel(EditorLayer &layer);
+static void render_entity_panel(EditorLayer &layer);
+
 void EditorLayer::on_render() {
-    ImGuiViewport *viewport = ImGui::GetMainViewport();
-    ImGui::SetNextWindowPos(viewport->Pos);
-    ImGui::SetNextWindowSize(viewport->Size);
-    ImGui::SetNextWindowViewport(viewport->ID);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-    ImGui::Begin("main_dockspace", nullptr,
-                 ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar |
-                     ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
-                     ImGuiWindowFlags_NoMove |
-                     ImGuiWindowFlags_NoBringToFrontOnFocus |
-                     ImGuiWindowFlags_NoNavFocus);
-    ImGui::PopStyleVar();
-    ImGui::PopStyleVar(2);
-
-    ImGuiID dockspace_id = ImGui::GetID("dockspace");
-    ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f),
-                     ImGuiDockNodeFlags_PassthruCentralNode);
-
-    static bool first_time = true;
-    if (first_time) {
-        first_time = false;
-
-        ImGui::DockBuilderRemoveNode(dockspace_id);
-        ImGui::DockBuilderAddNode(dockspace_id,
-                                  ImGuiDockNodeFlags_PassthruCentralNode);
-        ImGui::DockBuilderSetNodeSize(dockspace_id, viewport->Size);
-
-        ImGuiID left = ImGui::DockBuilderSplitNode(
-            dockspace_id, ImGuiDir_Left, 0.2f, nullptr, &dockspace_id);
-        ImGuiID right = ImGui::DockBuilderSplitNode(
-            dockspace_id, ImGuiDir_Right, 0.2f, nullptr, &dockspace_id);
-
-        ImGui::DockBuilderDockWindow("Control panel", left);
-        ImGui::DockBuilderDockWindow("dock_main", dockspace_id);
-        ImGui::DockBuilderDockWindow("Entity panel", right);
-        ImGui::DockBuilderFinish(dockspace_id);
-    }
-
-    ImGui::End();
+    setup_dockspace();
 
     ImGui::Begin("Control panel");
-    render_control_panel();
+    render_control_panel(*this);
     ImGui::End();
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {0.0f, 0.0f});
-    ImGui::Begin("dock_main", nullptr,
+    ImGui::Begin("Viewport", nullptr,
                  ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse |
                      ImGuiWindowFlags_NoTitleBar |
                      ImGuiWindowFlags_NoBringToFrontOnFocus);
@@ -200,7 +164,7 @@ void EditorLayer::on_render() {
     ImGui::End();
 
     ImGui::Begin("Entity panel");
-    render_entity_panel();
+    render_entity_panel(*this);
     ImGui::End();
 
     glm::ivec2 avail_region_iv2 = {(int32_t)content_reg.x,
@@ -316,33 +280,78 @@ void EditorLayer::on_render() {
     main_fbo.unbind();
 }
 
-void EditorLayer::render_control_panel() {
-    ImGui::Text("%s", scene.name.c_str());
+static void setup_dockspace() {
+    ImGuiViewport *viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(viewport->Pos);
+    ImGui::SetNextWindowSize(viewport->Size);
+    ImGui::SetNextWindowViewport(viewport->ID);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+    ImGui::Begin("main_dockspace", nullptr,
+                 ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar |
+                     ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
+                     ImGuiWindowFlags_NoMove |
+                     ImGuiWindowFlags_NoBringToFrontOnFocus |
+                     ImGuiWindowFlags_NoNavFocus);
+    ImGui::PopStyleVar();
+    ImGui::PopStyleVar(2);
+
+    ImGuiID dockspace_id = ImGui::GetID("dockspace");
+    ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f),
+                     ImGuiDockNodeFlags_PassthruCentralNode);
+
+    static bool first_time = true;
+    if (first_time) {
+        first_time = false;
+
+        ImGui::DockBuilderRemoveNode(dockspace_id);
+        ImGui::DockBuilderAddNode(dockspace_id,
+                                  ImGuiDockNodeFlags_PassthruCentralNode);
+        ImGui::DockBuilderSetNodeSize(dockspace_id, viewport->Size);
+
+        ImGuiID left = ImGui::DockBuilderSplitNode(
+            dockspace_id, ImGuiDir_Left, 0.2f, nullptr, &dockspace_id);
+        ImGuiID right = ImGui::DockBuilderSplitNode(
+            dockspace_id, ImGuiDir_Right, 0.2f, nullptr, &dockspace_id);
+
+        ImGui::DockBuilderDockWindow("Control panel", left);
+        ImGui::DockBuilderDockWindow("Viewport", dockspace_id);
+        ImGui::DockBuilderDockWindow("Entity panel", right);
+        ImGui::DockBuilderFinish(dockspace_id);
+    }
+
+    ImGui::End();
+
+}
+
+static void render_control_panel(EditorLayer &layer) {
+    ImGui::Text("%s", layer.scene.name.c_str());
     ImGui::Separator();
 
     if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen)) {
         float horizontal_size = ImGui::CalcTextSize("Near clip").x;
         ImGui::Indent(16.0f);
-        ImGui::PrettyDragFloat3("Position", &camera.position[0], 0.05f, 0.0f,
+        ImGui::PrettyDragFloat3("Position", &layer.camera.position[0], 0.05f, 0.0f,
                                 0.0f, "%.3f", horizontal_size);
-        ImGui::PrettyDragFloat("Exposure", &camera.exposure, 0.01f, 0.0f,
+        ImGui::PrettyDragFloat("Exposure", &layer.camera.exposure, 0.01f, 0.0f,
                                FLT_MAX, "%.3f", horizontal_size);
-        ImGui::PrettyDragFloat("Gamma", &camera.gamma, 0.01f, 0.0f, FLT_MAX,
+        ImGui::PrettyDragFloat("Gamma", &layer.camera.gamma, 0.01f, 0.0f, FLT_MAX,
                                "%.3f", horizontal_size);
-        ImGui::PrettyDragFloat("Near clip", &camera.near_clip, 0.01f, 0.0f,
-                               camera.far_clip, "%.3f", horizontal_size);
-        ImGui::PrettyDragFloat("Far clip", &camera.far_clip, 0.01f,
-                               camera.near_clip, FLT_MAX, "%.3f",
+        ImGui::PrettyDragFloat("Near clip", &layer.camera.near_clip, 0.01f, 0.0f,
+                               layer.camera.far_clip, "%.3f", horizontal_size);
+        ImGui::PrettyDragFloat("Far clip", &layer.camera.far_clip, 0.01f,
+                               layer.camera.near_clip, FLT_MAX, "%.3f",
                                horizontal_size);
         ImGui::Unindent(16.0f);
     }
 }
 
-void EditorLayer::render_entity_panel() {
-    if (!selected_entity.has_value())
+static void render_entity_panel(EditorLayer &layer) {
+    if (!layer.selected_entity.has_value())
         return;
 
-    eng::Entity ent = selected_entity.value();
+    eng::Entity ent = layer.selected_entity.value();
 
     eng::Name &name = ent.get_component<eng::Name>();
     char buf[128] = { 0 };
@@ -377,10 +386,10 @@ void EditorLayer::render_entity_panel() {
         if (ImGui::CollapsingHeader("Mesh", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::Indent(8.0f);
             ImGui::BeginPrettyCombo(
-                "Mesh", asset_pack.meshes.at(mesh_comp.id).name.c_str(),
-                [this, &mesh_comp]() {
+                "Mesh", layer.asset_pack.meshes.at(mesh_comp.id).name.c_str(),
+                [&layer, &mesh_comp]() {
                     const std::map<eng::AssetID, eng::Mesh> &meshes =
-                        asset_pack.meshes;
+                        layer.asset_pack.meshes;
 
                     for (const auto &[id, meshData] : meshes) {
                         if (ImGui::Selectable(meshData.name.c_str(),
@@ -401,15 +410,15 @@ void EditorLayer::render_entity_panel() {
     ImGui::PushID(3);
     if (ent.has_component<eng::MaterialComp>()) {
         eng::MaterialComp &mat_comp = ent.get_component<eng::MaterialComp>();
-        eng::Material &mat = asset_pack.materials.at(mat_comp.id);
+        eng::Material &mat = layer.asset_pack.materials.at(mat_comp.id);
 
         if (ImGui::CollapsingHeader("Material",
                                     ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::Indent(8.0f);
             ImGui::BeginPrettyCombo(
-                "Material", mat.name.c_str(), [this, &mat_comp]() {
+                "Material", mat.name.c_str(), [&layer, &mat_comp]() {
                     const std::map<eng::AssetID, eng::Material> &materials =
-                        asset_pack.materials;
+                        layer.asset_pack.materials;
 
                     for (const auto &[id, material] : materials) {
                         if (ImGui::Selectable(material.name.c_str(),
@@ -427,7 +436,7 @@ void EditorLayer::render_entity_panel() {
             const char *avail_tex_group = "available_textures_group";
             static eng::AssetID *selected_id = nullptr;
 
-            Texture *tex = &asset_pack.textures.at(mat.albedo_texture_id);
+            Texture *tex = &layer.asset_pack.textures.at(mat.albedo_texture_id);
             if (ImGui::TextureFrame(
                     "##Albedo", (ImTextureID)tex->id,
                     [&tex, &mat]() {
@@ -442,7 +451,7 @@ void EditorLayer::render_entity_panel() {
                 ImGui::OpenPopup(avail_tex_group);
             }
 
-            tex = &asset_pack.textures.at(mat.normal_texture_id);
+            tex = &layer.asset_pack.textures.at(mat.normal_texture_id);
             if (ImGui::TextureFrame(
                     "##Normal", (ImTextureID)tex->id,
                     [&tex]() {
@@ -459,7 +468,7 @@ void EditorLayer::render_entity_panel() {
                 ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, {15.0f, 0.0f});
 
                 uint32_t count = 0;
-                for (const auto &[id, texture] : asset_pack.textures) {
+                for (const auto &[id, texture] : layer.asset_pack.textures) {
                     ImGui::PushID(count);
 
                     if (ImGui::ImageButton(

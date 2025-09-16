@@ -36,9 +36,6 @@ struct EditorLayer : public Layer {
     virtual void on_tick(uint32_t tickrate) override;
     virtual void on_render() override;
 
-    void render_control_panel();
-    void render_entity_panel();
-
     eng::Scene scene;
     eng::AssetPack asset_pack;
 

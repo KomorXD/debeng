@@ -2825,6 +2825,7 @@ void ImGui::PrettyDragFloat(const char *label, float *v, float speed, float min,
         ImGui::TableSetupColumn("Data", ImGuiTableColumnFlags_WidthStretch);
 
         ImGui::TableNextColumn();
+        ImGui::AlignTextToFramePadding();
         ImGui::Text(label);
 
         ImGui::TableNextColumn();
@@ -2855,6 +2856,7 @@ void ImGui::PrettyDragFloat2(const char *label, float *v, float speed,
         ImGui::TableSetupColumn("Data", ImGuiTableColumnFlags_WidthStretch);
 
         ImGui::TableNextColumn();
+        ImGui::AlignTextToFramePadding();
         ImGui::Text(label);
 
         ImGui::TableNextColumn();

@@ -2,12 +2,14 @@
 #include "eng/containers/registry.hpp"
 #include "eng/event.hpp"
 #include "eng/input.hpp"
+#include "eng/random_utils.hpp"
 #include "eng/renderer/camera.hpp"
 #include "eng/renderer/opengl.hpp"
 #include "eng/renderer/renderer.hpp"
 #include "eng/scene/assets.hpp"
 #include "eng/scene/components.hpp"
 #include "glm/fwd.hpp"
+#include "imgui/ImGuizmo.h"
 #include "imgui/imgui.h"
 #include "imgui/imgui_internal.h"
 #include "layers.hpp"
@@ -19,8 +21,9 @@ std::unique_ptr<Layer> EditorLayer::create(const eng::WindowSpec &win_spec) {
 
     std::unique_ptr<EditorLayer> layer = std::make_unique<EditorLayer>();
     layer->camera.position = glm::vec3(0.0f, 2.0f, -3.0f);
+    layer->camera.yaw = 180.0f;
     layer->camera.viewport = window_size;
-    layer->camera.control_mode = eng::SpectatorCamera::ControlMode::FPS;
+    layer->camera.control_mode = eng::SpectatorCamera::ControlMode::TRACKBALL;
     eng::disable_cursor();
 
     layer->main_fbo = Framebuffer::create();
@@ -90,21 +93,36 @@ void EditorLayer::on_detach() {}
 void EditorLayer::on_event(eng::Event &event) {
     switch (event.type) {
     case eng::EventType::KeyPressed:
-        if (event.key.key == eng::Key::Escape)
+        switch (event.key.key) {
+        case eng::Key::Escape:
             context()->close_app();
-        else if (event.key.key == eng::Key::Q) {
-            camera.control_mode = eng::SpectatorCamera::ControlMode::FPS;
-            eng::disable_cursor();
-        } else if (event.key.key == eng::Key::E) {
-            camera.control_mode = eng::SpectatorCamera::ControlMode::TRACKBALL;
-            eng::enable_cursor();
+            return;
+
+        case eng::Key::Q:
+            gizmo_op = (ImGuizmo::OPERATION)-1;
+            return;
+
+        case eng::Key::W:
+            gizmo_op = ImGuizmo::TRANSLATE;
+            return;
+
+        case eng::Key::E:
+            gizmo_op = ImGuizmo::ROTATE;
+            return;
+
+        case eng::Key::R:
+            gizmo_op = ImGuizmo::SCALE;
+            return;
+
+        default:
+            break;
         }
 
         break;
 
     case eng::EventType::MouseButtonPressed: {
         if (event.mouse_button.button == eng::MouseButton::Left &&
-            viewport_hovered) {
+            viewport_hovered && !lock_focus) {
             glm::vec2 mouse_pos = eng::get_mouse_position();
             glm::vec2 local_mouse_pos = mouse_pos - viewport_pos;
             glm::u8vec4 pixel = main_fbo.pixel_at(local_mouse_pos, 1);
@@ -143,6 +161,7 @@ void EditorLayer::on_tick(uint32_t tickrate) {}
 static void setup_dockspace();
 static void render_control_panel(EditorLayer &layer);
 static void render_entity_panel(EditorLayer &layer);
+static void render_gizmo(EditorLayer &layer);
 
 void EditorLayer::on_render() {
     setup_dockspace();
@@ -164,6 +183,7 @@ void EditorLayer::on_render() {
 
     ImGui::Image((ImTextureID)main_fbo.color_attachments[2].id, content_reg,
                  {0.0f, 1.0f}, {1.0f, 0.0f});
+    render_gizmo(*this);
     ImGui::PopStyleVar();
     ImGui::End();
 
@@ -294,7 +314,7 @@ static void setup_dockspace() {
         ImGuiID left = ImGui::DockBuilderSplitNode(
             dockspace_id, ImGuiDir_Left, 0.2f, nullptr, &dockspace_id);
         ImGuiID right = ImGui::DockBuilderSplitNode(
-            dockspace_id, ImGuiDir_Right, 0.2f, nullptr, &dockspace_id);
+            dockspace_id, ImGuiDir_Right, 0.3f, nullptr, &dockspace_id);
 
         ImGui::DockBuilderDockWindow("Control panel", left);
         ImGui::DockBuilderDockWindow("Viewport", dockspace_id);
@@ -491,4 +511,50 @@ static void render_entity_panel(EditorLayer &layer) {
         }
     }
     ImGui::PopID();
+}
+
+static void render_gizmo(EditorLayer &layer) {
+    if (!layer.selected_entity.has_value() ||
+        layer.gizmo_op == (ImGuizmo::OPERATION)-1) {
+        layer.lock_focus = false;
+        return;
+    }
+
+    ImGuizmo::SetOrthographic(false);
+    ImGuizmo::SetDrawlist(ImGui::GetCurrentWindow()->DrawList);
+
+    glm::vec2 &viewport_pos = layer.viewport_pos;
+    glm::vec2 &viewport_size = layer.camera.viewport;
+    float title_bar_height = ImGui::GetCurrentWindow()->TitleBarHeight;
+    ImGuizmo::SetRect(viewport_pos.x, viewport_pos.y + title_bar_height,
+                      viewport_size.x, viewport_size.y);
+
+    eng::Entity ent = layer.selected_entity.value();
+    const glm::mat4 &camera_proj = layer.camera.projection();
+    const glm::mat4 &camera_view = layer.camera.view();
+    glm::mat4 transform = ent.get_component<eng::Transform>().to_mat4();
+
+    bool do_snap = eng::is_key_pressed(eng::Key::LeftControl);
+    float snap_step = (layer.gizmo_op == ImGuizmo::ROTATE ? 45.0f : 0.5f);
+    float snap_vals[3] = {snap_step, snap_step, snap_step};
+
+    ImGuizmo::Manipulate(&camera_view[0][0], &camera_proj[0][0], layer.gizmo_op,
+                         layer.gizmo_mode, &transform[0][0], nullptr,
+                         (do_snap ? snap_vals : nullptr));
+
+    layer.lock_focus = ImGuizmo::IsOver();
+
+    if (ImGuizmo::IsUsing()) {
+        glm::vec3 position;
+        glm::vec3 rotation;
+        glm::vec3 scale;
+        eng::Transform &t_comp = ent.get_component<eng::Transform>();
+
+        (void)transform_decompose(transform, position, rotation, scale);
+        glm::vec3 delta_rot = rotation - t_comp.rotation;
+
+        t_comp.position = position;
+        t_comp.rotation = t_comp.rotation + delta_rot;
+        t_comp.scale = scale;
+    }
 }

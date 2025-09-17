@@ -1,5 +1,6 @@
 #include "context.hpp"
 #include "GLFW/glfw3.h"
+#include "imgui/ImGuizmo.h"
 
 #define IMGUI_IMPL_OPENGL_LOADER_GLAD
 #include "imgui/imgui_impl_glfw.h"
@@ -145,6 +146,7 @@ void Context::run_loop() {
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
+        ImGuizmo::BeginFrame();
 
         while (!main_window.pending_events.empty()) {
             eng::Event event = main_window.pending_events.front();

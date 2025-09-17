@@ -1,6 +1,7 @@
 #ifndef RANDOM_UTILS_HPP
 #define RANDOM_UTILS_HPP
 
+#include "glm/fwd.hpp"
 #include <optional>
 #include <string>
 
@@ -9,6 +10,9 @@
 /* Replaces PATTERN with REPLACEMENT in place, for SOURCE.  */
 void replace_all(std::string &source, const std::string &pattern,
                  const std::string &replacement);
+
+bool transform_decompose(const glm::mat4 &transform, glm::vec3 &translation,
+                         glm::vec3 &rotation, glm::vec3 &scale);
 
 /* Generic error, either success or failure. */
 enum class GenericError {

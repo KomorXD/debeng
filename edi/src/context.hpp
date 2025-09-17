@@ -1,9 +1,9 @@
 #ifndef CONTEXT_HPP
 #define CONTEXT_HPP
 
+#include "eng/random_utils.hpp"
 #include "eng/window.hpp"
 #include "layers.hpp"
-#include "result.hpp"
 #include <stack>
 
 enum class ContextError {

@@ -8,6 +8,7 @@
 #include "eng/scene/entity.hpp"
 #include "eng/scene/scene.hpp"
 #include "eng/window.hpp"
+#include "imgui/ImGuizmo.h"
 #include <memory>
 
 struct Layer {
@@ -48,8 +49,13 @@ struct EditorLayer : public Layer {
     std::optional<eng::Entity> selected_entity;
     eng::AssetID outline_material;
 
+    ImGuizmo::OPERATION gizmo_op = ImGuizmo::TRANSLATE;
+    ImGuizmo::MODE gizmo_mode = ImGuizmo::WORLD;
+
     glm::vec2 viewport_pos;
+
     bool viewport_hovered = false;
+    bool lock_focus = false;
 };
 
 #endif // LAYER_HPP

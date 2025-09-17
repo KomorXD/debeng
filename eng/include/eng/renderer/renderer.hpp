@@ -8,6 +8,15 @@
 
 namespace eng::renderer {
 
+constexpr int32_t CAMERA_BINDING = 0;
+constexpr int32_t POINT_LIGHTS_BINDING = 1;
+constexpr int32_t MATERIALS_BINDING = 2;
+
+constexpr int32_t MAX_MESH_INSTANCES = 128;
+constexpr int32_t MAX_POINT_LIGHTS = 128;
+constexpr int32_t MAX_MATERIALS = 128;
+constexpr int32_t MAX_TEXTURES = 16;
+
 struct CameraData {
     glm::mat4 view_projection;
     glm::mat4 projection;
@@ -50,8 +59,6 @@ void scene_end();
 
 void submit_mesh(const glm::mat4 &transform, AssetID mesh_id,
                  AssetID material_id, int32_t ent_id);
-void submit_quad(const glm::vec3 &position);
-void submit_cube(const glm::vec3 &position);
 
 void submit_point_light(const glm::vec3 &position, const PointLight &light);
 
@@ -71,9 +78,6 @@ enum class RenderPassMode {
 
     COUNT
 };
-
-RenderPassMode render_mode();
-void set_render_mode(RenderPassMode mode);
 
 } // namespace eng
 

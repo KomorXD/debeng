@@ -77,6 +77,7 @@ struct Shader {
     void set_uniform_4f(const std::string &name, const glm::vec4 &val);
     void set_uniform_mat4(const std::string &name, const glm::mat4 &val);
 
+    std::string name;
     GLuint id = 0;
     std::unordered_map<std::string, GLint> uniform_cache;
 };

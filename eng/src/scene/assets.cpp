@@ -1,5 +1,6 @@
 #include "eng/scene/assets.hpp"
 #include "eng/renderer/primitives.hpp"
+#include "eng/renderer/renderer.hpp"
 
 namespace eng {
 
@@ -81,8 +82,90 @@ AssetPack AssetPack::create(const std::string &pack_name) {
 
     {
         Material def_mat;
-        def_mat.name = "Default material";
+        def_mat.name = "Base material";
+        def_mat.shader_id = DEFAULT_BASE_MATERIAL;
         (void)pack.add_material(def_mat);
+    }
+
+    {
+        Material def_mat;
+        def_mat.name = "Flat material";
+        def_mat.shader_id = DEFAULT_FLAT_MATERIAL;
+        (void)pack.add_material(def_mat);
+    }
+
+    {
+        Shader base_shader = Shader::create();
+        base_shader.name = "Base";
+
+        ShaderSpec spec;
+        spec.vertex_shader.path = "resources/shaders/base.vert";
+        spec.vertex_shader.replacements = {
+            {
+                "${CAMERA_BINDING}",
+                std::to_string(renderer::CAMERA_BINDING)
+            }
+        };
+        spec.fragment_shader.path = "resources/shaders/base.frag";
+        spec.fragment_shader.replacements = {
+            {
+                "${POINT_LIGHTS_BINDING}",
+                std::to_string(renderer::POINT_LIGHTS_BINDING)
+            },
+            {
+                "${MAX_POINT_LIGHTS}",
+                std::to_string(renderer::MAX_POINT_LIGHTS)
+            },
+            {
+                "${MATERIALS_BINDING}",
+                std::to_string(renderer::MATERIALS_BINDING)
+            },
+            {
+                "${MAX_MATERIALS}",
+                std::to_string(renderer::MAX_MATERIALS)
+            },
+            {
+                "${MAX_TEXTURES}",
+                std::to_string(renderer::MAX_TEXTURES)
+            }
+        };
+
+        assert(base_shader.build(spec) && "Default shaders not found");
+
+        (void)pack.add_shader(base_shader);
+    }
+
+    {
+        Shader flat_shader = Shader::create();
+        flat_shader.name = "Flat";
+
+        ShaderSpec spec;
+        spec.vertex_shader.path = "resources/shaders/flat.vert";
+        spec.vertex_shader.replacements = {
+            {
+                "${CAMERA_BINDING}",
+                std::to_string(renderer::CAMERA_BINDING)
+            }
+        };
+        spec.fragment_shader.path = "resources/shaders/flat.frag";
+        spec.fragment_shader.replacements = {
+            {
+                "${MATERIALS_BINDING}",
+                std::to_string(renderer::MATERIALS_BINDING)
+            },
+            {
+                "${MAX_MATERIALS}",
+                std::to_string(renderer::MAX_MATERIALS)
+            },
+            {
+                "${MAX_TEXTURES}",
+                std::to_string(renderer::MAX_TEXTURES)
+            }
+        };
+
+        assert(flat_shader.build(spec) && "Default shaders not found");
+
+        (void)pack.add_shader(flat_shader);
     }
 
     return pack;
@@ -94,6 +177,9 @@ void AssetPack::destroy() {
 
     for (auto &[tex_id, texture] : textures)
         texture.destroy();
+
+    for (auto &[shader_id, shader] : shaders)
+        shader.destroy();
 
     meshes.clear();
 }
@@ -131,6 +217,18 @@ AssetID AssetPack::add_material(Material &material) {
 
     Material &new_material = materials[id];
     new_material = material;
+    return id;
+}
+
+AssetID AssetPack::add_shader(Shader &shader) {
+    AssetID id = 0;
+    if (shaders.empty())
+        id = 1;
+    else
+        id = shaders.rbegin()->first + 1;
+
+    Shader &new_shader = shaders[id];
+    new_shader = shader;
     return id;
 }
 

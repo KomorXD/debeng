@@ -2,7 +2,6 @@
 #include "eng/renderer/opengl.hpp"
 #include "eng/scene/assets.hpp"
 #include "eng/scene/components.hpp"
-#include "glm/ext/matrix_transform.hpp"
 #include "GLFW/glfw3.h"
 #include <algorithm>
 #include <vector>
@@ -17,22 +16,11 @@ struct GPU {
     GLint texture_units = 0;
 };
 
+using InstancesMap = std::unordered_map<AssetID, std::vector<MeshInstance>>;
+using ShaderGroupedInstances = std::unordered_map<AssetID, InstancesMap>;
+
 struct Renderer {
-    static constexpr int32_t CAMERA_BINDING = 0;
-    static constexpr int32_t POINT_LIGHTS_BINDING = 1;
-    static constexpr int32_t MATERIALS_BINDING = 2;
-
-    static constexpr int32_t MAX_MESH_INSTANCES = 128;
-    static constexpr int32_t MAX_POINT_LIGHTS = 128;
-    static constexpr int32_t MAX_MATERIALS = 128;
-    static constexpr int32_t MAX_TEXTURES = 16;
-
     GPU gpu;
-    Shader base_shader;
-    Shader flat_shader;
-
-    Shader *current_shader = nullptr;
-    RenderPassMode render_mode = RenderPassMode::BASE;
 
     VertexArray screen_quad_vao;
     Shader screen_quad_shader;
@@ -47,11 +35,11 @@ struct Renderer {
 
     std::vector<AssetID> texture_ids;
 
-    std::unordered_map<AssetID, std::vector<MeshInstance>> mesh_instances;
+    ShaderGroupedInstances instances;
 };
 
 static Renderer s_renderer{};
-static const AssetPack *s_asset_pack{};
+static AssetPack *s_asset_pack{};
 
 void opengl_msg_cb(unsigned source, unsigned type, unsigned id,
                    unsigned severity, int length, const char *msg,
@@ -105,84 +93,6 @@ bool init() {
     GL_CALL(glStencilMask(0x00));
     GL_CALL(glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS));
 
-    s_renderer.base_shader = Shader::create();
-    s_renderer.current_shader = &s_renderer.base_shader;
-
-    {
-        ShaderSpec spec;
-        spec.vertex_shader.path = "resources/shaders/base.vert";
-        spec.vertex_shader.replacements = {
-            {
-                "${CAMERA_BINDING}",
-                std::to_string(s_renderer.CAMERA_BINDING)
-            }
-        };
-        spec.fragment_shader.path = "resources/shaders/base.frag";
-        spec.fragment_shader.replacements = {
-            {
-                "${POINT_LIGHTS_BINDING}",
-                std::to_string(s_renderer.POINT_LIGHTS_BINDING)
-            },
-            {
-                "${MAX_POINT_LIGHTS}",
-                std::to_string(s_renderer.MAX_POINT_LIGHTS)
-            },
-            {
-                "${MATERIALS_BINDING}",
-                std::to_string(s_renderer.MATERIALS_BINDING)
-            },
-            {
-                "${MAX_MATERIALS}",
-                std::to_string(s_renderer.MAX_MATERIALS)
-            },
-            {
-                "${MAX_TEXTURES}",
-                std::to_string(s_renderer.MAX_TEXTURES)
-            }
-        };
-
-        assert(s_renderer.base_shader.build(spec) &&
-               "Default shaders not found");
-    }
-
-    s_renderer.flat_shader = Shader::create();
-
-    {
-        ShaderSpec spec;
-        spec.vertex_shader.path = "resources/shaders/flat.vert";
-        spec.vertex_shader.replacements = {
-            {
-                "${CAMERA_BINDING}",
-                std::to_string(s_renderer.CAMERA_BINDING)
-            }
-        };
-        spec.fragment_shader.path = "resources/shaders/flat.frag";
-        spec.fragment_shader.replacements = {
-            {
-                "${MATERIALS_BINDING}",
-                std::to_string(s_renderer.MATERIALS_BINDING)
-            },
-            {
-                "${MAX_MATERIALS}",
-                std::to_string(s_renderer.MAX_MATERIALS)
-            },
-            {
-                "${MAX_TEXTURES}",
-                std::to_string(s_renderer.MAX_TEXTURES)
-            }
-        };
-
-        assert(s_renderer.flat_shader.build(spec) &&
-               "Default shaders not found");
-    }
-
-    s_renderer.mesh_instances[eng::AssetPack::QUAD_ID].reserve(
-        s_renderer.MAX_MESH_INSTANCES);
-    s_renderer.mesh_instances[eng::AssetPack::CUBE_ID].reserve(
-        s_renderer.MAX_MESH_INSTANCES);
-    s_renderer.mesh_instances[eng::AssetPack::SPHERE_ID].reserve(
-        s_renderer.MAX_MESH_INSTANCES);
-
     float screen_quad_vertices[] = {
     //    position      texture_uv
         -1.0f, -1.0f,   0.0f, 0.0f,
@@ -214,7 +124,7 @@ bool init() {
         spec.fragment_shader.replacements = {
             {
                 "${CAMERA_BINDING}",
-                std::to_string(s_renderer.CAMERA_BINDING)
+                std::to_string(CAMERA_BINDING)
             }
         };
 
@@ -227,28 +137,22 @@ bool init() {
 
     uint32_t size = sizeof(CameraData);
     s_renderer.camera_uni_buffer = UniformBuffer::create(nullptr, size);
-    s_renderer.camera_uni_buffer.bind_buffer_range(s_renderer.CAMERA_BINDING, 0,
-                                                   size);
+    s_renderer.camera_uni_buffer.bind_buffer_range(CAMERA_BINDING, 0, size);
 
-    size =
-        s_renderer.MAX_POINT_LIGHTS * sizeof(PointLightData) + sizeof(int32_t);
+    size = MAX_POINT_LIGHTS * sizeof(PointLightData) + sizeof(int32_t);
     s_renderer.point_lights_uni_buffer = UniformBuffer::create(nullptr, size);
-    s_renderer.point_lights_uni_buffer.bind_buffer_range(
-        s_renderer.POINT_LIGHTS_BINDING, 0, size);
+    s_renderer.point_lights_uni_buffer.bind_buffer_range(POINT_LIGHTS_BINDING,
+                                                         0, size);
 
-    size = s_renderer.MAX_MATERIALS * sizeof(MaterialData);
+    size = MAX_MATERIALS * sizeof(MaterialData);
     s_renderer.material_uni_buffer = UniformBuffer::create(nullptr, size);
-    s_renderer.material_uni_buffer.bind_buffer_range(
-        s_renderer.MATERIALS_BINDING, 0, size);
+    s_renderer.material_uni_buffer.bind_buffer_range(MATERIALS_BINDING, 0,
+                                                     size);
 
     return true;
 }
 
 void shutdown() {
-    s_renderer.base_shader.destroy();
-    s_renderer.flat_shader.destroy();
-    s_renderer.current_shader = nullptr;
-
     s_renderer.camera_uni_buffer.destroy();
     s_renderer.point_lights_uni_buffer.destroy();
     s_renderer.material_uni_buffer.destroy();
@@ -263,8 +167,12 @@ void scene_begin(const CameraData &camera, AssetPack &asset_pack) {
     s_renderer.material_ids.clear();
     s_renderer.texture_ids.clear();
 
-    for (auto &[mesh_id, instances] : s_renderer.mesh_instances)
-        instances.clear();
+    for (auto &[shader_id, instance_map] : s_renderer.instances) {
+        for (auto &[mesh_id, instances] : instance_map)
+            instances.clear();
+
+        instance_map.clear();
+    }
 
     s_renderer.camera_uni_buffer.bind();
     s_renderer.camera_uni_buffer.set_data(&camera, sizeof(CameraData));
@@ -274,12 +182,10 @@ void scene_end() {
     s_renderer.point_lights_uni_buffer.bind();
 
     int32_t count = s_renderer.point_lights.size();
-    int32_t offset = s_renderer.MAX_POINT_LIGHTS * sizeof(PointLightData);
+    int32_t offset = MAX_POINT_LIGHTS * sizeof(PointLightData);
     s_renderer.point_lights_uni_buffer.set_data(s_renderer.point_lights.data(),
                                                 count * sizeof(PointLightData));
     s_renderer.point_lights_uni_buffer.set_data(&count, sizeof(int32_t), offset);
-
-    s_renderer.current_shader->bind();
 
     std::vector<MaterialData> materials;
     materials.reserve(s_renderer.material_ids.size());
@@ -322,33 +228,45 @@ void scene_end() {
     s_renderer.material_uni_buffer.set_data(materials.data(),
                                             count * sizeof(MaterialData));
 
-    int32_t slot = 0;
     for (int32_t i = 0; i < s_renderer.texture_ids.size(); i++) {
         AssetID tex_id = s_renderer.texture_ids[i];
-        const Texture &tex = s_asset_pack->textures.at(tex_id);
+        Texture &tex = s_asset_pack->textures.at(tex_id);
 
-        tex.bind(slot);
-        s_renderer.current_shader->set_uniform_1i(
-            "u_textures[" + std::to_string(i) + "]", slot);
-
-        slot++;
+        tex.bind(i);
     }
 
-    for (auto &[mesh_id, instances] : s_renderer.mesh_instances) {
-        if (instances.empty())
+    for (auto &[shader_id, instance_map] : s_renderer.instances) {
+        if (instance_map.empty())
             continue;
 
-        const Mesh &mesh = s_asset_pack->meshes.at(mesh_id);
-        mesh.vao.vbo_instanced.set_data(
-            instances.data(), instances.size() * sizeof(MeshInstance));
-        draw_elements_instanced(*s_renderer.current_shader, mesh.vao,
-                                instances.size());
+        Shader &curr_shader = s_asset_pack->shaders.at(shader_id);
+        curr_shader.bind();
+
+        /*  When I make textures into a texture atlas we will make it
+         *  better... */
+        for (int32_t i = 0; i < s_renderer.texture_ids.size(); i++) {
+            curr_shader.set_uniform_1i("u_textures[" + std::to_string(i) + "]",
+                                       i);
+        }
+
+        for (auto &[mesh_id, instances] : instance_map) {
+            if (instances.empty())
+                continue;
+
+            Mesh &mesh = s_asset_pack->meshes.at(mesh_id);
+            mesh.vao.vbo_instanced.set_data(
+                instances.data(), instances.size() * sizeof(MeshInstance));
+            draw_elements_instanced(curr_shader, mesh.vao, instances.size());
+        }
     }
 }
 
 void submit_mesh(const glm::mat4 &transform, AssetID mesh_id,
                  AssetID material_id, int32_t ent_id) {
-    std::vector<MeshInstance> &instances = s_renderer.mesh_instances[mesh_id];
+    Material &mat = s_asset_pack->materials.at(material_id);
+    InstancesMap &group = s_renderer.instances[mat.shader_id];
+    std::vector<MeshInstance> &instances = group[mesh_id];
+
     MeshInstance &instance = instances.emplace_back();
     instance.transform = transform;
     instance.entity_id = ent_id;
@@ -365,22 +283,6 @@ void submit_mesh(const glm::mat4 &transform, AssetID mesh_id,
 
     it = material_ids.insert(it, material_id);
     instance.material_idx = std::distance(material_ids.begin(), it);
-}
-
-void submit_quad(const glm::vec3 &position) {
-    std::vector<MeshInstance> &instances =
-        s_renderer.mesh_instances.at(AssetPack::QUAD_ID);
-    MeshInstance &ins = instances.emplace_back();
-    ins.transform = glm::translate(glm::mat4(1.0f), position) *
-                    glm::scale(glm::mat4(1.0f), glm::vec3(1.0f));
-}
-
-void submit_cube(const glm::vec3 &position) {
-    std::vector<MeshInstance> &instances =
-        s_renderer.mesh_instances.at(AssetPack::CUBE_ID);
-    MeshInstance &ins = instances.emplace_back();
-    ins.transform = glm::translate(glm::mat4(1.0f), position) *
-                    glm::scale(glm::mat4(1.0f), glm::vec3(1.0f));
 }
 
 void submit_point_light(const glm::vec3 &position, const PointLight &light) {
@@ -429,18 +331,6 @@ void draw_elements_instanced(const Shader &shader, const VertexArray &vao,
 
     GL_CALL(glDrawElementsInstanced(GL_TRIANGLES, vao.ibo.indices_count,
                                     GL_UNSIGNED_INT, nullptr, instances_count));
-}
-
-RenderPassMode render_mode() {
-    return s_renderer.render_mode;
-}
-
-void set_render_mode(RenderPassMode mode) {
-    assert(mode < RenderPassMode::COUNT && "Invalid render pass mode");
-
-    Shader *shaders[] = {&s_renderer.base_shader, &s_renderer.flat_shader};
-    s_renderer.current_shader = shaders[(int32_t)mode];
-    s_renderer.render_mode = mode;
 }
 
 } // namespace eng::Renderer

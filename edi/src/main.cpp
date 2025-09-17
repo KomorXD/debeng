@@ -16,5 +16,7 @@ int main(int argc, char **argv) {
     ctx->run_loop();
     ctx->cleanup();
 
+    printf("nara\n");
+
     return 0;
 }

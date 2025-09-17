@@ -133,11 +133,14 @@ void Context::run_loop() {
     while (main_window.is_open()) {
         if (s_pop_layer) {
             s_pop_layer = false;
+            layers.top()->on_detach();
             layers.pop();
         }
 
-        if (s_new_layer != nullptr)
+        if (s_new_layer != nullptr) {
             layers.push(std::move(s_new_layer));
+            layers.top()->on_attach();
+        }
 
         curr_time = (float)glfwGetTime();
         timestep = std::min(curr_time - prev_time, 1.0f / 60.0f);

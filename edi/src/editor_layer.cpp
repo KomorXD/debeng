@@ -15,6 +15,7 @@
 #include "layers.hpp"
 #include <cfloat>
 #include <string>
+#include <signal.h>
 
 std::unique_ptr<Layer> EditorLayer::create(const eng::WindowSpec &win_spec) {
     glm::ivec2 window_size = glm::ivec2(win_spec.width, win_spec.height);
@@ -86,7 +87,22 @@ void EditorLayer::destroy() {
     main_fbo.destroy();
 }
 
-void EditorLayer::on_attach() {}
+static void sig_handler(int signo) {
+    if (signo == SIGTERM)
+        context()->close_app();
+}
+
+void EditorLayer::on_attach() {
+    struct sigaction act;
+    act.sa_handler = sig_handler;
+    sigfillset(&act.sa_mask);
+    act.sa_flags = SA_RESTART;
+
+    if (sigaction (SIGTERM, &act, NULL) == -1)
+        fprintf(stderr,
+                "Could not install handler for SIGTERM, closing an app might "
+                "be not working correctly. If so, shutdown forcibly.\n");
+}
 
 void EditorLayer::on_detach() {}
 
@@ -95,7 +111,7 @@ void EditorLayer::on_event(eng::Event &event) {
     case eng::EventType::KeyPressed:
         switch (event.key.key) {
         case eng::Key::Escape:
-            context()->close_app();
+            selected_entity = std::nullopt;
             return;
 
         case eng::Key::Q:

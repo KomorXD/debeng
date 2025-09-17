@@ -24,6 +24,7 @@ struct Material {
     vec2 texture_offset;
 
     int albedo_idx;
+    int normal_idx;
 };
 
 layout (std140, binding = MATERIALS_BINDING) uniform Materials {

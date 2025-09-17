@@ -58,7 +58,7 @@ std::unique_ptr<Layer> EditorLayer::create(const eng::WindowSpec &win_spec) {
             glm::vec3((float)(i / 10) * 2.0f, 0.0f, (float)(i % 10) * 2.0f);
         ent.add_component<eng::MeshComp>().id = eng::AssetPack::CUBE_ID;
         ent.add_component<eng::MaterialComp>().id =
-            eng::AssetPack::DEFAULT_MATERIAL;
+            eng::AssetPack::DEFAULT_BASE_MATERIAL;
     }
 
     eng::Entity ent = layer->scene.spawn_entity("light");
@@ -66,11 +66,12 @@ std::unique_ptr<Layer> EditorLayer::create(const eng::WindowSpec &win_spec) {
     ent.add_component<eng::PointLight>().intensity = 3.0f;
     ent.add_component<eng::MeshComp>().id = eng::AssetPack::CUBE_ID;
     ent.add_component<eng::MaterialComp>().id =
-        eng::AssetPack::DEFAULT_MATERIAL;
+        eng::AssetPack::DEFAULT_FLAT_MATERIAL;
 
     eng::Material mat;
     mat.name = "Outline";
     mat.color = glm::vec4(0.76f, 0.20f, 0.0f, 1.0f);
+    mat.shader_id = eng::AssetPack::DEFAULT_FLAT_MATERIAL;
     layer->outline_material = layer->asset_pack.add_material(mat);
 
     return layer;
@@ -183,7 +184,6 @@ void EditorLayer::on_render() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     glClearColor(0.33f, 0.33f, 0.33f, 1.0f);
 
-    eng::renderer::RenderPassMode orig_mode = eng::renderer::render_mode();
     if (selected_entity.has_value() &&
         selected_entity.value().has_component<eng::MeshComp>()) {
 
@@ -194,13 +194,11 @@ void EditorLayer::on_render() {
         glStencilFunc(GL_ALWAYS, 1, 0xFF);
         glStencilMask(0xFF);
         glDisable(GL_DEPTH_TEST);
-        eng::renderer::set_render_mode(eng::renderer::RenderPassMode::FLAT);
         eng::renderer::scene_begin(camera.render_data(), asset_pack);
         eng::renderer::submit_mesh(transform.to_mat4(), mesh_comp.id,
-                                   eng::AssetPack::DEFAULT_MATERIAL,
+                                   eng::AssetPack::DEFAULT_BASE_MATERIAL,
                                    ent.handle);
         eng::renderer::scene_end();
-        eng::renderer::set_render_mode(orig_mode);
         glEnable(GL_DEPTH_TEST);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     }
@@ -221,8 +219,7 @@ void EditorLayer::on_render() {
     }
 
     rview =
-        scene.registry.view<eng::Transform, eng::MeshComp, eng::MaterialComp>(
-            eng::ecs::exclude<eng::PointLight>);
+        scene.registry.view<eng::Transform, eng::MeshComp, eng::MaterialComp>();
     for (eng::ecs::RegistryView::Entry &entry : rview.entity_entries) {
         eng::Transform &transform = rview.get<eng::Transform>(entry);
         eng::MeshComp &mesh = rview.get<eng::MeshComp>(entry);
@@ -233,22 +230,6 @@ void EditorLayer::on_render() {
     }
 
     eng::renderer::scene_end();
-
-    eng::renderer::scene_begin(camera.render_data(), asset_pack);
-    eng::renderer::set_render_mode(eng::renderer::RenderPassMode::FLAT);
-    rview = scene.registry.view<eng::Transform, eng::MeshComp,
-                                eng::MaterialComp, eng::PointLight>();
-    for (eng::ecs::RegistryView::Entry &entry : rview.entity_entries) {
-        eng::Transform &transform = rview.get<eng::Transform>(entry);
-        eng::MeshComp &mesh = rview.get<eng::MeshComp>(entry);
-        eng::MaterialComp &mat = rview.get<eng::MaterialComp>(entry);
-
-        eng::renderer::submit_mesh(transform.to_mat4(), mesh.id, mat.id,
-                                   entry.entity_id);
-    }
-
-    eng::renderer::scene_end();
-    eng::renderer::set_render_mode(orig_mode);
 
     main_fbo.bind_color_attachment(0);
     main_fbo.draw_to_color_attachment(2, 2);
@@ -257,7 +238,6 @@ void EditorLayer::on_render() {
 
     if (selected_entity.has_value() &&
         selected_entity.value().has_component<eng::MeshComp>()) {
-        eng::renderer::RenderPassMode orig_mode = eng::renderer::render_mode();
 
         eng::Entity ent = selected_entity.value();
         eng::Transform transform = ent.get_component<eng::Transform>();
@@ -268,13 +248,11 @@ void EditorLayer::on_render() {
         glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
         glStencilMask(0x00);
         glDisable(GL_DEPTH_TEST);
-        eng::renderer::set_render_mode(eng::renderer::RenderPassMode::FLAT);
         eng::renderer::scene_begin(camera.render_data(), asset_pack);
         eng::renderer::submit_mesh(transform.to_mat4(), mesh_comp.id,
                                    outline_material,
                                    ent.handle);
         eng::renderer::scene_end();
-        eng::renderer::set_render_mode(orig_mode);
         glEnable(GL_DEPTH_TEST);
     }
 
@@ -427,6 +405,19 @@ static void render_entity_panel(EditorLayer &layer) {
                         if (ImGui::Selectable(material.name.c_str(),
                                               id == mat_comp.id))
                             mat_comp.id = id;
+                    }
+                });
+
+            Shader &shader = layer.asset_pack.shaders.at(mat.shader_id);
+            ImGui::BeginPrettyCombo(
+                "Shader", shader.name.c_str(), [&layer, &mat]() {
+                    const std::map<eng::AssetID, Shader> &shaders =
+                        layer.asset_pack.shaders;
+
+                    for (const auto &[id, shader] : shaders) {
+                        if (ImGui::Selectable(shader.name.c_str(),
+                                              id == mat.shader_id))
+                            mat.shader_id = id;
                     }
                 });
 

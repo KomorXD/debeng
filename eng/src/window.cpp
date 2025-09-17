@@ -109,7 +109,7 @@ std::optional<Window> Window::create(const WindowSpec &spec) {
     window.handle = glfwCreateWindow(spec.width, spec.height,
                                      spec.title.c_str(), nullptr, nullptr);
     if (!window.handle) {
-        return {};
+        return std::nullopt;
     }
 
     window.spec = spec;
@@ -130,21 +130,27 @@ void Window::terminate() {
 }
 
 void Window::update_user_pointer() {
+    assert(handle != nullptr &&
+           "Trying to update user pointer of non-initialized window");
+
     glfwSetWindowUserPointer(handle, this);
 }
 
 bool Window::is_open() const {
+    assert(handle != nullptr && "Trying to query non-initialized window");
+
     return !glfwWindowShouldClose(handle);
 }
 
 void Window::update() {
+    assert(handle != nullptr && "Trying to update non-initialized window");
+
     glfwPollEvents();
     glfwSwapBuffers(handle);
 }
 
 void Window::close() {
-    if (!handle)
-        return;
+    assert(handle != nullptr && "Trying to close non-initialized window");
 
     glfwSetWindowShouldClose(handle, 1);
 }

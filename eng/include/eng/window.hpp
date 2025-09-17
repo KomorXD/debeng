@@ -39,7 +39,7 @@ struct Window {
     void set_title(const std::string &title);
 
     GLFWwindow *handle = nullptr;
-    WindowSpec spec{};
+    WindowSpec spec;
 
     /* Window's pending events that should be cleared and checked each
        frame. */

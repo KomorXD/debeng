@@ -19,7 +19,7 @@ struct SpectatorCamera {
     [[nodiscard]] glm::mat4 projection() const;
     [[nodiscard]] glm::mat4 view() const;
 
-    [[nodiscard]] renderer::CameraData camera_render_data() const;
+    [[nodiscard]] renderer::CameraData render_data() const;
 
     void update_with_input(float timestep);
     void scroll_update(float offset);

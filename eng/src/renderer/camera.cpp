@@ -36,7 +36,7 @@ glm::mat4 SpectatorCamera::view() const {
     return glm::inverse(view_mat);
 }
 
-renderer::CameraData SpectatorCamera::camera_render_data() const {
+renderer::CameraData SpectatorCamera::render_data() const {
     renderer::CameraData cdata;
     cdata.projection = projection();
     cdata.view = view();

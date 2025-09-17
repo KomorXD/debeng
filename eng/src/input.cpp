@@ -29,6 +29,7 @@ glm::vec2 get_mouse_position() {
     int height;
     glfwGetWindowSize(window, &width, &height);
 
+    /*  "height - y" to flip coords */
     return { (float)pos_x, (float)height - (float)pos_y };
 }
 

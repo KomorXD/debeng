@@ -98,7 +98,7 @@ VertexData cube_vertex_data() {
         20, 21, 22, 22, 23, 20
     };
 
-    for (size_t i = 0; i < indices.size(); i += 6) {
+    for (int32_t i = 0; i < indices.size(); i += 6) {
         calculate_tangents(vertices[indices[i + 0]], vertices[indices[i + 1]],
                            vertices[indices[i + 2]]);
         calculate_tangents(vertices[indices[i + 3]], vertices[indices[i + 4]],

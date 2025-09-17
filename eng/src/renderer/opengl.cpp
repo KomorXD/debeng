@@ -343,7 +343,7 @@ void VertexArray::add_buffers(const VertexBuffer &vbo, const IndexBuffer &ibo,
 
     uint32_t len = layout.elements.size() + attrib_offset;
     size_t offset = 0;
-    for (uint32_t i = attrib_offset; i < len; i++) {
+    for (int32_t i = attrib_offset; i < len; i++) {
         const VertexBufferElement &element = layout.elements[i - attrib_offset];
 
         GL_CALL(glEnableVertexAttribArray(i));
@@ -367,7 +367,7 @@ void VertexArray::add_vertex_buffer(const VertexBuffer &vbo,
 
     uint32_t len = layout.elements.size() + attrib_offset;
     size_t offset = 0;
-    for (uint32_t i = attrib_offset; i < len; i++) {
+    for (int32_t i = attrib_offset; i < len; i++) {
         const VertexBufferElement &element = layout.elements[i - attrib_offset];
 
         GL_CALL(glEnableVertexAttribArray(i));
@@ -390,7 +390,7 @@ void VertexArray::add_instanced_vertex_buffer(const VertexBuffer &vbo,
 
     uint32_t len = layout.elements.size() + attrib_offset;
     size_t offset = 0;
-    for (uint32_t i = attrib_offset; i < len; i++) {
+    for (int32_t i = attrib_offset; i < len; i++) {
         const VertexBufferElement &element = layout.elements[i - attrib_offset];
 
         GL_CALL(glEnableVertexAttribArray(i));
@@ -647,7 +647,7 @@ void Framebuffer::add_color_attachment(ColorAttachmentSpec spec) {
         break;
     case GL_TEXTURE_CUBE_MAP:
         GL_CALL(glTexParameteri(tex_type, GL_TEXTURE_WRAP_R, spec.wrap));
-        for (uint32_t i = 0; i < 6; i++) {
+        for (int32_t i = 0; i < 6; i++) {
             GL_CALL(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0,
                                  tex_details.internal_format, spec.size.x,
                                  spec.size.y, 0, tex_details.format,
@@ -768,7 +768,7 @@ void Framebuffer::resize_color_attachment(uint32_t index,
                                size.y, attach.spec.layers * 6));
         break;
     case GL_TEXTURE_CUBE_MAP:
-        for (uint32_t i = 0; i < 6; i++) {
+        for (int32_t i = 0; i < 6; i++) {
             GL_CALL(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0,
                                  tex_details.internal_format, size.x, size.y, 0,
                                  tex_details.format, tex_details.type,
@@ -793,7 +793,7 @@ void Framebuffer::resize_everything(const glm::ivec2 &size) {
 
     resize_renderbuffer(size);
 
-    for (size_t i = 0; i < color_attachments.size(); i++)
+    for (int32_t i = 0; i < color_attachments.size(); i++)
         resize_color_attachment(i, size);
 }
 
@@ -827,7 +827,7 @@ void Framebuffer::remove_color_attachment(uint32_t index) {
 
 void Framebuffer::fill_draw_buffers() {
     std::vector<GLenum> buffers(color_attachments.size());
-    for (uint32_t i = 0; i < color_attachments.size(); i++)
+    for (int32_t i = 0; i < color_attachments.size(); i++)
         buffers[i] = GL_COLOR_ATTACHMENT0 + i;
 
     GL_CALL(glDrawBuffers(buffers.size(), buffers.data()));

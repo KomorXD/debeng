@@ -195,7 +195,7 @@ void EditorLayer::on_render() {
         glStencilMask(0xFF);
         glDisable(GL_DEPTH_TEST);
         eng::renderer::set_render_mode(eng::renderer::RenderPassMode::FLAT);
-        eng::renderer::scene_begin(camera.camera_render_data(), asset_pack);
+        eng::renderer::scene_begin(camera.render_data(), asset_pack);
         eng::renderer::submit_mesh(transform.to_mat4(), mesh_comp.id,
                                    eng::AssetPack::DEFAULT_MATERIAL,
                                    ent.handle);
@@ -209,7 +209,7 @@ void EditorLayer::on_render() {
 
     glStencilFunc(GL_ALWAYS, 0, 0xFF);
     glStencilMask(0x00);
-    eng::renderer::scene_begin(camera.camera_render_data(), asset_pack);
+    eng::renderer::scene_begin(camera.render_data(), asset_pack);
 
     eng::ecs::RegistryView rview =
         scene.registry.view<eng::Transform, eng::PointLight>();
@@ -234,7 +234,7 @@ void EditorLayer::on_render() {
 
     eng::renderer::scene_end();
 
-    eng::renderer::scene_begin(camera.camera_render_data(), asset_pack);
+    eng::renderer::scene_begin(camera.render_data(), asset_pack);
     eng::renderer::set_render_mode(eng::renderer::RenderPassMode::FLAT);
     rview = scene.registry.view<eng::Transform, eng::MeshComp,
                                 eng::MaterialComp, eng::PointLight>();
@@ -269,7 +269,7 @@ void EditorLayer::on_render() {
         glStencilMask(0x00);
         glDisable(GL_DEPTH_TEST);
         eng::renderer::set_render_mode(eng::renderer::RenderPassMode::FLAT);
-        eng::renderer::scene_begin(camera.camera_render_data(), asset_pack);
+        eng::renderer::scene_begin(camera.render_data(), asset_pack);
         eng::renderer::submit_mesh(transform.to_mat4(), mesh_comp.id,
                                    outline_material,
                                    ent.handle);

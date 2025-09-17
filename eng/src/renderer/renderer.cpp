@@ -58,11 +58,7 @@ void opengl_msg_cb(unsigned source, unsigned type, unsigned id,
                    const void *user_param) {
     switch (severity) {
     case GL_DEBUG_SEVERITY_HIGH:
-        fprintf(stderr, "%s\r\n", msg);
-        return;
     case GL_DEBUG_SEVERITY_MEDIUM:
-        fprintf(stderr, "%s\r\n", msg);
-        return;
     case GL_DEBUG_SEVERITY_LOW:
         fprintf(stderr, "%s\r\n", msg);
         return;
@@ -437,13 +433,6 @@ void draw_elements_instanced(const Shader &shader, const VertexArray &vao,
 
 RenderPassMode render_mode() {
     return s_renderer.render_mode;
-}
-
-const char *render_mode_str(RenderPassMode mode) {
-    assert(mode < RenderPassMode::COUNT && "Invalid render pass mode");
-
-    const char *names[] = {"Base", "Flat"};
-    return names[(int32_t)mode];
 }
 
 void set_render_mode(RenderPassMode mode) {

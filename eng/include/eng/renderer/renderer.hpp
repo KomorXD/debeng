@@ -73,7 +73,6 @@ enum class RenderPassMode {
 };
 
 RenderPassMode render_mode();
-const char *render_mode_str(RenderPassMode mode);
 void set_render_mode(RenderPassMode mode);
 
 } // namespace eng

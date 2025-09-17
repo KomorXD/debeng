@@ -6,10 +6,10 @@
 std::optional<std::string> get_file_content(const std::string &path) {
     std::ifstream file(path);
     if (!file.good())
-        return {};
+        return std::nullopt;
 
-    std::string line{};
-    std::stringstream ss{};
+    std::string line;
+    std::stringstream ss;
     while (std::getline(file, line)) {
         ss << line << '\n';
     }

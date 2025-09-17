@@ -34,7 +34,7 @@ Mesh create_mesh(VertexData vertex_data) {
     layout.push_float(1); // 10 - entity idx
 
     vbo = VertexBuffer::create();
-    vbo.allocate(nullptr, 4096 * sizeof(MeshInstance));
+    vbo.allocate(nullptr, 128 * sizeof(MeshInstance));
     mesh.vao.add_instanced_vertex_buffer(vbo, layout, 5);
     mesh.vao.unbind();
 

@@ -39,7 +39,7 @@ EntityID Registry::create_entity() {
     record.archetype = &archetype_index.at(empty_type);
 
     entity_index.insert(std::make_pair(id, record));
-    arch_entity_index[record.archetype->id].insert(id);
+    arch_entity_index[record.archetype->id].push_back(id);
 
     return id;
 }
@@ -76,7 +76,8 @@ void Registry::destroy_entity(EntityID entity_id) {
     auto &[atype, row] = ent_itr->second;
 
     EntitySet &eset = arch_entity_index.at(atype->id);
-    eset.erase(entity_id);
+    auto id_itr = std::find(eset.begin(), eset.end(), entity_id);
+    eset.erase(id_itr);
 
     for (EntityID ent : eset) {
         EntityRecord &record = entity_index[ent];

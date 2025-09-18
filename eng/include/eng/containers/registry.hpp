@@ -5,7 +5,6 @@
 #include <cassert>
 #include <cstdint>
 #include <map>
-#include <set>
 #include <typeinfo>
 #include <unordered_map>
 #include <unordered_set>
@@ -16,7 +15,7 @@
 namespace eng::ecs {
 
 using EntityID = uint32_t;
-using EntitySet = std::set<EntityID>;
+using EntitySet = std::vector<EntityID>;
 
 using ArchetypeID = uint32_t;
 
@@ -536,8 +535,20 @@ void extend_entity(Registry &reg, Archetype &curr_atype, Archetype &next_atype,
     }
 
     curr_record.archetype = &next_atype;
-    reg.arch_entity_index.at(curr_atype.id).erase(entity_id);
-    reg.arch_entity_index[next_atype.id].insert(entity_id);
+
+    auto id_itr =
+        std::find(reg.arch_entity_index.at(curr_atype.id).begin(),
+                  reg.arch_entity_index.at(curr_atype.id).end(), entity_id);
+    reg.arch_entity_index.at(curr_atype.id).erase(id_itr);
+    reg.arch_entity_index[next_atype.id].push_back(entity_id);
+
+    /*  We probably removed an element in the middle, adjust rows for
+        other entities. */
+    for (EntityID ent : reg.arch_entity_index[curr_atype.id]) {
+        EntityRecord &record = reg.entity_index[ent];
+        if (record.row > curr_row)
+            record.row--;
+    }
 }
 
 template <typename T>
@@ -565,8 +576,11 @@ void trim_entity(Registry &reg, Archetype &curr_atype, Archetype &next_atype,
     }
 
     curr_record.archetype = &next_atype;
-    reg.arch_entity_index.at(curr_atype.id).erase(entity_id);
-    reg.arch_entity_index[next_atype.id].insert(entity_id);
+    auto id_itr =
+        std::find(reg.arch_entity_index.at(curr_atype.id).begin(),
+                  reg.arch_entity_index.at(curr_atype.id).end(), entity_id);
+    reg.arch_entity_index.at(curr_atype.id).erase(id_itr);
+    reg.arch_entity_index[next_atype.id].push_back(entity_id);
 
     /*  We probably removed an element in the middle, adjust rows for
         other entities. */

@@ -29,7 +29,17 @@ Entity Scene::spawn_entity(const std::string &name) {
     return ent;
 }
 
-void Scene::destroy_entity(Entity ent) {
+Entity Scene::duplicate(Entity &ent) {
+    Entity new_ent;
+    new_ent.owning_reg = &registry;
+    new_ent.handle = registry.duplicate(ent.handle);
+
+    entities.push_back(new_ent);
+
+    return new_ent;
+}
+
+void Scene::destroy_entity(Entity &ent) {
     auto ent_itr = std::find_if(
         entities.begin(), entities.end(),
         [&](const Entity &entity) { return ent.handle == entity.handle; });

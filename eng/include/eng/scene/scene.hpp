@@ -12,8 +12,9 @@ struct Scene {
     void destroy();
 
     [[nodiscard]] Entity spawn_entity(const std::string &name);
+    [[nodiscard]] Entity duplicate(Entity &ent);
 
-    void destroy_entity(Entity ent);
+    void destroy_entity(Entity &ent);
 
     std::string name;
     ecs::Registry registry;

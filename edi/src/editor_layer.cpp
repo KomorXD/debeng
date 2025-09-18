@@ -472,9 +472,8 @@ static void render_entity_panel(EditorLayer &layer) {
                     [&tex, &mat]() {
                         ImGui::Text("Diffuse texture");
                         ImGui::Text("%s", tex->name.c_str());
-                        ImGui::PrettyDragFloat4("Color", &mat.color[0], 0.01f,
-                                                0.0f, 1.0f, "%.2f",
-                                                ImGui::CalcTextSize("Color").x);
+                        ImGui::ColorEdit4("Color", &mat.color[0],
+                                          ImGuiColorEditFlags_NoInputs);
                     },
                     96.0f)) {
                 selected_id = &mat.albedo_texture_id;
@@ -567,6 +566,30 @@ static void render_entity_panel(EditorLayer &layer) {
 
             if (ImGui::PrettyButton("Remove component"))
                 ent.remove_component<eng::MaterialComp>();
+
+            ImGui::Unindent(8.0f);
+        }
+    }
+    ImGui::PopID();
+
+    ImGui::PushID(4);
+    if (ent.has_component<eng::PointLight>()) {
+        eng::PointLight &pl = ent.get_component<eng::PointLight>();
+
+        if (ImGui::CollapsingHeader("Point light",
+                                    ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Indent(8.0f);
+
+            ImGui::ColorEdit3("Color", &pl.color[0],
+                              ImGuiColorEditFlags_NoInputs);
+
+            float width = ImGui::CalcTextSize("Quadratic").x;
+            ImGui::PrettyDragFloat("Intensity", &pl.intensity, 0.01f, 0.0f,
+                                   FLT_MAX, "%.2f", width);
+            ImGui::PrettyDragFloat("Linear", &pl.linear, 0.01f, 0.0f,
+                                   FLT_MAX, "%.2f", width);
+            ImGui::PrettyDragFloat("Quadratic", &pl.quadratic, 0.01f, 0.0f,
+                                   FLT_MAX, "%.2f", width);
 
             ImGui::Unindent(8.0f);
         }

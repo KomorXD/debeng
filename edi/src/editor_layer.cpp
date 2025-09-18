@@ -450,6 +450,17 @@ static void render_control_panel(EditorLayer &layer) {
         ImGui::EndPopup();
     }
 
+    ImGui::BeginPrettyCombo(
+        "Gizmo mode", layer.gizmo_mode == ImGuizmo::WORLD ? "World" : "Local",
+        [&layer]() {
+            if (ImGui::Selectable("World", layer.gizmo_mode == ImGuizmo::WORLD))
+                layer.gizmo_mode = ImGuizmo::WORLD;
+
+            if (ImGui::Selectable("Local", layer.gizmo_mode == ImGuizmo::LOCAL))
+                layer.gizmo_mode = ImGuizmo::LOCAL;
+        },
+        ImGui::CalcTextSize("Gizmo mode").x);
+
     if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen)) {
         float horizontal_size = ImGui::CalcTextSize("Near clip").x;
         ImGui::Indent(16.0f);

@@ -710,6 +710,30 @@ static void render_entity_panel(EditorLayer &layer) {
         }
     }
     ImGui::PopID();
+
+    if (ImGui::PrettyButton("Add component")) {
+        ImVec2 pos = ImGui::GetItemRectMin();
+        ImVec2 size = ImGui::GetItemRectSize();
+
+        ImGui::SetNextWindowPos(ImVec2(pos.x, pos.y + size.y));
+        ImGui::OpenPopup("new_comp_group");
+    }
+
+#define COMP_ADDER(entity, CompType, label)                                    \
+    if (!(entity).has_component<CompType>() && ImGui::MenuItem(label)) {       \
+        (entity).add_component<CompType>();                                    \
+        ImGui::CloseCurrentPopup();                                            \
+    }
+
+#define GEN_COMP_ADDERS(entity)                                                \
+    COMP_ADDER(entity, eng::MeshComp, "Mesh")                                  \
+    COMP_ADDER(entity, eng::MaterialComp, "Material")                          \
+    COMP_ADDER(entity, eng::PointLight, "Point light")
+
+    if (ImGui::BeginPopup("new_comp_group")) {
+        GEN_COMP_ADDERS(ent);
+        ImGui::EndPopup();
+    }
 }
 
 static void render_gizmo(EditorLayer &layer) {

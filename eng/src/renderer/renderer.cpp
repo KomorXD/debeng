@@ -191,36 +191,33 @@ void scene_end() {
     materials.reserve(s_renderer.material_ids.size());
 
     for (AssetID id : s_renderer.material_ids) {
-        const Material &mat = s_asset_pack->materials.at(id);
+        Material &mat = s_asset_pack->materials.at(id);
         MaterialData &mat_data = materials.emplace_back();
         mat_data.color = mat.color;
         mat_data.tiling_factor = mat.tiling_factor;
         mat_data.texture_offset = mat.texture_offset;
 
-        /*  TODO: make it less cancer */
+        AssetID *material_tex_ids[] = {&mat.albedo_texture_id,
+                                       &mat.normal_texture_id};
+        int32_t *buffer_tex_ids[] = {&mat_data.albedo_idx,
+                                     &mat_data.normal_idx};
+
         std::vector<AssetID> &texture_ids = s_renderer.texture_ids;
-        for (int32_t i = 0; i < texture_ids.size(); i++) {
-            if (texture_ids[i] == mat.albedo_texture_id) {
-                mat_data.albedo_idx = i;
-                break;
+        for (int32_t i = 0; i < 2; i++) {
+            AssetID *material_tex_id = material_tex_ids[i];
+            int32_t *buffer_tex_id = buffer_tex_ids[i];
+
+            for (int32_t i = 0; i < texture_ids.size(); i++) {
+                if (texture_ids[i] == *material_tex_id) {
+                    *buffer_tex_id = i;
+                    break;
+                }
             }
-        }
 
-        if (mat_data.albedo_idx == -1) {
-            mat_data.albedo_idx = texture_ids.size();
-            texture_ids.push_back(mat.albedo_texture_id);
-        }
-
-        for (int32_t i = 0; i < texture_ids.size(); i++) {
-            if (texture_ids[i] == mat.normal_texture_id) {
-                mat_data.normal_idx = i;
-                break;
+            if (*buffer_tex_id == -1) {
+                *buffer_tex_id = texture_ids.size();
+                texture_ids.push_back(*material_tex_id);
             }
-        }
-
-        if (mat_data.normal_idx == -1) {
-            mat_data.normal_idx = texture_ids.size();
-            texture_ids.push_back(mat.normal_texture_id);
         }
     }
 

@@ -8,7 +8,9 @@
 #include "eng/renderer/renderer.hpp"
 #include "eng/scene/assets.hpp"
 #include "eng/scene/components.hpp"
+#include "eng/scene/entity.hpp"
 #include "glm/fwd.hpp"
+#include "glm/gtc/constants.hpp"
 #include "imgui/ImGuizmo.h"
 #include "imgui/imgui.h"
 #include "imgui/imgui_internal.h"
@@ -375,6 +377,78 @@ static void setup_dockspace() {
 static void render_control_panel(EditorLayer &layer) {
     ImGui::Text("%s", layer.scene.name.c_str());
     ImGui::Separator();
+
+    ImGui::Text("Entities");
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, {0.1f, 0.1f, 0.1f, 1.0f});
+
+    ImVec2 av_space = ImGui::GetContentRegionAvail();
+    ImGui::BeginChild("Entities", {av_space.x, av_space.y / 4.0f});
+
+    for (eng::Entity &ent : layer.scene.entities) {
+        ImGui::PushID((int32_t)ent.handle);
+
+        if (ImGui::Selectable(ent.get_component<eng::Name>().name.c_str(),
+                              ent.handle ==
+                                  layer.selected_entity.value_or({}).handle))
+            layer.selected_entity = ent;
+
+        ImGui::PopID();
+    }
+
+    ImGui::EndChild();
+    ImGui::PopStyleColor();
+
+    if (ImGui::PrettyButton("New entity")) {
+        ImVec2 pos = ImGui::GetItemRectMin();
+        ImVec2 size = ImGui::GetItemRectSize();
+
+        ImGui::SetNextWindowPos(ImVec2(pos.x, pos.y + size.y));
+        ImGui::OpenPopup("new_entity_group");
+    }
+
+    if (ImGui::BeginPopup("new_entity_group")) {
+        if (ImGui::MenuItem("Empty entity")) {
+            layer.selected_entity = layer.scene.spawn_entity("Empty entity");
+            ImGui::CloseCurrentPopup();
+        }
+
+        if (ImGui::MenuItem("Plane")) {
+            eng::Entity ent = layer.scene.spawn_entity("Plane");
+            ent.get_component<eng::Transform>().rotation = {
+                glm::half_pi<float>(), 0.0f, 0.0f};
+            ent.add_component<eng::MeshComp>().id = eng::AssetPack::QUAD_ID;
+            ent.add_component<eng::MaterialComp>().id =
+                eng::AssetPack::DEFAULT_BASE_MATERIAL;
+
+            layer.selected_entity = ent;
+
+            ImGui::CloseCurrentPopup();
+        }
+
+        if (ImGui::MenuItem("Cube")) {
+            eng::Entity ent = layer.scene.spawn_entity("Cube");
+            ent.add_component<eng::MeshComp>().id = eng::AssetPack::CUBE_ID;
+            ent.add_component<eng::MaterialComp>().id =
+                eng::AssetPack::DEFAULT_BASE_MATERIAL;
+
+            layer.selected_entity = ent;
+
+            ImGui::CloseCurrentPopup();
+        }
+
+        if (ImGui::MenuItem("UV Sphere")) {
+            eng::Entity ent = layer.scene.spawn_entity("UV Sphere");
+            ent.add_component<eng::MeshComp>().id = eng::AssetPack::SPHERE_ID;
+            ent.add_component<eng::MaterialComp>().id =
+                eng::AssetPack::DEFAULT_BASE_MATERIAL;
+
+            layer.selected_entity = ent;
+
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
+    }
 
     if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen)) {
         float horizontal_size = ImGui::CalcTextSize("Near clip").x;

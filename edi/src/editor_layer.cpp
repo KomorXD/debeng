@@ -114,6 +114,23 @@ void EditorLayer::on_event(eng::Event &event) {
             selected_entity = std::nullopt;
             return;
 
+        case eng::Key::Delete:
+            if (selected_entity.has_value()) {
+                scene.destroy_entity(selected_entity.value());
+                selected_entity = std::nullopt;
+                return;
+            }
+
+            break;
+
+        case eng::Key::D:
+            if (event.key.ctrl && selected_entity.has_value()) {
+                selected_entity = scene.duplicate(selected_entity.value());
+                return;
+            }
+
+            break;
+
         case eng::Key::Q:
             gizmo_op = (ImGuizmo::OPERATION)-1;
             return;

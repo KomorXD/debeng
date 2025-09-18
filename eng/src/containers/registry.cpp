@@ -44,6 +44,30 @@ EntityID Registry::create_entity() {
     return id;
 }
 
+EntityID Registry::duplicate(EntityID entity_id) {
+    auto ent_itr = entity_index.find(entity_id);
+    assert(ent_itr != entity_index.end() &&
+           "Trying to duplicate non-registered entity");
+
+    EntityID id = create_entity();
+
+    /*  If type is empty, there's nothing left to do. */
+    if (ent_itr->second.archetype->type == Type{})
+        return id;
+
+    auto &[atype, row] = ent_itr->second;
+    EntityRecord &new_record = entity_index.find(id)->second;
+    Archetype &new_atype = *new_record.archetype;
+    extend_entity<void>(*this, new_atype, *atype, id);
+
+    for (auto &[hash, index] : atype->column_index) {
+        cont::GenericVectorWrapper *cont = atype->components[index];
+        new_record.row = cont->copy_element(cont, row);
+    }
+
+    return id;
+}
+
 void Registry::destroy_entity(EntityID entity_id) {
     auto ent_itr = entity_index.find(entity_id);
     assert(ent_itr != entity_index.end() &&

@@ -40,6 +40,9 @@ struct GenericVectorWrapper {
     [[nodiscard]] virtual size_t transfer_element(GenericVectorWrapper *other,
                                                   size_t src_idx) = 0;
 
+    [[nodiscard]] virtual size_t copy_element(GenericVectorWrapper *other,
+                                              size_t src_idx) = 0;
+
     /*  Conv. method to convert to underlying vector. If types don't match, we
         assert. */
     template <typename T>
@@ -98,6 +101,17 @@ struct VectorWrapper : public GenericVectorWrapper {
         VectorWrapper<T> &dst_vec = other->as_vec<T>();
         dst_vec.storage.push_back(std::move(storage[src_idx]));
         erase(src_idx);
+
+        return dst_vec.storage.size() - 1;
+    }
+
+    [[nodiscard]] virtual size_t copy_element(GenericVectorWrapper *other,
+                                              size_t src_idx) {
+        assert(other->type_hash == type_hash &&
+               "Trying to copy to container of different type");
+
+        VectorWrapper<T> &dst_vec = other->as_vec<T>();
+        dst_vec.storage.push_back(storage[src_idx]);
 
         return dst_vec.storage.size() - 1;
     }

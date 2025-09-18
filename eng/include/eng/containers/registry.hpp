@@ -165,6 +165,8 @@ struct Registry {
     /*  Registers a new entity with an empty type. */
     [[nodiscard]] EntityID create_entity();
 
+    [[nodiscard]] EntityID duplicate(EntityID entity_id);
+
     void destroy_entity(EntityID entity_id);
 
     /*  Add component of type T to an entity of ENTITY_ID id. Entity must exist

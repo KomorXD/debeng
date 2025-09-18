@@ -11,6 +11,7 @@
 #include "eng/scene/entity.hpp"
 #include "glm/fwd.hpp"
 #include "glm/gtc/constants.hpp"
+#include "glm/trigonometric.hpp"
 #include "imgui/ImGuizmo.h"
 #include "imgui/imgui.h"
 #include "imgui/imgui_internal.h"
@@ -503,8 +504,12 @@ static void render_entity_panel(EditorLayer &layer) {
         ImGui::Indent(16.0f);
         ImGui::PrettyDragFloat3("Position", &transform.position[0], 0.05f, 0.0f,
                                 0.0f, "%.3f", horizontal_size);
-        ImGui::PrettyDragFloat3("Rotation", &transform.rotation[0], 0.05f, 0.0f,
+
+        glm::vec3 rot_degrees = glm::degrees(transform.rotation);
+        ImGui::PrettyDragFloat3("Rotation", &rot_degrees[0], 0.05f, 0.0f,
                                 0.0f, "%.3f", horizontal_size);
+        transform.rotation = glm::radians(rot_degrees);
+
         ImGui::PrettyDragFloat3("Scale", &transform.scale[0], 0.05f, 0.0f, 0.0f,
                                 "%.3f", horizontal_size);
         ImGui::Unindent(16.0f);

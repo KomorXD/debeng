@@ -13,6 +13,7 @@ in VS_OUT {
     vec2 texture_uv;
     flat float material_idx;
     flat float ent_id;
+    flat float color_sens;
 } fs_in;
 
 layout(location = 0) out vec4 final_color;
@@ -58,4 +59,5 @@ void main() {
     vec4 albedo = texture(u_textures[mat.albedo_idx], tex_coords) * mat.color;
 
     final_color = albedo;
+    final_color.rgb *= fs_in.color_sens;
 }

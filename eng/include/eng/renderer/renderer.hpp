@@ -65,7 +65,7 @@ void scene_begin(const CameraData &camera, AssetPack &asset_pack);
 void scene_end();
 
 void submit_mesh(const glm::mat4 &transform, AssetID mesh_id,
-                 AssetID material_id, int32_t ent_id);
+                 AssetID material_id, int32_t ent_id, float color_sens = 1.0f);
 
 void submit_point_light(const glm::vec3 &position, const PointLight &light);
 

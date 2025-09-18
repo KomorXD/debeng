@@ -255,7 +255,8 @@ void EditorLayer::on_render() {
     }
 
     rview =
-        scene.registry.view<eng::Transform, eng::MeshComp, eng::MaterialComp>();
+        scene.registry.view<eng::Transform, eng::MeshComp, eng::MaterialComp>(
+            eng::ecs::exclude<eng::PointLight>);
     for (eng::ecs::RegistryView::Entry &entry : rview.entity_entries) {
         eng::Transform &transform = rview.get<eng::Transform>(entry);
         eng::MeshComp &mesh = rview.get<eng::MeshComp>(entry);
@@ -263,6 +264,18 @@ void EditorLayer::on_render() {
 
         eng::renderer::submit_mesh(transform.to_mat4(), mesh.id, mat.id,
                                    entry.entity_id);
+    }
+
+    rview = scene.registry.view<eng::Transform, eng::MeshComp,
+                                eng::MaterialComp, eng::PointLight>();
+    for (eng::ecs::RegistryView::Entry &entry : rview.entity_entries) {
+        eng::Transform &transform = rview.get<eng::Transform>(entry);
+        eng::MeshComp &mesh = rview.get<eng::MeshComp>(entry);
+        eng::MaterialComp &mat = rview.get<eng::MaterialComp>(entry);
+        eng::PointLight &pl = rview.get<eng::PointLight>(entry);
+
+        eng::renderer::submit_mesh(transform.to_mat4(), mesh.id, mat.id,
+                                   entry.entity_id, pl.intensity);
     }
 
     eng::renderer::scene_end();

@@ -16,6 +16,7 @@ in VS_OUT {
     vec2 texture_uv;
     flat float material_idx;
     flat float ent_id;
+    flat float color_sens;
 } fs_in;
 
 layout(location = 0) out vec4 final_color;
@@ -118,4 +119,5 @@ void main() {
     }
 
     final_color = vec4(ambient + diffuse + specular, 1.0) * albedo;
+    final_color.rgb *= fs_in.color_sens;
 }

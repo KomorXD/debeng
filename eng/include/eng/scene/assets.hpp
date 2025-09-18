@@ -10,6 +10,7 @@ struct MeshInstance {
     glm::mat4 transform;
     float material_idx = 0.0f;
     float entity_id = 0.0f;
+    float color_sens = 1.0f;
 };
 
 using AssetID = int32_t;

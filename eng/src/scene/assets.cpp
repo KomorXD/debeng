@@ -33,6 +33,7 @@ Mesh create_mesh(VertexData vertex_data) {
     layout.push_float(4); // 8 - transform
     layout.push_float(1); // 9 - material idx
     layout.push_float(1); // 10 - entity idx
+    layout.push_float(1); // 11 - color sens
 
     vbo = VertexBuffer::create();
     vbo.allocate(nullptr, 128 * sizeof(MeshInstance));

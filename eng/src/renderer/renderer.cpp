@@ -267,7 +267,7 @@ void scene_end() {
 }
 
 void submit_mesh(const glm::mat4 &transform, AssetID mesh_id,
-                 AssetID material_id, int32_t ent_id) {
+                 AssetID material_id, int32_t ent_id, float color_sens) {
     Material &mat = s_asset_pack->materials.at(material_id);
     InstancesMap &group = s_renderer.instances[mat.shader_id];
     std::vector<MeshInstance> &instances = group[mesh_id];
@@ -275,6 +275,7 @@ void submit_mesh(const glm::mat4 &transform, AssetID mesh_id,
     MeshInstance &instance = instances.emplace_back();
     instance.transform = transform;
     instance.entity_id = ent_id;
+    instance.color_sens = color_sens;
 
     std::vector<AssetID> &material_ids = s_renderer.material_ids;
 

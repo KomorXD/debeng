@@ -27,8 +27,18 @@ struct Material {
     glm::vec2 texture_offset = glm::vec2(0.0f);
 
     AssetID shader_id = 1;
+
     AssetID albedo_texture_id = 1;
     AssetID normal_texture_id = 2;
+
+    AssetID roughness_texture_id = 1;
+    float roughness = 0.5f;
+
+    AssetID metallic_texture_id = 1;
+    float metallic = 0.1f;
+
+    AssetID ao_texture_id = 1;
+    float ao = 1.0f;
 };
 
 struct AssetPack {

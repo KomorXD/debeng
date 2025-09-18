@@ -25,6 +25,15 @@ struct Material {
 
     int albedo_idx;
     int normal_idx;
+
+    int roughness_idx;
+    float roughness;
+
+    int metallic_idx;
+    float metallic;
+
+    int ao_index;
+    float ao;
 };
 
 layout (std140, binding = MATERIALS_BINDING) uniform Materials {

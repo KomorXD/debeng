@@ -196,14 +196,22 @@ void scene_end() {
         mat_data.color = mat.color;
         mat_data.tiling_factor = mat.tiling_factor;
         mat_data.texture_offset = mat.texture_offset;
+        mat_data.roughness = mat.roughness;
+        mat_data.metallic = mat.metallic;
+        mat_data.ao = mat.ao;
 
-        AssetID *material_tex_ids[] = {&mat.albedo_texture_id,
-                                       &mat.normal_texture_id};
-        int32_t *buffer_tex_ids[] = {&mat_data.albedo_idx,
-                                     &mat_data.normal_idx};
+        AssetID *material_tex_ids[] = {
+            &mat.albedo_texture_id, &mat.normal_texture_id,
+            &mat.roughness_texture_id, &mat.metallic_texture_id,
+            &mat.ao_texture_id};
+        int32_t *buffer_tex_ids[] = {&mat_data.albedo_idx, &mat_data.normal_idx,
+                                     &mat_data.roughness_idx,
+                                     &mat_data.metallic_idx, &mat_data.ao_idx};
+        constexpr int32_t IDS_SIZE =
+            sizeof(material_tex_ids) / sizeof(material_tex_ids[0]);
 
         std::vector<AssetID> &texture_ids = s_renderer.texture_ids;
-        for (int32_t i = 0; i < 2; i++) {
+        for (int32_t i = 0; i < IDS_SIZE; i++) {
             AssetID *material_tex_id = material_tex_ids[i];
             int32_t *buffer_tex_id = buffer_tex_ids[i];
 

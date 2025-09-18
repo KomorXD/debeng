@@ -43,7 +43,14 @@ struct MaterialData {
     int32_t albedo_idx = -1;
     int32_t normal_idx = -1;
 
-    glm::vec2 padding;
+    int32_t roughness_idx = -1;
+    float roughness = -1.0f;
+
+    int32_t metallic_idx = -1;
+    float metallic = -1.0f;
+
+    int32_t ao_idx = -1;
+    float ao = -1.0f;
 };
 
 void opengl_msg_cb(unsigned source, unsigned type, unsigned id,

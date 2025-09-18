@@ -493,6 +493,51 @@ static void render_entity_panel(EditorLayer &layer) {
                 ImGui::OpenPopup(avail_tex_group);
             }
 
+            tex = &layer.asset_pack.textures.at(mat.roughness_texture_id);
+            if (ImGui::TextureFrame(
+                    "##Roughness", (ImTextureID)tex->id,
+                    [&tex, &mat]() {
+                        ImGui::Text("Roughness texture");
+                        ImGui::Text("%s", tex->name.c_str());
+                        ImGui::PrettyDragFloat(
+                            "Roughness", &mat.roughness, 0.01f, 0.0f, 1.0f,
+                            "%0.2f", ImGui::CalcTextSize("Roughness").x);
+                    },
+                    96.0f)) {
+                selected_id = &mat.roughness_texture_id;
+                ImGui::OpenPopup(avail_tex_group);
+            }
+
+            tex = &layer.asset_pack.textures.at(mat.metallic_texture_id);
+            if (ImGui::TextureFrame(
+                    "##Metallic", (ImTextureID)tex->id,
+                    [&tex, &mat]() {
+                        ImGui::Text("Metallic texture");
+                        ImGui::Text("%s", tex->name.c_str());
+                        ImGui::PrettyDragFloat(
+                            "Metallic", &mat.metallic, 0.01f, 0.0f, 1.0f,
+                            "%0.2f", ImGui::CalcTextSize("Roughness").x);
+                    },
+                    96.0f)) {
+                selected_id = &mat.metallic_texture_id;
+                ImGui::OpenPopup(avail_tex_group);
+            }
+
+            tex = &layer.asset_pack.textures.at(mat.ao_texture_id);
+            if (ImGui::TextureFrame(
+                    "##AO", (ImTextureID)tex->id,
+                    [&tex, &mat]() {
+                        ImGui::Text("AO texture");
+                        ImGui::Text("%s", tex->name.c_str());
+                        ImGui::PrettyDragFloat(
+                            "AO", &mat.ao, 0.01f, 0.0f, 1.0f,
+                            "%0.2f", ImGui::CalcTextSize("Roughness").x);
+                    },
+                    96.0f)) {
+                selected_id = &mat.ao_texture_id;
+                ImGui::OpenPopup(avail_tex_group);
+            }
+
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {10.0f, 10.0f});
             if (ImGui::BeginPopup(avail_tex_group)) {
                 ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, {15.0f, 0.0f});

@@ -646,7 +646,7 @@ static void render_entity_panel(EditorLayer &layer) {
                     },
                     96.0f)) {
                 selected_id = &mat.roughness_texture_id;
-                desired_format = TextureFormat::RGBA8;
+                desired_format = TextureFormat::R8;
                 ImGui::OpenPopup(avail_tex_group);
             }
 
@@ -662,7 +662,7 @@ static void render_entity_panel(EditorLayer &layer) {
                     },
                     96.0f)) {
                 selected_id = &mat.metallic_texture_id;
-                desired_format = TextureFormat::RGBA8;
+                desired_format = TextureFormat::R8;
                 ImGui::OpenPopup(avail_tex_group);
             }
 
@@ -678,7 +678,7 @@ static void render_entity_panel(EditorLayer &layer) {
                     },
                     96.0f)) {
                 selected_id = &mat.ao_texture_id;
-                desired_format = TextureFormat::RGBA8;
+                desired_format = TextureFormat::R8;
                 ImGui::OpenPopup(avail_tex_group);
             }
 
@@ -703,6 +703,9 @@ static void render_entity_panel(EditorLayer &layer) {
 
                     ImGui::PopID();
                 }
+
+                if (count % 3 != 0)
+                    ImGui::NewLine();
 
                 ImGui::NewLine();
 

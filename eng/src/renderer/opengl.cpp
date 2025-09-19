@@ -418,20 +418,24 @@ void VertexArray::unbind() const {
 
 TextureFormatDetails format_details(TextureFormat format) {
     static GLenum internal_formats[] = {
-        GL_RGBA8, GL_RGB8,   GL_RGBA16F,        GL_RGB16F,
-        GL_RG16F, GL_RGB32F, GL_R11F_G11F_B10F, GL_DEPTH_COMPONENT32F
+        GL_RGBA8, GL_RGB8, GL_RGBA16F, GL_RGB16F,
+        GL_RG16F, GL_R8,   GL_RGB32F,  GL_R11F_G11F_B10F,
+        GL_DEPTH_COMPONENT32F
     };
     static GLenum formats[] = {
         GL_RGBA, GL_RGB, GL_RGBA, GL_RGB,
-        GL_RG,   GL_RGB, GL_RGB,  GL_DEPTH_COMPONENT
+        GL_RG,   GL_RED, GL_RGB,  GL_RGB,
+        GL_DEPTH_COMPONENT
     };
     static GLenum types[] = {
         GL_UNSIGNED_BYTE, GL_UNSIGNED_BYTE, GL_FLOAT, GL_FLOAT,
-        GL_FLOAT,         GL_FLOAT,         GL_FLOAT, GL_FLOAT
+        GL_FLOAT,         GL_UNSIGNED_BYTE, GL_FLOAT, GL_FLOAT,
+        GL_FLOAT
     };
     static GLenum bpps[] = {
         4, 3, 4, 3,
-        2, 3, 3, 1
+        2, 1, 3, 3,
+        1
     };
 
     int32_t idx = (int32_t)format;
@@ -467,6 +471,12 @@ Texture Texture::create(const std::string &path, TextureFormat format) {
     GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
     GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT));
     GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT));
+
+    if (pixel_format == GL_RED) {
+        GLint swizzle_mask[4] = {GL_RED, GL_RED, GL_RED, GL_ONE};
+        GL_CALL(glTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA,
+                                 swizzle_mask));
+    }
 
     GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, internal, tex.width, tex.height, 0,
                          pixel_format, type, buffer));

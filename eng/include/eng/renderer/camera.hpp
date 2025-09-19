@@ -1,16 +1,43 @@
 #ifndef CAMERA_HPP
 #define CAMERA_HPP
 
+#include "eng/event.hpp"
 #include "eng/renderer/renderer.hpp"
+#include <memory>
 
 namespace eng {
 
-struct SpectatorCamera {
-    enum class ControlMode {
-        FPS,
-        TRACKBALL
-    };
+struct SpectatorCamera;
 
+struct CameraControl {
+    virtual ~CameraControl() = default;
+
+    virtual void on_event(Event &ev) = 0;
+    virtual void on_update(float timestep) = 0;
+};
+
+struct TrackballControl : public CameraControl {
+    static std::unique_ptr<CameraControl> create(SpectatorCamera *cam);
+
+    void on_event(Event &ev) override;
+    void on_update(float timestep) override;
+
+    SpectatorCamera *camera = nullptr;
+};
+
+struct OrbitalControl : public CameraControl {
+    static std::unique_ptr<CameraControl> create(SpectatorCamera *cam,
+                                                 glm::vec3 *target);
+
+    void on_event(Event &ev) override;
+    void on_update(float timestep) override;
+
+    SpectatorCamera *camera = nullptr;
+    glm::vec3 *target_pos = nullptr;
+    float distance = 0.0f;
+};
+
+struct SpectatorCamera {
     [[nodiscard]] glm::vec3 up_dir() const;
     [[nodiscard]] glm::vec3 right_dir() const;
     [[nodiscard]] glm::vec3 forward_dir() const;
@@ -21,10 +48,10 @@ struct SpectatorCamera {
 
     [[nodiscard]] renderer::CameraData render_data() const;
 
-    void update_with_input(float timestep);
-    void scroll_update(float offset);
-    void fps_update(float timestep);
-    void trackball_update(float timestep);
+    void on_event(Event &ev);
+    void on_update(float timestep);
+
+    std::unique_ptr<CameraControl> cam_control;
 
     glm::vec3 position;
     glm::vec2 viewport;
@@ -39,7 +66,6 @@ struct SpectatorCamera {
     float exposure = 1.0f;
     float gamma = 2.2f;
 
-    ControlMode control_mode;
     float moving_speed_ps = 10.0f;
     float rolling_angle_ps = 180.0f;
     float mouse_sens = 0.1f;

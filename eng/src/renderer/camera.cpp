@@ -6,6 +6,91 @@
 
 namespace eng {
 
+std::unique_ptr<CameraControl> TrackballControl::create(SpectatorCamera *cam) {
+    assert(cam != nullptr && "Invalid camera object");
+
+    std::unique_ptr<TrackballControl> ret =
+        std::make_unique<TrackballControl>();
+    ret->camera = cam;
+
+    return ret;
+}
+
+void TrackballControl::on_event(Event &ev) {
+    switch (ev.type) {
+    case eng::EventType::MouseWheelScrolled:
+        camera->position += ev.mouse_scroll.offset_y * camera->forward_dir();
+        return;
+    default:
+        break;
+    }
+}
+
+void TrackballControl::on_update(float timestep) {
+    glm::vec2 mouse_delta = get_mouse_move_delta();
+
+    if (is_mouse_btn_pressed(MouseButton::Right)) {
+        disable_cursor();
+
+        camera->yaw += mouse_delta.x * camera->mouse_sens;
+        camera->pitch -= mouse_delta.y * camera->mouse_sens;
+        camera->pitch = glm::clamp(camera->pitch, -90.0f, 90.0f);
+
+        return;
+    }
+
+    if (is_mouse_btn_pressed(MouseButton::Middle)) {
+        disable_cursor();
+
+        camera->position -= camera->right_dir() * mouse_delta.x * 0.02f;
+        camera->position -= camera->up_dir() * mouse_delta.y * 0.02f;
+
+        return;
+    }
+
+    enable_cursor();
+}
+
+std::unique_ptr<CameraControl> OrbitalControl::create(SpectatorCamera *cam,
+                                                      glm::vec3 *target) {
+    assert(cam != nullptr && "Invalid camera object");
+    assert(target != nullptr && "Invalid target position");
+
+    std::unique_ptr<OrbitalControl> ret = std::make_unique<OrbitalControl>();
+    ret->camera = cam;
+    ret->target_pos = target;
+    ret->distance = glm::distance(cam->position, *target);
+
+    return ret;
+}
+
+void OrbitalControl::on_event(Event &ev) {
+    switch (ev.type) {
+    case eng::EventType::MouseWheelScrolled:
+        camera->position += ev.mouse_scroll.offset_y * camera->forward_dir();
+        return;
+    default:
+        break;
+    }
+}
+
+void OrbitalControl::on_update(float timestep) {
+    glm::vec2 mouse_delta = get_mouse_move_delta();
+
+    if (is_mouse_btn_pressed(MouseButton::Right)) {
+        camera->yaw += mouse_delta.x * camera->mouse_sens;
+        camera->pitch -= mouse_delta.y * camera->mouse_sens;
+        camera->pitch = glm::clamp(camera->pitch, -90.0f, 90.0f);
+
+        disable_cursor();
+    } else
+        enable_cursor();
+
+    glm::vec3 forward = camera->forward_dir();
+    distance = glm::distance(camera->position, *target_pos);
+    camera->position = *target_pos - forward * distance;
+}
+
 glm::vec3 SpectatorCamera::up_dir() const {
     return glm::rotate(orientation(), glm::vec3(0.0f, 1.0f, 0.0f));
 }
@@ -52,83 +137,12 @@ renderer::CameraData SpectatorCamera::render_data() const {
     return cdata;
 }
 
-void SpectatorCamera::update_with_input(float timestep) {
-    switch (control_mode) {
-    case ControlMode::FPS:
-        fps_update(timestep);
-        break;
-
-    case ControlMode::TRACKBALL:
-        trackball_update(timestep);
-        break;
-
-    default:
-        break;
-    }
+void SpectatorCamera::on_event(Event &ev) {
+    cam_control->on_event(ev);
 }
 
-void SpectatorCamera::scroll_update(float offset) {
-    if (control_mode != ControlMode::TRACKBALL)
-        return;
-
-    position += offset * forward_dir();
-}
-
-void SpectatorCamera::fps_update(float timestep) {
-    glm::vec3 move(0.0f);
-
-    if (is_key_pressed(Key::W))
-        move += forward_dir();
-    else if (is_key_pressed(Key::S))
-        move -= forward_dir();
-
-    if (is_key_pressed(Key::A))
-        move -= right_dir();
-    else if (is_key_pressed(Key::D))
-        move += right_dir();
-
-    if (is_key_pressed(Key::Space))
-        move.y += 1.0f;
-    else if (is_key_pressed(Key::LeftShift))
-        move.y -= 1.0f;
-
-    if (glm::length2(move) != 0.0f)
-        position += glm::normalize(move) * moving_speed_ps * timestep;
-
-    glm::vec2 mouse_delta = get_mouse_move_delta();
-    yaw += mouse_delta.x * mouse_sens;
-    pitch -= mouse_delta.y * mouse_sens;
-    pitch = glm::clamp(pitch, -90.0f, 90.0f);
-
-    if (is_key_pressed(Key::Left))
-        roll -= rolling_angle_ps * timestep;
-    else if (is_key_pressed(Key::Right))
-        roll += rolling_angle_ps * timestep;
-}
-
-void SpectatorCamera::trackball_update(float timestep) {
-    glm::vec2 mouse_delta = get_mouse_move_delta();
-
-    if (is_mouse_btn_pressed(MouseButton::Right)) {
-        disable_cursor();
-
-        yaw += mouse_delta.x * mouse_sens;
-        pitch -= mouse_delta.y * mouse_sens;
-        pitch = glm::clamp(pitch, -90.0f, 90.0f);
-
-        return;
-    }
-
-    if (is_mouse_btn_pressed(MouseButton::Middle)) {
-        disable_cursor();
-
-        position -= right_dir() * mouse_delta.x * 0.02f;
-        position -= up_dir() * mouse_delta.y * 0.02f;
-
-        return;
-    }
-
-    enable_cursor();
+void SpectatorCamera::on_update(float timestep) {
+    cam_control->on_update(timestep);
 }
 
 } // namespace eng

@@ -27,7 +27,7 @@ std::unique_ptr<Layer> EditorLayer::create(const eng::WindowSpec &win_spec) {
     layer->camera.position = glm::vec3(0.0f, 2.0f, -3.0f);
     layer->camera.yaw = 180.0f;
     layer->camera.viewport = window_size;
-    layer->camera.control_mode = eng::SpectatorCamera::ControlMode::TRACKBALL;
+    layer->camera.cam_control = eng::TrackballControl::create(&layer->camera);
     eng::disable_cursor();
 
     layer->main_fbo = Framebuffer::create();
@@ -150,6 +150,26 @@ void EditorLayer::on_event(eng::Event &event) {
             gizmo_op = ImGuizmo::SCALE;
             return;
 
+        case eng::Key::LeftShift:
+            if (selected_entity.has_value()) {
+                eng::Transform &t = selected_entity.value().get_component<eng::Transform>();
+                camera.cam_control = eng::OrbitalControl::create(&camera, &t.position);
+            }
+
+            return;
+
+        default:
+            break;
+        }
+
+        break;
+
+    case eng::EventType::KeyReleased:
+        switch (event.key.key) {
+        case eng::Key::LeftShift:
+            camera.cam_control = eng::TrackballControl::create(&camera);
+            return;
+
         default:
             break;
         }
@@ -179,17 +199,15 @@ void EditorLayer::on_event(eng::Event &event) {
         break;
     }
 
-    case eng::EventType::MouseWheelScrolled:
-        camera.scroll_update(event.mouse_scroll.offset_y);
-        break;
-
     default:
         break;
     }
+
+    camera.on_event(event);
 }
 
 void EditorLayer::on_update(float ts) {
-    camera.update_with_input(ts);
+    camera.on_update(ts);
 }
 
 void EditorLayer::on_tick(uint32_t tickrate) {}

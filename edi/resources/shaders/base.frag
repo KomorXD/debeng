@@ -13,6 +13,8 @@ in VS_OUT {
     vec3 view_space_position;
     vec3 eye_position;
     mat3 TBN;
+    vec3 tangent_world_position;
+    vec3 tangent_view_position;
     vec2 texture_uv;
     flat float material_idx;
     flat float ent_id;
@@ -46,7 +48,7 @@ struct Material {
     int metallic_idx;
     float metallic;
 
-    int ao_index;
+    int ao_idx;
     float ao;
 };
 
@@ -56,29 +58,39 @@ layout (std140, binding = MATERIALS_BINDING) uniform Materials {
 
 uniform sampler2D u_textures[MAX_TEXTURES];
 
-vec3 diffuse_impact(PointLight light, vec3 normal) {
-    vec3 pos = light.position_and_linear.xyz;
-    vec3 color = light.color_and_quadratic.xyz;
-    float linear = light.position_and_linear.w;
-    float quadratic = light.color_and_quadratic.w;
+const float PI = 3.14159265359;
 
-    vec3 light_dir = normalize(pos - fs_in.world_space_position);
-    float strength = max(dot(normal, light_dir), 0.0);
+float dist_ggx(vec3 N, vec3 H, float roughness) {
+    float a     = roughness * roughness;
+    float a2    = a * a;
+    float NH    = max(dot(N, H), 0.0);
+    float NH2   = NH * NH;
+    float denom = (NH2 * (a2 - 1.0) + 1.0);
+    denom       = PI * denom * denom;
 
-    return strength * color;
+    return a2 / denom;
 }
 
-vec3 specular_impact(PointLight light, vec3 normal) {
-    vec3 pos = light.position_and_linear.xyz;
-    vec3 color = light.color_and_quadratic.xyz;
+float geo_schlick_ggx(float NV, float roughness) {
+    float a     = roughness + 1.0;
+    float k     = (a * a) / 8.0;
+    float denom = NV * (1.0 - k) + k;
 
-    vec3 view_dir = normalize(fs_in.eye_position - fs_in.world_space_position);
-    vec3 light_dir = normalize(pos - fs_in.world_space_position);
-    vec3 halfway_dir = normalize(light_dir + view_dir);
+    return NV / denom;
+}
 
-    float strength = pow(max(dot(normal, halfway_dir), 0.0f), 32.0);
+float geo_smith(vec3 N, vec3 V, vec3 L, float roughness) {
+    float NV = max(dot(N, V), 0.0);
+    float NL = max(dot(N, L), 0.0);
 
-    return strength * color;
+    float ggx2 = geo_schlick_ggx(NV, roughness);
+    float ggx1 = geo_schlick_ggx(NL, roughness);
+
+    return ggx1 * ggx2;
+}
+
+vec3 fresnel_schlick(float cos_theta, vec3 F0) {
+    return F0 + (1.0 - F0) * pow(clamp(1.0 - cos_theta, 0.0, 1.0), 5.0);
 }
 
 void main() {
@@ -94,30 +106,49 @@ void main() {
     Material mat = u_materials.materials[int(fs_in.material_idx)];
     vec2 tex_coords
         = fs_in.texture_uv * mat.tiling_factor + mat.texture_offset;
-    vec4 albedo = texture(u_textures[mat.albedo_idx], tex_coords) * mat.color;
-    vec3 normal = texture(u_textures[mat.normal_idx], tex_coords).rgb;
-    normal = normal * 2.0 - 1.0;
-    normal = normalize(fs_in.TBN * normal);
 
-    vec3 ambient = vec3(0.1);
-    vec3 diffuse = vec3(0.0);
-    vec3 specular = vec3(0.0);
+    vec4 diffuse = texture(u_textures[mat.albedo_idx], tex_coords);
+    float roughness = texture(u_textures[mat.roughness_idx], tex_coords).r * mat.roughness;
+    float metallic = texture(u_textures[mat.metallic_idx], tex_coords).r * mat.metallic;
+    float ao = texture(u_textures[mat.ao_idx], tex_coords).r * mat.ao;
+    vec3 N = texture(u_textures[mat.normal_idx], tex_coords).rgb;
+    N = N * 2.0 - 1.0;
 
+    vec3 V = normalize(fs_in.tangent_view_position - fs_in.tangent_world_position);
+
+    vec3 Lo = vec3(0.0);
+    vec3 F0 = mix(vec3(0.04), diffuse.rgb, metallic);
     for (int i = 0; i < u_points_lights.count; i++) {
-        PointLight light = u_points_lights.lights[i];
-        float linear = light.position_and_linear.w;
-        float quadratic = light.color_and_quadratic.w;
+        PointLight pl           = u_points_lights.lights[i];
+        vec3 position           = pl.position_and_linear.xyz;
+        vec3 tangent_position   = fs_in.TBN * position;
+        vec3 color              = pl.color_and_quadratic.rgb;
+        float linear            = pl.position_and_linear.w;
+        float quadratic         = pl.color_and_quadratic.w;
 
-        float dist
-            = length(light.position_and_linear.xyz - fs_in.world_space_position);
+        vec3 L = normalize(tangent_position - fs_in.tangent_world_position);
+        vec3 H = normalize(V + L);
+
+        float dist = length(position - fs_in.world_space_position);
         float attentuation
             = 1.0 / (1.0 + linear * dist + quadratic * dist * dist);
 
-        ambient += vec3(0.1) * attentuation;
-        diffuse += diffuse_impact(light, normal) * attentuation;
-        specular += specular_impact(light, normal) * attentuation;
+        vec3 radiance = color * attentuation;
+
+        float NDF   = dist_ggx(N, H, roughness);
+        float G     = geo_smith(N, V, L, roughness);
+        vec3 F      = fresnel_schlick(clamp(dot(H, V), 0.0, 1.0), F0);
+
+        float denom = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
+        vec3 specular = NDF * G * F / denom;
+        vec3 kS = F;
+        vec3 kD = vec3(1.0) - kS;
+        kD *= 1.0 - metallic;
+
+        Lo += (kD * diffuse.rgb / PI + specular) * radiance * max(dot(N, L), 0.0);
     }
 
-    final_color = vec4(ambient + diffuse + specular, 1.0) * albedo;
+    final_color.rgb = (0.1 + Lo) * mat.color.rgb;
     final_color.rgb *= fs_in.color_sens;
+    final_color.a = diffuse.a * mat.color.a;
 }

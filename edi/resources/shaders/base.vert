@@ -30,6 +30,8 @@ out VS_OUT {
     vec3 view_space_position;
     vec3 eye_position;
     mat3 TBN;
+    vec3 tangent_world_position;
+    vec3 tangent_view_position;
     vec2 texture_uv;
     flat float material_idx;
     flat float ent_id;
@@ -40,13 +42,15 @@ void main() {
     vec3 T = normalize(mat3(a_transform) * a_tangent);
     vec3 B = normalize(mat3(a_transform) * a_bitangent);
     vec3 N = normalize(mat3(a_transform) * a_normal);
-    mat3 TBN = mat3(T, B, N);
+    mat3 TBN = transpose(mat3(T, B, N));
 
     vs_out.world_space_position = (a_transform * vec4(a_pos, 1.0)).xyz;
     vs_out.view_space_position
         = (u_camera.view * vec4(vs_out.world_space_position, 1.0f)).xyz;
     vs_out.eye_position = u_camera.position.xyz;
     vs_out.TBN = TBN;
+    vs_out.tangent_world_position = TBN * vs_out.world_space_position;
+    vs_out.tangent_view_position = TBN * vs_out.eye_position;
     vs_out.texture_uv = a_texture_uv;
     vs_out.material_idx = a_material_idx;
     vs_out.ent_id = a_ent_id;

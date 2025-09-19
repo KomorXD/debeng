@@ -604,6 +604,7 @@ static void render_entity_panel(EditorLayer &layer) {
 
             const char *avail_tex_group = "available_textures_group";
             static eng::AssetID *selected_id = nullptr;
+            static TextureFormat desired_format{};
 
             Texture *tex = &layer.asset_pack.textures.at(mat.albedo_texture_id);
             if (ImGui::TextureFrame(
@@ -616,6 +617,7 @@ static void render_entity_panel(EditorLayer &layer) {
                     },
                     96.0f)) {
                 selected_id = &mat.albedo_texture_id;
+                desired_format = TextureFormat::RGBA8;
                 ImGui::OpenPopup(avail_tex_group);
             }
 
@@ -628,6 +630,7 @@ static void render_entity_panel(EditorLayer &layer) {
                     },
                     96.0f)) {
                 selected_id = &mat.normal_texture_id;
+                desired_format = TextureFormat::RGB8;
                 ImGui::OpenPopup(avail_tex_group);
             }
 
@@ -643,6 +646,7 @@ static void render_entity_panel(EditorLayer &layer) {
                     },
                     96.0f)) {
                 selected_id = &mat.roughness_texture_id;
+                desired_format = TextureFormat::RGBA8;
                 ImGui::OpenPopup(avail_tex_group);
             }
 
@@ -658,6 +662,7 @@ static void render_entity_panel(EditorLayer &layer) {
                     },
                     96.0f)) {
                 selected_id = &mat.metallic_texture_id;
+                desired_format = TextureFormat::RGBA8;
                 ImGui::OpenPopup(avail_tex_group);
             }
 
@@ -673,6 +678,7 @@ static void render_entity_panel(EditorLayer &layer) {
                     },
                     96.0f)) {
                 selected_id = &mat.ao_texture_id;
+                desired_format = TextureFormat::RGBA8;
                 ImGui::OpenPopup(avail_tex_group);
             }
 
@@ -721,10 +727,8 @@ static void render_entity_panel(EditorLayer &layer) {
                     std::string path =
                         ImGuiFileDialog::Instance()->GetFilePathName();
 
-                    /*  TODO: Create new create method to infer texture format
-                     * from file header. */
                     Texture new_tex =
-                        Texture::create(path, TextureFormat::RGBA8);
+                        Texture::create(path, desired_format);
                     *selected_id = layer.asset_pack.add_texture(new_tex);
                 }
 

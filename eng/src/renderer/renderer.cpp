@@ -3,8 +3,13 @@
 #include "eng/scene/assets.hpp"
 #include "eng/scene/components.hpp"
 #include "GLFW/glfw3.h"
+#include "glm/fwd.hpp"
+
 #include <algorithm>
 #include <vector>
+
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/quaternion.hpp>
 
 namespace eng::renderer {
 
@@ -29,6 +34,9 @@ struct Renderer {
 
     UniformBuffer point_lights_uni_buffer;
     std::vector<PointLightData> point_lights;
+
+    UniformBuffer dir_lights_uni_buffer;
+    std::vector<DirLightData> dir_lights;
 
     UniformBuffer material_uni_buffer;
     std::vector<AssetID> material_ids;
@@ -144,6 +152,11 @@ bool init() {
     s_renderer.point_lights_uni_buffer.bind_buffer_range(POINT_LIGHTS_BINDING,
                                                          0, size);
 
+    size = MAX_DIR_LIGHTS * sizeof(DirLightData) + sizeof(int32_t);
+    s_renderer.dir_lights_uni_buffer = UniformBuffer::create(nullptr, size);
+    s_renderer.dir_lights_uni_buffer.bind_buffer_range(DIR_LIGHTS_BINDING, 0,
+                                                       size);
+
     size = MAX_MATERIALS * sizeof(MaterialData);
     s_renderer.material_uni_buffer = UniformBuffer::create(nullptr, size);
     s_renderer.material_uni_buffer.bind_buffer_range(MATERIALS_BINDING, 0,
@@ -155,6 +168,7 @@ bool init() {
 void shutdown() {
     s_renderer.camera_uni_buffer.destroy();
     s_renderer.point_lights_uni_buffer.destroy();
+    s_renderer.dir_lights_uni_buffer.destroy();
     s_renderer.material_uni_buffer.destroy();
 }
 
@@ -164,6 +178,7 @@ void scene_begin(const CameraData &camera, AssetPack &asset_pack) {
     assert(s_asset_pack && "Empty asset pack object");
 
     s_renderer.point_lights.clear();
+    s_renderer.dir_lights.clear();
     s_renderer.material_ids.clear();
     s_renderer.texture_ids.clear();
 
@@ -180,12 +195,19 @@ void scene_begin(const CameraData &camera, AssetPack &asset_pack) {
 
 void scene_end() {
     s_renderer.point_lights_uni_buffer.bind();
+    s_renderer.dir_lights_uni_buffer.bind();
 
     int32_t count = s_renderer.point_lights.size();
     int32_t offset = MAX_POINT_LIGHTS * sizeof(PointLightData);
     s_renderer.point_lights_uni_buffer.set_data(s_renderer.point_lights.data(),
                                                 count * sizeof(PointLightData));
     s_renderer.point_lights_uni_buffer.set_data(&count, sizeof(int32_t), offset);
+
+    count = s_renderer.dir_lights.size();
+    offset = MAX_DIR_LIGHTS * sizeof(DirLightData);
+    s_renderer.dir_lights_uni_buffer.set_data(s_renderer.dir_lights.data(),
+                                                count * sizeof(DirLightData));
+    s_renderer.dir_lights_uni_buffer.set_data(&count, sizeof(int32_t), offset);
 
     std::vector<MaterialData> materials;
     materials.reserve(s_renderer.material_ids.size());
@@ -297,6 +319,13 @@ void submit_point_light(const glm::vec3 &position, const PointLight &light) {
         glm::vec4(position, light.linear);
     light_data.color_and_quadratic =
         glm::vec4(light.color * light.intensity, light.quadratic);
+}
+
+void submit_dir_light(const glm::vec3 &rotation, const DirLight &light) {
+    DirLightData &light_data = s_renderer.dir_lights.emplace_back();
+    light_data.direction = glm::vec4(
+        glm::toMat3(glm::quat(rotation)) * glm::vec3(0.0f, 0.0f, -1.0f), 1.0f);
+    light_data.color = glm::vec4(light.color, 1.0f);
 }
 
 void draw_to_screen_quad() {

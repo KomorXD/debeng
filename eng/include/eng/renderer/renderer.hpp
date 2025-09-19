@@ -10,10 +10,12 @@ namespace eng::renderer {
 
 constexpr int32_t CAMERA_BINDING = 0;
 constexpr int32_t POINT_LIGHTS_BINDING = 1;
-constexpr int32_t MATERIALS_BINDING = 2;
+constexpr int32_t DIR_LIGHTS_BINDING = 2;
+constexpr int32_t MATERIALS_BINDING = 3;
 
 constexpr int32_t MAX_MESH_INSTANCES = 128;
 constexpr int32_t MAX_POINT_LIGHTS = 128;
+constexpr int32_t MAX_DIR_LIGHTS = 4;
 constexpr int32_t MAX_MATERIALS = 128;
 constexpr int32_t MAX_TEXTURES = 16;
 
@@ -33,6 +35,11 @@ struct CameraData {
 struct PointLightData {
     glm::vec4 position_and_linear;
     glm::vec4 color_and_quadratic;
+};
+
+struct DirLightData {
+    glm::vec4 direction;
+    glm::vec4 color;
 };
 
 struct MaterialData {
@@ -68,6 +75,7 @@ void submit_mesh(const glm::mat4 &transform, AssetID mesh_id,
                  AssetID material_id, int32_t ent_id, float color_sens = 1.0f);
 
 void submit_point_light(const glm::vec3 &position, const PointLight &light);
+void submit_dir_light(const glm::vec3 &rotation, const DirLight &light);
 
 void draw_to_screen_quad();
 

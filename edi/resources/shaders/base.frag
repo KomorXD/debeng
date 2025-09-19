@@ -3,6 +3,9 @@
 #define POINT_LIGHTS_BINDING ${POINT_LIGHTS_BINDING}
 #define MAX_POINT_LIGHTS ${MAX_POINT_LIGHTS}
 
+#define DIR_LIGHTS_BINDING ${DIR_LIGHTS_BINDING}
+#define MAX_DIR_LIGHTS ${MAX_DIR_LIGHTS}
+
 #define MATERIALS_BINDING ${MATERIALS_BINDING}
 #define MAX_MATERIALS ${MAX_MATERIALS}
 
@@ -32,7 +35,17 @@ struct PointLight {
 layout (std140, binding = POINT_LIGHTS_BINDING) uniform PointLights {
     PointLight lights[MAX_POINT_LIGHTS];
     int count;
-} u_points_lights;
+} u_point_lights;
+
+struct DirLight {
+    vec4 direction;
+    vec4 color;
+};
+
+layout (std140, binding = DIR_LIGHTS_BINDING) uniform DirLights {
+    DirLight lights[MAX_DIR_LIGHTS];
+    int count;
+} u_dir_lights;
 
 struct Material {
     vec4 color;
@@ -118,8 +131,8 @@ void main() {
 
     vec3 Lo = vec3(0.0);
     vec3 F0 = mix(vec3(0.04), diffuse.rgb, metallic);
-    for (int i = 0; i < u_points_lights.count; i++) {
-        PointLight pl           = u_points_lights.lights[i];
+    for (int i = 0; i < u_point_lights.count; i++) {
+        PointLight pl           = u_point_lights.lights[i];
         vec3 position           = pl.position_and_linear.xyz;
         vec3 tangent_position   = fs_in.TBN * position;
         vec3 color              = pl.color_and_quadratic.rgb;
@@ -134,6 +147,26 @@ void main() {
             = 1.0 / (1.0 + linear * dist + quadratic * dist * dist);
 
         vec3 radiance = color * attentuation;
+
+        float NDF   = dist_ggx(N, H, roughness);
+        float G     = geo_smith(N, V, L, roughness);
+        vec3 F      = fresnel_schlick(clamp(dot(H, V), 0.0, 1.0), F0);
+
+        float denom = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
+        vec3 specular = NDF * G * F / denom;
+        vec3 kS = F;
+        vec3 kD = vec3(1.0) - kS;
+        kD *= 1.0 - metallic;
+
+        Lo += (kD * diffuse.rgb / PI + specular) * radiance * max(dot(N, L), 0.0);
+    }
+
+    for (int i = 0; i < u_dir_lights.count; i++) {
+        DirLight dl = u_dir_lights.lights[i];
+
+        vec3 radiance = dl.color.rgb;
+        vec3 L = fs_in.TBN * dl.direction.xyz;
+        vec3 H = normalize(V + L);
 
         float NDF   = dist_ggx(N, H, roughness);
         float G     = geo_smith(N, V, L, roughness);

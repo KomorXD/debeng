@@ -294,6 +294,15 @@ void EditorLayer::on_render() {
     }
 
     rview =
+        scene.registry.view<eng::Transform, eng::DirLight>();
+    for (eng::ecs::RegistryView::Entry &entry : rview.entity_entries) {
+        eng::Transform &transform = rview.get<eng::Transform>(entry);
+        eng::DirLight &light = rview.get<eng::DirLight>(entry);
+
+        eng::renderer::submit_dir_light(transform.rotation, light);
+    }
+
+    rview =
         scene.registry.view<eng::Transform, eng::MeshComp, eng::MaterialComp>(
             eng::ecs::exclude<eng::PointLight>);
     for (eng::ecs::RegistryView::Entry &entry : rview.entity_entries) {
@@ -770,6 +779,20 @@ static void render_entity_panel(EditorLayer &layer) {
     }
     ImGui::PopID();
 
+    ImGui::PushID(5);
+    if (ent.has_component<eng::DirLight>()) {
+        eng::DirLight &dl = ent.get_component<eng::DirLight>();
+
+        if (ImGui::CollapsingHeader("Directional light",
+                                    ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Indent(8.0f);
+            ImGui::ColorEdit3("Color", &dl.color[0],
+                              ImGuiColorEditFlags_NoInputs);
+            ImGui::Unindent(8.0f);
+        }
+    }
+    ImGui::PopID();
+
     if (ImGui::PrettyButton("Add component")) {
         ImVec2 pos = ImGui::GetItemRectMin();
         ImVec2 size = ImGui::GetItemRectSize();
@@ -787,7 +810,8 @@ static void render_entity_panel(EditorLayer &layer) {
 #define GEN_COMP_ADDERS(entity)                                                \
     COMP_ADDER(entity, eng::MeshComp, "Mesh")                                  \
     COMP_ADDER(entity, eng::MaterialComp, "Material")                          \
-    COMP_ADDER(entity, eng::PointLight, "Point light")
+    COMP_ADDER(entity, eng::PointLight, "Point light")                         \
+    COMP_ADDER(entity, eng::DirLight, "Directional light")
 
     if (ImGui::BeginPopup("new_comp_group")) {
         GEN_COMP_ADDERS(ent);

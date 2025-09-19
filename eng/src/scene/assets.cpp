@@ -118,6 +118,14 @@ AssetPack AssetPack::create(const std::string &pack_name) {
                 std::to_string(renderer::MAX_POINT_LIGHTS)
             },
             {
+                "${DIR_LIGHTS_BINDING}",
+                std::to_string(renderer::DIR_LIGHTS_BINDING)
+            },
+            {
+                "${MAX_DIR_LIGHTS}",
+                std::to_string(renderer::MAX_DIR_LIGHTS)
+            },
+            {
                 "${MATERIALS_BINDING}",
                 std::to_string(renderer::MATERIALS_BINDING)
             },

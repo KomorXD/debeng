@@ -36,6 +36,10 @@ struct PointLight {
     float quadratic = 0.032f;
 };
 
+struct DirLight {
+    glm::vec3 color{1.0f};
+};
+
 } // namespace eng
 
 #endif

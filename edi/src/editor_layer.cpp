@@ -1,3 +1,4 @@
+#include "ImGuiFileDialog/ImGuiFileDialog.h"
 #include "context.hpp"
 #include "eng/containers/registry.hpp"
 #include "eng/event.hpp"
@@ -12,9 +13,9 @@
 #include "glm/fwd.hpp"
 #include "glm/gtc/constants.hpp"
 #include "glm/trigonometric.hpp"
-#include "imgui/ImGuizmo.h"
 #include "imgui/imgui.h"
 #include "imgui/imgui_internal.h"
+#include "imgui/ImGuizmo.h"
 #include "layers.hpp"
 #include <cfloat>
 #include <string>
@@ -697,10 +698,38 @@ static void render_entity_panel(EditorLayer &layer) {
                     ImGui::PopID();
                 }
 
+                ImGui::NewLine();
+
+                if (ImGui::Button("New texture")) {
+                    IGFD::FileDialogConfig config;
+                    config.path = ".";
+                    config.flags = ImGuiFileDialogFlags_Modal;
+
+                    ImGuiFileDialog::Instance()->OpenDialog(
+                        "file_dial_texture", "Choose file", ".jpg,.jpeg,.png",
+                        config);
+                }
+
                 ImGui::PopStyleVar();
                 ImGui::EndPopup();
             }
             ImGui::PopStyleVar();
+
+            ImGui::SetNextWindowSize({600.0f, 400.0f}, ImGuiCond_FirstUseEver);
+            if (ImGuiFileDialog::Instance()->Display("file_dial_texture")) {
+                if (ImGuiFileDialog::Instance()->IsOk()) {
+                    std::string path =
+                        ImGuiFileDialog::Instance()->GetFilePathName();
+
+                    /*  TODO: Create new create method to infer texture format
+                     * from file header. */
+                    Texture new_tex =
+                        Texture::create(path, TextureFormat::RGBA8);
+                    *selected_id = layer.asset_pack.add_texture(new_tex);
+                }
+
+                ImGuiFileDialog::Instance()->Close();
+            }
 
             if (ImGui::PrettyButton("Remove component"))
                 ent.remove_component<eng::MaterialComp>();

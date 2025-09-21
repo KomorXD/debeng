@@ -60,18 +60,15 @@ std::unique_ptr<Layer> EditorLayer::create(const eng::WindowSpec &win_spec) {
 
     layer->scene = eng::Scene::create("New scene");
 
-    for (int32_t i = 0; i < 100; i++) {
-        eng::Entity ent = layer->scene.spawn_entity("ent" + std::to_string(i));
-        ent.get_component<eng::Transform>().position =
-            glm::vec3((float)(i / 10) * 2.0f, 0.0f, (float)(i % 10) * 2.0f);
-        ent.add_component<eng::MeshComp>().id = eng::AssetPack::CUBE_ID;
-        ent.add_component<eng::MaterialComp>().id =
-            eng::AssetPack::DEFAULT_BASE_MATERIAL;
-    }
+    eng::Entity ent = layer->scene.spawn_entity("ent");
+    ent.get_component<eng::Transform>().scale = glm::vec3(10.0f, 1.0f, 10.0f);
+    ent.add_component<eng::MeshComp>().id = eng::AssetPack::CUBE_ID;
+    ent.add_component<eng::MaterialComp>().id =
+        eng::AssetPack::DEFAULT_BASE_MATERIAL;
 
-    eng::Entity ent = layer->scene.spawn_entity("light");
-    ent.get_component<eng::Transform>().position = glm::vec3(2.0f, 2.0f, 1.0f);
-    ent.add_component<eng::PointLight>().intensity = 3.0f;
+    ent = layer->scene.spawn_entity("light");
+    ent.get_component<eng::Transform>().position = glm::vec3(2.0f, 3.0f, 1.0f);
+    ent.add_component<eng::SpotLight>().intensity = 3.0f;
     ent.add_component<eng::MeshComp>().id = eng::AssetPack::CUBE_ID;
     ent.add_component<eng::MaterialComp>().id =
         eng::AssetPack::DEFAULT_FLAT_MATERIAL;
@@ -300,6 +297,15 @@ void EditorLayer::on_render() {
         eng::DirLight &light = rview.get<eng::DirLight>(entry);
 
         eng::renderer::submit_dir_light(transform.rotation, light);
+    }
+
+    rview =
+        scene.registry.view<eng::Transform, eng::SpotLight>();
+    for (eng::ecs::RegistryView::Entry &entry : rview.entity_entries) {
+        eng::Transform &transform = rview.get<eng::Transform>(entry);
+        eng::SpotLight &light = rview.get<eng::SpotLight>(entry);
+
+        eng::renderer::submit_spot_light(transform, light);
     }
 
     rview =
@@ -793,6 +799,31 @@ static void render_entity_panel(EditorLayer &layer) {
     }
     ImGui::PopID();
 
+    ImGui::PushID(6);
+    if (ent.has_component<eng::SpotLight>()) {
+        eng::SpotLight &sl = ent.get_component<eng::SpotLight>();
+
+        if (ImGui::CollapsingHeader("Spot light",
+                                    ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Indent(8.0f);
+            ImGui::ColorEdit3("Color", &sl.color[0],
+                              ImGuiColorEditFlags_NoInputs);
+            ImGui::PrettyDragFloat("Intensity", &sl.intensity, 0.001f, 0.0f,
+                                   FLT_MAX, "%.3f");
+            ImGui::PrettyDragFloat("Cutoff", &sl.cutoff, 0.01f, 0.0f, FLT_MAX,
+                                   "%.3f");
+            ImGui::PrettyDragFloat("Smoothness", &sl.edge_smoothness, 0.01f,
+                                   0.0f, sl.cutoff, "%.3f");
+            ImGui::PrettyDragFloat("Linear", &sl.linear, 0.0001f, 0.0f, FLT_MAX,
+                                   "%.5f");
+            ImGui::PrettyDragFloat("Quadratic", &sl.quadratic, 0.00001f, 0.0f,
+                                   FLT_MAX, "%.5f");
+
+            ImGui::Unindent(8.0f);
+        }
+    }
+    ImGui::PopID();
+
     if (ImGui::PrettyButton("Add component")) {
         ImVec2 pos = ImGui::GetItemRectMin();
         ImVec2 size = ImGui::GetItemRectSize();
@@ -811,7 +842,8 @@ static void render_entity_panel(EditorLayer &layer) {
     COMP_ADDER(entity, eng::MeshComp, "Mesh")                                  \
     COMP_ADDER(entity, eng::MaterialComp, "Material")                          \
     COMP_ADDER(entity, eng::PointLight, "Point light")                         \
-    COMP_ADDER(entity, eng::DirLight, "Directional light")
+    COMP_ADDER(entity, eng::DirLight, "Directional light")                     \
+    COMP_ADDER(entity, eng::SpotLight, "Spot light")
 
     if (ImGui::BeginPopup("new_comp_group")) {
         GEN_COMP_ADDERS(ent);

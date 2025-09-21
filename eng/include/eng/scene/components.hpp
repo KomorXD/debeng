@@ -40,6 +40,17 @@ struct DirLight {
     glm::vec3 color{1.0f};
 };
 
+struct SpotLight {
+    glm::vec3 color{1.0f};
+    float intensity = 1.0f;
+
+    float cutoff = 12.5f;
+    float edge_smoothness = 0.0f;
+
+    float linear = 0.22f;
+    float quadratic = 0.2f;
+};
+
 } // namespace eng
 
 #endif

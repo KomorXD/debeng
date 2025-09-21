@@ -38,6 +38,9 @@ struct Renderer {
     UniformBuffer dir_lights_uni_buffer;
     std::vector<DirLightData> dir_lights;
 
+    UniformBuffer spot_lights_uni_buffer;
+    std::vector<SpotLightData> spot_lights;
+
     UniformBuffer material_uni_buffer;
     std::vector<AssetID> material_ids;
 
@@ -157,6 +160,11 @@ bool init() {
     s_renderer.dir_lights_uni_buffer.bind_buffer_range(DIR_LIGHTS_BINDING, 0,
                                                        size);
 
+    size = MAX_SPOT_LIGHTS * sizeof(SpotLightData) + sizeof(int32_t);
+    s_renderer.spot_lights_uni_buffer = UniformBuffer::create(nullptr, size);
+    s_renderer.spot_lights_uni_buffer.bind_buffer_range(SPOT_LIGHTS_BINDING, 0,
+                                                        size);
+
     size = MAX_MATERIALS * sizeof(MaterialData);
     s_renderer.material_uni_buffer = UniformBuffer::create(nullptr, size);
     s_renderer.material_uni_buffer.bind_buffer_range(MATERIALS_BINDING, 0,
@@ -169,6 +177,7 @@ void shutdown() {
     s_renderer.camera_uni_buffer.destroy();
     s_renderer.point_lights_uni_buffer.destroy();
     s_renderer.dir_lights_uni_buffer.destroy();
+    s_renderer.spot_lights_uni_buffer.destroy();
     s_renderer.material_uni_buffer.destroy();
 }
 
@@ -179,6 +188,7 @@ void scene_begin(const CameraData &camera, AssetPack &asset_pack) {
 
     s_renderer.point_lights.clear();
     s_renderer.dir_lights.clear();
+    s_renderer.spot_lights.clear();
     s_renderer.material_ids.clear();
     s_renderer.texture_ids.clear();
 
@@ -196,6 +206,7 @@ void scene_begin(const CameraData &camera, AssetPack &asset_pack) {
 void scene_end() {
     s_renderer.point_lights_uni_buffer.bind();
     s_renderer.dir_lights_uni_buffer.bind();
+    s_renderer.spot_lights_uni_buffer.bind();
 
     int32_t count = s_renderer.point_lights.size();
     int32_t offset = MAX_POINT_LIGHTS * sizeof(PointLightData);
@@ -208,6 +219,12 @@ void scene_end() {
     s_renderer.dir_lights_uni_buffer.set_data(s_renderer.dir_lights.data(),
                                                 count * sizeof(DirLightData));
     s_renderer.dir_lights_uni_buffer.set_data(&count, sizeof(int32_t), offset);
+
+    count = s_renderer.spot_lights.size();
+    offset = MAX_SPOT_LIGHTS * sizeof(SpotLightData);
+    s_renderer.spot_lights_uni_buffer.set_data(s_renderer.spot_lights.data(),
+                                               count * sizeof(SpotLightData));
+    s_renderer.spot_lights_uni_buffer.set_data(&count, sizeof(int32_t), offset);
 
     std::vector<MaterialData> materials;
     materials.reserve(s_renderer.material_ids.size());
@@ -326,6 +343,20 @@ void submit_dir_light(const glm::vec3 &rotation, const DirLight &light) {
     light_data.direction = glm::vec4(
         glm::toMat3(glm::quat(rotation)) * glm::vec3(0.0f, 0.0f, -1.0f), 1.0f);
     light_data.color = glm::vec4(light.color, 1.0f);
+}
+
+void submit_spot_light(const Transform &transform, const SpotLight &light) {
+    glm::vec3 dir = glm::toMat3(glm::quat(transform.rotation)) *
+                    glm::vec3(0.0f, 0.0f, -1.0f);
+
+    SpotLightData &light_data = s_renderer.spot_lights.emplace_back();
+    light_data.pos_and_cutoff =
+        glm::vec4(transform.position, glm::cos(glm::radians(light.cutoff)));
+    light_data.dir_and_outer_cutoff = glm::vec4(
+        dir, glm::cos(glm::radians(light.cutoff - light.edge_smoothness)));
+    light_data.color_and_linear =
+        glm::vec4(light.color * light.intensity, light.linear);
+    light_data.quadratic = light.quadratic;
 }
 
 void draw_to_screen_quad() {

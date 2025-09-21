@@ -6,6 +6,9 @@
 #define DIR_LIGHTS_BINDING ${DIR_LIGHTS_BINDING}
 #define MAX_DIR_LIGHTS ${MAX_DIR_LIGHTS}
 
+#define SPOT_LIGHTS_BINDING ${SPOT_LIGHTS_BINDING}
+#define MAX_SPOT_LIGHTS ${MAX_SPOT_LIGHTS}
+
 #define MATERIALS_BINDING ${MATERIALS_BINDING}
 #define MAX_MATERIALS ${MAX_MATERIALS}
 
@@ -46,6 +49,18 @@ layout (std140, binding = DIR_LIGHTS_BINDING) uniform DirLights {
     DirLight lights[MAX_DIR_LIGHTS];
     int count;
 } u_dir_lights;
+
+struct SpotLight {
+    vec4 pos_and_cutoff;
+    vec4 dir_and_outer_cutoff;
+    vec4 color_and_linear;
+    float quadratic;
+};
+
+layout (std140, binding = SPOT_LIGHTS_BINDING) uniform SpotLights {
+    SpotLight lights[MAX_SPOT_LIGHTS];
+    int count;
+} u_spot_lights;
 
 struct Material {
     vec4 color;
@@ -179,6 +194,47 @@ void main() {
         kD *= 1.0 - metallic;
 
         Lo += (kD * diffuse.rgb / PI + specular) * radiance * max(dot(N, L), 0.0);
+    }
+
+    for (int i = 0; i < u_spot_lights.count; i++) {
+        SpotLight sl = u_spot_lights.lights[i];
+
+        vec3 position           = sl.pos_and_cutoff.xyz;
+        vec3 tangent_position   = fs_in.TBN * position;
+        vec3 direction          = fs_in.TBN * sl.dir_and_outer_cutoff.xyz;
+        vec3 color              = sl.color_and_linear.rgb;
+
+        float cutoff        = sl.pos_and_cutoff.w;
+        float outer_cutoff  = sl.dir_and_outer_cutoff.w;
+        float linear        = sl.color_and_linear.w;
+        float quadratic     = sl.quadratic;
+
+        vec3 L = normalize(tangent_position - fs_in.tangent_world_position);
+        float theta = dot(L, normalize(-direction));
+
+        if (theta > cutoff) {
+            float epsilon = abs(cutoff - outer_cutoff) + 0.0001;
+            float intensity = clamp((theta - outer_cutoff) / epsilon, 0.0, 1.0);
+
+            vec3 H = normalize(V + L);
+            float dist = length(position - fs_in.world_space_position);
+            float attentuation
+                = 1.0 / (1.0 + linear * dist + quadratic * dist * dist);
+            vec3 radiance = color * attentuation;
+
+            float NDF   = dist_ggx(N, H, roughness);
+            float G     = geo_smith(N, V, L, roughness);
+            vec3 F      = fresnel_schlick(clamp(dot(H, V), 0.0, 1.0), F0);
+
+            float denom = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
+            vec3 specular = NDF * G * F / denom;
+            vec3 kS = F;
+            vec3 kD = vec3(1.0) - kS;
+            kD *= 1.0 - metallic;
+
+            Lo += (kD * diffuse.rgb / PI + specular) * radiance 
+                * max(dot(N, L), 0.0) * intensity;
+        }
     }
 
     final_color.rgb = (0.1 + Lo) * mat.color.rgb;

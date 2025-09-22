@@ -15,9 +15,9 @@ constexpr int32_t SPOT_LIGHTS_BINDING = 3;
 constexpr int32_t MATERIALS_BINDING = 4;
 
 constexpr int32_t MAX_MESH_INSTANCES = 128;
-constexpr int32_t MAX_POINT_LIGHTS = 128;
+constexpr int32_t MAX_POINT_LIGHTS = 32;
 constexpr int32_t MAX_DIR_LIGHTS = 4;
-constexpr int32_t MAX_SPOT_LIGHTS = 128;
+constexpr int32_t MAX_SPOT_LIGHTS = 32;
 constexpr int32_t MAX_MATERIALS = 128;
 constexpr int32_t MAX_TEXTURES = 16;
 

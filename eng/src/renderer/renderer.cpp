@@ -17,6 +17,7 @@ struct GPU {
     char *vendor;
     char *opengl_version;
     char *device_name;
+    int32_t max_geom_invocations;
 
     GLint texture_units = 0;
 };
@@ -40,6 +41,8 @@ struct Renderer {
 
     UniformBuffer spot_lights_uni_buffer;
     std::vector<SpotLightData> spot_lights;
+
+    Shader spotlight_shadow_shader;
 
     UniformBuffer material_uni_buffer;
     std::vector<AssetID> material_ids;
@@ -72,16 +75,19 @@ bool init() {
         return false;
 
     GPU &gpu_spec = s_renderer.gpu;
-    GL_CALL(glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS,
-                          &gpu_spec.texture_units));
     GL_CALL(gpu_spec.vendor = (char *)glGetString(GL_VENDOR));
     GL_CALL(gpu_spec.device_name = (char *)glGetString(GL_RENDERER));
     GL_CALL(gpu_spec.opengl_version = (char *)glGetString(GL_VERSION));
+    GL_CALL(glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS,
+                          &gpu_spec.texture_units));
+    GL_CALL(glGetIntegerv(GL_MAX_GEOMETRY_SHADER_INVOCATIONS,
+                          &gpu_spec.max_geom_invocations));
 
     printf("GPU Vendor: %s\n", gpu_spec.vendor);
     printf("GPU Device: %s\n", gpu_spec.device_name);
     printf("OpenGL version: %s\n", gpu_spec.opengl_version);
     printf("Max texture units: %d\n", gpu_spec.texture_units);
+    printf("Max geom shader invocs: %d\n", gpu_spec.max_geom_invocations);
 
     GL_CALL(glEnable(GL_DEBUG_OUTPUT));
     GL_CALL(glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS));
@@ -164,6 +170,34 @@ bool init() {
     s_renderer.spot_lights_uni_buffer = UniformBuffer::create(nullptr, size);
     s_renderer.spot_lights_uni_buffer.bind_buffer_range(SPOT_LIGHTS_BINDING, 0,
                                                         size);
+
+    s_renderer.spotlight_shadow_shader = Shader::create();
+
+    {
+        ShaderSpec spec;
+        spec.vertex_shader.path = "resources/shaders/depth.vert";
+        spec.fragment_shader.path = "resources/shaders/depth.frag";
+        spec.geometry_shader = {
+            .path = "resources/shaders/shadows/spotlight.geom",
+            .replacements = {
+                {
+                    "${SPOT_LIGHTS_BINDING}",
+                    std::to_string(renderer::SPOT_LIGHTS_BINDING)
+                },
+                {
+                    "${MAX_SPOT_LIGHTS}",
+                    std::to_string(renderer::MAX_SPOT_LIGHTS)
+                },
+                {
+                    "${INVOCATIONS}",
+                    std::to_string(s_renderer.gpu.max_geom_invocations)
+                }
+            }
+        };
+
+        assert(s_renderer.spotlight_shadow_shader.build(spec) &&
+               "Spotlight shadow shader not built");
+    }
 
     size = MAX_MATERIALS * sizeof(MaterialData);
     s_renderer.material_uni_buffer = UniformBuffer::create(nullptr, size);

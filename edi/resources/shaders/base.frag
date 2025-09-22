@@ -260,7 +260,7 @@ void main() {
         }
     }
 
-    final_color.rgb = (0.1 + Lo) * mat.color.rgb;
+    final_color.rgb = (0.1 + Lo) * mat.color.rgb * ao;
     final_color.rgb *= fs_in.color_sens;
     final_color.a = diffuse.a * mat.color.a;
 }

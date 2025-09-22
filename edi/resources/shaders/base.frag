@@ -51,6 +51,7 @@ layout (std140, binding = DIR_LIGHTS_BINDING) uniform DirLights {
 } u_dir_lights;
 
 struct SpotLight {
+    mat4 light_space_mat;
     vec4 pos_and_cutoff;
     vec4 dir_and_outer_cutoff;
     vec4 color_and_linear;

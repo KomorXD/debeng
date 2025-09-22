@@ -45,6 +45,7 @@ struct DirLightData {
 };
 
 struct SpotLightData {
+    glm::mat4 light_space_mat;
     glm::vec4 pos_and_cutoff;
     glm::vec4 dir_and_outer_cutoff;
     glm::vec4 color_and_linear;

@@ -330,6 +330,19 @@ void submit_mesh(const glm::mat4 &transform, AssetID mesh_id,
     instance.material_idx = std::distance(material_ids.begin(), it);
 }
 
+static float max_component(const glm::vec3 &v) {
+    return glm::max(v.x, glm::max(v.y, v.z));
+}
+
+static float light_radius(float constant, float linear, float quadratic,
+                          float max_brightness) {
+    float num =
+        -linear + glm::sqrt(linear * linear -
+                            4.0f * quadratic *
+                                (constant - (256.0f / 5.0f) * max_brightness));
+    return num / (2.0f * quadratic);
+}
+
 void submit_point_light(const glm::vec3 &position, const PointLight &light) {
     PointLightData &light_data = s_renderer.point_lights.emplace_back();
     light_data.position_and_linear =
@@ -346,10 +359,18 @@ void submit_dir_light(const glm::vec3 &rotation, const DirLight &light) {
 }
 
 void submit_spot_light(const Transform &transform, const SpotLight &light) {
+    float radius = light_radius(1.0f, light.linear, light.quadratic,
+                                max_component(light.color));
     glm::vec3 dir = glm::toMat3(glm::quat(transform.rotation)) *
                     glm::vec3(0.0f, 0.0f, -1.0f);
 
+    glm::mat4 proj =
+        glm::perspective(glm::radians(2.0f * light.cutoff), 1.0f, 0.1f, radius);
+    glm::mat4 view = glm::lookAt(transform.position, transform.position + dir,
+                                 glm::vec3(0.0f, 1.0f, 0.0f));
+
     SpotLightData &light_data = s_renderer.spot_lights.emplace_back();
+    light_data.light_space_mat = proj * view;
     light_data.pos_and_cutoff =
         glm::vec4(transform.position, glm::cos(glm::radians(light.cutoff)));
     light_data.dir_and_outer_cutoff = glm::vec4(

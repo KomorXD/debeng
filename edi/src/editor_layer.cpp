@@ -68,8 +68,8 @@ std::unique_ptr<Layer> EditorLayer::create(const eng::WindowSpec &win_spec) {
         eng::AssetPack::DEFAULT_BASE_MATERIAL;
 
     ent = layer->scene.spawn_entity("light");
-    ent.get_component<eng::Transform>().position = glm::vec3(2.0f, 3.0f, 1.0f);
-    ent.add_component<eng::SpotLight>().intensity = 3.0f;
+    ent.get_component<eng::Transform>().position = glm::vec3(0.0f, 4.0f, 0.0f);
+    ent.add_component<eng::PointLight>().intensity = 3.0f;
     ent.add_component<eng::MeshComp>().id = eng::AssetPack::CUBE_ID;
     ent.add_component<eng::MaterialComp>().id =
         eng::AssetPack::DEFAULT_FLAT_MATERIAL;

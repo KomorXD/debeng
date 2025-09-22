@@ -35,6 +35,7 @@ struct CameraData {
 };
 
 struct PointLightData {
+    std::array<glm::mat4, 6> light_space_matrices;
     glm::vec4 position_and_linear;
     glm::vec4 color_and_quadratic;
 };

@@ -42,6 +42,7 @@ layout (std140, binding = MATERIALS_BINDING) uniform Materials {
 } u_materials;
 
 uniform sampler2D u_textures[MAX_TEXTURES];
+uniform sampler2DArrayShadow u_point_lights_shadowmaps;
 
 void main() {
     int ent_id = int(fs_in.ent_id);

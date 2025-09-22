@@ -31,6 +31,7 @@ layout(location = 0) out vec4 final_color;
 layout(location = 1) out vec4 picker_id;
 
 struct PointLight {
+    mat4 light_space_mats[6];
     vec4 position_and_linear;
     vec4 color_and_quadratic;
 };
@@ -87,6 +88,7 @@ layout (std140, binding = MATERIALS_BINDING) uniform Materials {
 
 uniform sampler2D u_textures[MAX_TEXTURES];
 uniform sampler2DArrayShadow u_spot_lights_shadowmaps;
+uniform sampler2DArrayShadow u_point_lights_shadowmaps;
 
 float calc_shadow(sampler2DArrayShadow shadowmaps, mat4 light_space_mat,
                   int layer) {
@@ -193,7 +195,16 @@ void main() {
         vec3 kD = vec3(1.0) - kS;
         kD *= 1.0 - metallic;
 
-        Lo += (kD * diffuse.rgb / PI + specular) * radiance * max(dot(N, L), 0.0);
+        float shadow = 0.0;
+        int local_layer = i * 6;
+        for (int face = 0; face < 6; face++) {
+            shadow += calc_shadow(u_point_lights_shadowmaps,
+                                  pl.light_space_mats[face], local_layer);
+            local_layer++;
+        }
+
+        Lo += (kD * diffuse.rgb / PI + specular) * radiance
+            * max(dot(N, L), 0.0) * shadow;
     }
 
     for (int i = 0; i < u_dir_lights.count; i++) {

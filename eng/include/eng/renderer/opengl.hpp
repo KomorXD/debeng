@@ -238,6 +238,7 @@ struct Framebuffer {
     void bind_renderbuffer() const;
     void bind_color_attachment(uint32_t index, uint32_t slot = 0) const;
 
+    void draw_to_depth_map(uint32_t index, int32_t mip = 0);
     void draw_to_color_attachment(uint32_t index, uint32_t target_attachment,
                                   int32_t mip = 0);
 

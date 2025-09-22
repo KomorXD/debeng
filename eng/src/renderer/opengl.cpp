@@ -716,6 +716,17 @@ void Framebuffer::bind_color_attachment(uint32_t index, uint32_t slot) const {
     GL_CALL(glBindTexture(tex_type, tex_id));
 }
 
+void Framebuffer::draw_to_depth_map(uint32_t index, int32_t mip) {
+    assert(index < color_attachments.size() &&
+           "Trying to draw to invalid depth map");
+
+    const auto &[id, spec] = color_attachments[index];
+    bind();
+
+    GL_CALL(glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, id, 0));
+    GL_CALL(glViewport(0, 0, spec.size.x, spec.size.y));
+}
+
 void Framebuffer::draw_to_color_attachment(uint32_t index,
                                            uint32_t target_attachment,
                                            int32_t mip) {

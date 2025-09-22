@@ -145,12 +145,26 @@ bool Shader::build(const ShaderSpec &spec) {
 
     GLuint vs_id = compile(GL_VERTEX_SHADER, vs_src);
     GLuint fs_id = compile(GL_FRAGMENT_SHADER, fs_src);
-
     GL_CALL(glAttachShader(id, vs_id));
     GL_CALL(glAttachShader(id, fs_id));
+
+    GLuint gs_id = 0;
+    if (spec.geometry_shader.has_value()) {
+        ShaderDescriptor geom = spec.geometry_shader.value();
+        std::string gs_src = get_file_content(geom.path).value();
+        for (const StringReplacement &rep : geom.replacements)
+            replace_all(gs_src, rep.pattern, rep.target);
+
+        gs_id = compile(GL_GEOMETRY_SHADER, gs_src);
+        GL_CALL(glAttachShader(id, gs_id));
+    }
+
     GL_CALL(glLinkProgram(id));
     GL_CALL(glDeleteShader(vs_id));
     GL_CALL(glDeleteShader(fs_id));
+
+    if (gs_id != 0)
+        GL_CALL(glDeleteShader(gs_id));
 
     GLint success = 0;
     GL_CALL(glGetProgramiv(id, GL_LINK_STATUS, &success));

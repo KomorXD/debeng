@@ -56,6 +56,7 @@ struct ShaderDescriptor {
 struct ShaderSpec {
     ShaderDescriptor vertex_shader;
     ShaderDescriptor fragment_shader;
+    std::optional<ShaderDescriptor> geometry_shader;
 };
 
 struct Shader {

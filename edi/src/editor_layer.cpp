@@ -10,6 +10,7 @@
 #include "eng/scene/assets.hpp"
 #include "eng/scene/components.hpp"
 #include "eng/scene/entity.hpp"
+#include "eng/scene/scene.hpp"
 #include "glm/fwd.hpp"
 #include "glm/gtc/constants.hpp"
 #include "glm/trigonometric.hpp"
@@ -215,6 +216,51 @@ static void render_control_panel(EditorLayer &layer);
 static void render_entity_panel(EditorLayer &layer);
 static void render_gizmo(EditorLayer &layer);
 
+static void on_shadow_pass(EditorLayer &layer) {
+    eng::Scene &scene = layer.scene;
+
+    eng::renderer::shadow_pass_begin(layer.asset_pack);
+
+    eng::ecs::RegistryView rview =
+        scene.registry.view<eng::Transform, eng::PointLight>();
+    for (eng::ecs::RegistryView::Entry &entry : rview.entity_entries) {
+        eng::Transform &transform = rview.get<eng::Transform>(entry);
+        eng::PointLight &light = rview.get<eng::PointLight>(entry);
+
+        eng::renderer::submit_point_light(transform.position, light);
+    }
+
+    rview =
+        scene.registry.view<eng::Transform, eng::DirLight>();
+    for (eng::ecs::RegistryView::Entry &entry : rview.entity_entries) {
+        eng::Transform &transform = rview.get<eng::Transform>(entry);
+        eng::DirLight &light = rview.get<eng::DirLight>(entry);
+
+        eng::renderer::submit_dir_light(transform.rotation, light);
+    }
+
+    rview =
+        scene.registry.view<eng::Transform, eng::SpotLight>();
+    for (eng::ecs::RegistryView::Entry &entry : rview.entity_entries) {
+        eng::Transform &transform = rview.get<eng::Transform>(entry);
+        eng::SpotLight &light = rview.get<eng::SpotLight>(entry);
+
+        eng::renderer::submit_spot_light(transform, light);
+    }
+
+    rview =
+        scene.registry.view<eng::Transform, eng::MeshComp, eng::MaterialComp>(
+            eng::ecs::exclude<eng::PointLight, eng::DirLight, eng::SpotLight>);
+    for (eng::ecs::RegistryView::Entry &entry : rview.entity_entries) {
+        eng::Transform &transform = rview.get<eng::Transform>(entry);
+        eng::MeshComp &mesh = rview.get<eng::MeshComp>(entry);
+
+        eng::renderer::submit_shadow_pass_mesh(transform.to_mat4(), mesh.id);
+    }
+
+    eng::renderer::shadow_pass_end();
+}
+
 void EditorLayer::on_render() {
     setup_dockspace();
 
@@ -242,6 +288,8 @@ void EditorLayer::on_render() {
     ImGui::Begin("Entity panel");
     render_entity_panel(*this);
     ImGui::End();
+
+    on_shadow_pass(*this);
 
     glm::ivec2 avail_region_iv2 = {(int32_t)content_reg.x,
                                    (int32_t)content_reg.y};

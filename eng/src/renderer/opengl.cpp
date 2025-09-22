@@ -229,6 +229,16 @@ void Shader::set_uniform_1i(const std::string &name, int32_t val) {
     GL_CALL(glUniform1i(loc.value(), val));
 }
 
+void Shader::try_set_uniform_1i(const std::string &name, int32_t val) {
+    assert(id != 0 && "Trying to set uniform of invalid shader object");
+
+    std::optional<GLint> loc = get_uniform_location(name);
+    if (!loc.has_value())
+        return;
+
+    GL_CALL(glUniform1i(loc.value(), val));
+}
+
 void Shader::set_uniform_1f(const std::string &name, float val) {
     assert(id != 0 && "Trying to set uniform of invalid shader object");
 
@@ -683,8 +693,6 @@ void Framebuffer::add_color_attachment(ColorAttachmentSpec spec) {
         break;
     }
 
-    GL_CALL(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                                   tex_type, tex_id, 0));
     if (spec.gen_minmaps)
         GL_CALL(glGenerateMipmap(tex_type));
 
@@ -707,7 +715,6 @@ void Framebuffer::bind_color_attachment(uint32_t index, uint32_t slot) const {
     assert(index < color_attachments.size() &&
            "Invalid color attachment index");
 
-    bind();
     const auto &[tex_id, spec] = color_attachments[index];
     assert(tex_id != 0 && "Trying to bind invalid color attachment");
 

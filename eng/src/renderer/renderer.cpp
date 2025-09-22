@@ -42,6 +42,7 @@ struct Renderer {
     UniformBuffer spot_lights_uni_buffer;
     std::vector<SpotLightData> spot_lights;
 
+    Framebuffer shadow_fbo;
     Shader spotlight_shadow_shader;
 
     UniformBuffer material_uni_buffer;
@@ -171,9 +172,25 @@ bool init() {
     s_renderer.spot_lights_uni_buffer.bind_buffer_range(SPOT_LIGHTS_BINDING, 0,
                                                         size);
 
-    s_renderer.spotlight_shadow_shader = Shader::create();
+    {
+        ColorAttachmentSpec spec;
+        spec.type = ColorAttachmentType::TEX_2D_ARRAY_SHADOW;
+        spec.format = TextureFormat::DEPTH_32F;
+        spec.wrap = GL_CLAMP_TO_BORDER;
+        spec.min_filter = spec.mag_filter = GL_NEAREST;
+        spec.size = {512, 512};
+        spec.layers = 3;
+        spec.gen_minmaps = false;
+        spec.border_color = glm::vec4(1.0f);
+
+        s_renderer.shadow_fbo = Framebuffer::create();
+        s_renderer.shadow_fbo.bind();
+        s_renderer.shadow_fbo.add_color_attachment(spec);
+    }
 
     {
+        s_renderer.spotlight_shadow_shader = Shader::create();
+
         ShaderSpec spec;
         spec.vertex_shader.path = "resources/shaders/depth.vert";
         spec.fragment_shader.path = "resources/shaders/depth.frag";
@@ -213,6 +230,9 @@ void shutdown() {
     s_renderer.dir_lights_uni_buffer.destroy();
     s_renderer.spot_lights_uni_buffer.destroy();
     s_renderer.material_uni_buffer.destroy();
+
+    s_renderer.shadow_fbo.destroy();
+    s_renderer.spotlight_shadow_shader.destroy();
 }
 
 void scene_begin(const CameraData &camera, AssetPack &asset_pack) {
@@ -232,6 +252,8 @@ void scene_begin(const CameraData &camera, AssetPack &asset_pack) {
 
         instance_map.clear();
     }
+
+    s_renderer.instances.clear();
 
     s_renderer.camera_uni_buffer.bind();
     s_renderer.camera_uni_buffer.set_data(&camera, sizeof(CameraData));
@@ -313,12 +335,17 @@ void scene_end() {
         tex.bind(i);
     }
 
+    /* TODO: assign IDS when texture atlas is ready. */
+    int32_t slot = s_renderer.texture_ids.size() * 2;
+    s_renderer.shadow_fbo.bind_color_attachment(0, slot);
+
     for (auto &[shader_id, instance_map] : s_renderer.instances) {
         if (instance_map.empty())
             continue;
 
         Shader &curr_shader = s_asset_pack->shaders.at(shader_id);
         curr_shader.bind();
+        curr_shader.try_set_uniform_1i("u_spot_lights_shadowmaps", slot);
 
         /*  When I make textures into a texture atlas we will make it
          *  better... */
@@ -337,6 +364,75 @@ void scene_end() {
             draw_elements_instanced(curr_shader, mesh.vao, instances.size());
         }
     }
+}
+
+void shadow_pass_begin(AssetPack &asset_pack) {
+    s_asset_pack = &asset_pack;
+
+    s_renderer.point_lights.clear();
+    s_renderer.dir_lights.clear();
+    s_renderer.spot_lights.clear();
+    s_renderer.material_ids.clear();
+    s_renderer.texture_ids.clear();
+
+    for (auto &[shader_id, instance_map] : s_renderer.instances) {
+        for (auto &[mesh_id, instances] : instance_map)
+            instances.clear();
+
+        instance_map.clear();
+    }
+
+    s_renderer.instances.clear();
+}
+
+void shadow_pass_end() {
+    s_renderer.point_lights_uni_buffer.bind();
+    s_renderer.dir_lights_uni_buffer.bind();
+    s_renderer.spot_lights_uni_buffer.bind();
+
+    int32_t count = s_renderer.point_lights.size();
+    int32_t offset = MAX_POINT_LIGHTS * sizeof(PointLightData);
+    s_renderer.point_lights_uni_buffer.set_data(s_renderer.point_lights.data(),
+                                                count * sizeof(PointLightData));
+    s_renderer.point_lights_uni_buffer.set_data(&count, sizeof(int32_t), offset);
+
+    count = s_renderer.dir_lights.size();
+    offset = MAX_DIR_LIGHTS * sizeof(DirLightData);
+    s_renderer.dir_lights_uni_buffer.set_data(s_renderer.dir_lights.data(),
+                                                count * sizeof(DirLightData));
+    s_renderer.dir_lights_uni_buffer.set_data(&count, sizeof(int32_t), offset);
+
+    count = s_renderer.spot_lights.size();
+    offset = MAX_SPOT_LIGHTS * sizeof(SpotLightData);
+    s_renderer.spot_lights_uni_buffer.set_data(s_renderer.spot_lights.data(),
+                                               count * sizeof(SpotLightData));
+    s_renderer.spot_lights_uni_buffer.set_data(&count, sizeof(int32_t), offset);
+
+    assert(s_renderer.instances.size() == 1 &&
+           "More than 1 shader_id (shadow one) submitted");
+
+    InstancesMap &instance_map = s_renderer.instances[0];
+    s_renderer.spotlight_shadow_shader.bind();
+
+    s_renderer.shadow_fbo.bind();
+    s_renderer.shadow_fbo.draw_to_depth_map(0);
+    GL_CALL(glDrawBuffer(GL_NONE));
+    GL_CALL(glClear(GL_DEPTH_BUFFER_BIT));
+
+    GL_CALL(glCullFace(GL_FRONT));
+
+    for (auto &[mesh_id, instances] : instance_map) {
+        if (instances.empty())
+            continue;
+
+        Mesh &mesh = s_asset_pack->meshes.at(mesh_id);
+        mesh.vao.vbo_instanced.set_data(
+            instances.data(), instances.size() * sizeof(MeshInstance));
+        draw_elements_instanced(s_renderer.spotlight_shadow_shader, mesh.vao,
+                                instances.size());
+    }
+
+    GL_CALL(glCullFace(GL_BACK));
 }
 
 void submit_mesh(const glm::mat4 &transform, AssetID mesh_id,
@@ -362,6 +458,15 @@ void submit_mesh(const glm::mat4 &transform, AssetID mesh_id,
 
     it = material_ids.insert(it, material_id);
     instance.material_idx = std::distance(material_ids.begin(), it);
+}
+
+void submit_shadow_pass_mesh(const glm::mat4 &transform, AssetID mesh_id) {
+    /* Only one shader in use at a time in shadow passes. */
+    InstancesMap &group = s_renderer.instances[0];
+    std::vector<MeshInstance> &instances = group[mesh_id];
+
+    MeshInstance &instance = instances.emplace_back();
+    instance.transform = transform;
 }
 
 static float max_component(const glm::vec3 &v) {

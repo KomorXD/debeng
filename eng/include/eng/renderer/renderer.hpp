@@ -83,8 +83,12 @@ void shutdown();
 void scene_begin(const CameraData &camera, AssetPack &asset_pack);
 void scene_end();
 
+void shadow_pass_begin(AssetPack &asset_pack);
+void shadow_pass_end();
+
 void submit_mesh(const glm::mat4 &transform, AssetID mesh_id,
                  AssetID material_id, int32_t ent_id, float color_sens = 1.0f);
+void submit_shadow_pass_mesh(const glm::mat4 &transform, AssetID mesh_id);
 
 void submit_point_light(const glm::vec3 &position, const PointLight &light);
 void submit_dir_light(const glm::vec3 &rotation, const DirLight &light);

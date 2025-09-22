@@ -86,6 +86,25 @@ layout (std140, binding = MATERIALS_BINDING) uniform Materials {
 } u_materials;
 
 uniform sampler2D u_textures[MAX_TEXTURES];
+uniform sampler2DArrayShadow u_spot_lights_shadowmaps;
+
+float calc_shadow(sampler2DArrayShadow shadowmaps, mat4 light_space_mat,
+                  int layer) {
+    vec4 frag_position_light_space
+        = light_space_mat * vec4(fs_in.world_space_position, 1.0);
+    vec3 proj_coords = frag_position_light_space.xyz
+        / frag_position_light_space.w;
+    proj_coords = proj_coords * 0.5 + 0.5;
+
+    float depth = proj_coords.z;
+    float shadow_depth
+        = texture(shadowmaps, vec4(proj_coords.xy, layer, proj_coords.z));
+
+    if (depth < shadow_depth)
+        return 1.0;
+
+    return 0.0;
+}
 
 const float PI = 3.14159265359;
 
@@ -233,8 +252,11 @@ void main() {
             vec3 kD = vec3(1.0) - kS;
             kD *= 1.0 - metallic;
 
-            Lo += (kD * diffuse.rgb / PI + specular) * radiance 
-                * max(dot(N, L), 0.0) * intensity;
+            float shadow_factor
+                = calc_shadow(u_spot_lights_shadowmaps, sl.light_space_mat, i);
+
+            Lo += (kD * diffuse.rgb / PI + specular) * radiance
+                * max(dot(N, L), 0.0) * intensity * shadow_factor;
         }
     }
 

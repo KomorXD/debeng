@@ -74,3 +74,4 @@ CMakeUserPresets.json
 
 .cache/
 out/
+edi/resources/textures/

@@ -18,11 +18,14 @@ namespace eng::renderer {
 
 struct GPU {
     char *vendor;
-    char *opengl_version;
     char *device_name;
-    int32_t max_geom_invocations;
+    char *opengl_version;
+    char *glsl_version;
 
-    GLint texture_units = 0;
+    int32_t texture_units = 0;
+    int32_t max_3D_texture_size = 0;
+    int32_t max_array_texture_layers = 0;
+    int32_t max_geom_invocations = 0;
 };
 
 using InstancesMap = std::unordered_map<AssetID, std::vector<MeshInstance>>;
@@ -141,14 +144,24 @@ bool init() {
     GL_CALL(gpu_spec.vendor = (char *)glGetString(GL_VENDOR));
     GL_CALL(gpu_spec.device_name = (char *)glGetString(GL_RENDERER));
     GL_CALL(gpu_spec.opengl_version = (char *)glGetString(GL_VERSION));
+    GL_CALL(gpu_spec.glsl_version =
+                (char *)glGetString(GL_SHADING_LANGUAGE_VERSION));
+
     GL_CALL(glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &gpu_spec.texture_units));
+    GL_CALL(glGetIntegerv(GL_MAX_ARRAY_TEXTURE_LAYERS,
+                          &gpu_spec.max_array_texture_layers));
+    GL_CALL(
+        glGetIntegerv(GL_MAX_3D_TEXTURE_SIZE, &gpu_spec.max_3D_texture_size));
     GL_CALL(glGetIntegerv(GL_MAX_GEOMETRY_SHADER_INVOCATIONS,
                           &gpu_spec.max_geom_invocations));
 
     printf("GPU Vendor: %s\n", gpu_spec.vendor);
     printf("GPU Device: %s\n", gpu_spec.device_name);
     printf("OpenGL version: %s\n", gpu_spec.opengl_version);
-    printf("Max texture units: %d\n", gpu_spec.texture_units);
+    printf("GLSL version: %s\n", gpu_spec.glsl_version);
+    printf("Max terxture image units: %d\n", gpu_spec.texture_units);
+    printf("Max array texture layers: %d\n", gpu_spec.max_array_texture_layers);
+    printf("Max 3D texture size: %d\n", gpu_spec.max_3D_texture_size);
     printf("Max geometry shader invocations: %d\n",
            gpu_spec.max_geom_invocations);
 

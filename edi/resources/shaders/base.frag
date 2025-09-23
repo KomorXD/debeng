@@ -1,10 +1,10 @@
 #version 430 core
 
-#define POINT_LIGHTS_BINDING ${POINT_LIGHTS_BINDING}
-#define MAX_POINT_LIGHTS ${MAX_POINT_LIGHTS}
-
 #define DIR_LIGHTS_BINDING ${DIR_LIGHTS_BINDING}
 #define MAX_DIR_LIGHTS ${MAX_DIR_LIGHTS}
+
+#define POINT_LIGHTS_BINDING ${POINT_LIGHTS_BINDING}
+#define MAX_POINT_LIGHTS ${MAX_POINT_LIGHTS}
 
 #define SPOT_LIGHTS_BINDING ${SPOT_LIGHTS_BINDING}
 #define MAX_SPOT_LIGHTS ${MAX_SPOT_LIGHTS}
@@ -32,6 +32,16 @@ in VS_OUT {
 layout(location = 0) out vec4 final_color;
 layout(location = 1) out vec4 picker_id;
 
+struct DirLight {
+    vec4 direction;
+    vec4 color;
+};
+
+layout (std140, binding = DIR_LIGHTS_BINDING) uniform DirLights {
+    DirLight lights[MAX_DIR_LIGHTS];
+    int count;
+} u_dir_lights;
+
 struct PointLight {
     mat4 light_space_mats[6];
     vec4 position_and_linear;
@@ -42,16 +52,6 @@ layout (std140, binding = POINT_LIGHTS_BINDING) uniform PointLights {
     PointLight lights[MAX_POINT_LIGHTS];
     int count;
 } u_point_lights;
-
-struct DirLight {
-    vec4 direction;
-    vec4 color;
-};
-
-layout (std140, binding = DIR_LIGHTS_BINDING) uniform DirLights {
-    DirLight lights[MAX_DIR_LIGHTS];
-    int count;
-} u_dir_lights;
 
 struct SpotLight {
     mat4 light_space_mat;
@@ -99,8 +99,8 @@ layout (std140, binding = MATERIALS_BINDING) uniform Materials {
 } u_materials;
 
 uniform sampler2D u_textures[MAX_TEXTURES];
-uniform sampler2DArrayShadow u_spot_lights_shadowmaps;
 uniform sampler2DArrayShadow u_point_lights_shadowmaps;
+uniform sampler2DArrayShadow u_spot_lights_shadowmaps;
 uniform sampler3D u_soft_shadow_offsets_texture;
 
 float calc_shadow(sampler2DArrayShadow shadowmaps, mat4 light_space_mat,

@@ -222,21 +222,21 @@ static void on_shadow_pass(EditorLayer &layer) {
     eng::renderer::shadow_pass_begin(layer.asset_pack);
 
     eng::ecs::RegistryView rview =
-        scene.registry.view<eng::Transform, eng::PointLight>();
-    for (eng::ecs::RegistryView::Entry &entry : rview.entity_entries) {
-        eng::Transform &transform = rview.get<eng::Transform>(entry);
-        eng::PointLight &light = rview.get<eng::PointLight>(entry);
-
-        eng::renderer::submit_point_light(transform.position, light);
-    }
-
-    rview =
         scene.registry.view<eng::Transform, eng::DirLight>();
     for (eng::ecs::RegistryView::Entry &entry : rview.entity_entries) {
         eng::Transform &transform = rview.get<eng::Transform>(entry);
         eng::DirLight &light = rview.get<eng::DirLight>(entry);
 
         eng::renderer::submit_dir_light(transform.rotation, light);
+    }
+
+    rview =
+        scene.registry.view<eng::Transform, eng::PointLight>();
+    for (eng::ecs::RegistryView::Entry &entry : rview.entity_entries) {
+        eng::Transform &transform = rview.get<eng::Transform>(entry);
+        eng::PointLight &light = rview.get<eng::PointLight>(entry);
+
+        eng::renderer::submit_point_light(transform.position, light);
     }
 
     rview =
@@ -330,21 +330,21 @@ void EditorLayer::on_render() {
     eng::renderer::scene_begin(camera.render_data(), asset_pack);
 
     eng::ecs::RegistryView rview =
-        scene.registry.view<eng::Transform, eng::PointLight>();
-    for (eng::ecs::RegistryView::Entry &entry : rview.entity_entries) {
-        eng::Transform &transform = rview.get<eng::Transform>(entry);
-        eng::PointLight &light = rview.get<eng::PointLight>(entry);
-
-        eng::renderer::submit_point_light(transform.position, light);
-    }
-
-    rview =
         scene.registry.view<eng::Transform, eng::DirLight>();
     for (eng::ecs::RegistryView::Entry &entry : rview.entity_entries) {
         eng::Transform &transform = rview.get<eng::Transform>(entry);
         eng::DirLight &light = rview.get<eng::DirLight>(entry);
 
         eng::renderer::submit_dir_light(transform.rotation, light);
+    }
+
+    rview =
+        scene.registry.view<eng::Transform, eng::PointLight>();
+    for (eng::ecs::RegistryView::Entry &entry : rview.entity_entries) {
+        eng::Transform &transform = rview.get<eng::Transform>(entry);
+        eng::PointLight &light = rview.get<eng::PointLight>(entry);
+
+        eng::renderer::submit_point_light(transform.position, light);
     }
 
     rview =
@@ -825,6 +825,20 @@ static void render_entity_panel(EditorLayer &layer) {
     ImGui::PopID();
 
     ImGui::PushID(4);
+    if (ent.has_component<eng::DirLight>()) {
+        eng::DirLight &dl = ent.get_component<eng::DirLight>();
+
+        if (ImGui::CollapsingHeader("Directional light",
+                                    ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Indent(8.0f);
+            ImGui::ColorEdit3("Color", &dl.color[0],
+                              ImGuiColorEditFlags_NoInputs);
+            ImGui::Unindent(8.0f);
+        }
+    }
+    ImGui::PopID();
+
+    ImGui::PushID(5);
     if (ent.has_component<eng::PointLight>()) {
         eng::PointLight &pl = ent.get_component<eng::PointLight>();
 
@@ -844,20 +858,7 @@ static void render_entity_panel(EditorLayer &layer) {
                                    FLT_MAX, "%.2f", width);
 
             ImGui::Unindent(8.0f);
-        }
-    }
-    ImGui::PopID();
 
-    ImGui::PushID(5);
-    if (ent.has_component<eng::DirLight>()) {
-        eng::DirLight &dl = ent.get_component<eng::DirLight>();
-
-        if (ImGui::CollapsingHeader("Directional light",
-                                    ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImGui::Indent(8.0f);
-            ImGui::ColorEdit3("Color", &dl.color[0],
-                              ImGuiColorEditFlags_NoInputs);
-            ImGui::Unindent(8.0f);
         }
     }
     ImGui::PopID();

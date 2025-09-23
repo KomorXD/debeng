@@ -153,6 +153,15 @@ AssetPack AssetPack::create(const std::string &pack_name) {
 
         assert(base_shader.build(spec) && "Default shaders not found");
 
+        renderer::TextureSlots slots = eng::renderer::texture_slots();
+        base_shader.bind();
+        base_shader.set_uniform_1i("u_point_lights_shadowmaps",
+                                   slots.point_lights_shadowmaps);
+        base_shader.set_uniform_1i("u_spot_lights_shadowmaps",
+                                   slots.spot_lights_shadowmaps);
+        base_shader.set_uniform_1i("u_soft_shadow_offsets_texture",
+                                   slots.random_offsets_texture);
+
         (void)pack.add_shader(base_shader);
     }
 

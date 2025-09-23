@@ -9,18 +9,24 @@
 namespace eng::renderer {
 
 constexpr int32_t CAMERA_BINDING = 0;
-constexpr int32_t POINT_LIGHTS_BINDING = 1;
-constexpr int32_t DIR_LIGHTS_BINDING = 2;
+constexpr int32_t DIR_LIGHTS_BINDING = 1;
+constexpr int32_t POINT_LIGHTS_BINDING = 2;
 constexpr int32_t SPOT_LIGHTS_BINDING = 3;
 constexpr int32_t SOFT_SHADOW_PROPS_BINDING = 4;
 constexpr int32_t MATERIALS_BINDING = 5;
 
 constexpr int32_t MAX_MESH_INSTANCES = 128;
-constexpr int32_t MAX_POINT_LIGHTS = 32;
 constexpr int32_t MAX_DIR_LIGHTS = 4;
+constexpr int32_t MAX_POINT_LIGHTS = 32;
 constexpr int32_t MAX_SPOT_LIGHTS = 32;
 constexpr int32_t MAX_MATERIALS = 128;
 constexpr int32_t MAX_TEXTURES = 16;
+
+struct TextureSlots {
+    int32_t point_lights_shadowmaps{};
+    int32_t spot_lights_shadowmaps{};
+    int32_t random_offsets_texture{};
+};
 
 struct CameraData {
     glm::mat4 view_projection;
@@ -35,15 +41,15 @@ struct CameraData {
     float far_clip;
 };
 
+struct DirLightData {
+    glm::vec4 direction;
+    glm::vec4 color;
+};
+
 struct PointLightData {
     std::array<glm::mat4, 6> light_space_matrices;
     glm::vec4 position_and_linear;
     glm::vec4 color_and_quadratic;
-};
-
-struct DirLightData {
-    glm::vec4 direction;
-    glm::vec4 color;
 };
 
 struct SpotLightData {
@@ -100,11 +106,12 @@ void submit_mesh(const glm::mat4 &transform, AssetID mesh_id,
                  AssetID material_id, int32_t ent_id, float color_sens = 1.0f);
 void submit_shadow_pass_mesh(const glm::mat4 &transform, AssetID mesh_id);
 
-void submit_point_light(const glm::vec3 &position, const PointLight &light);
 void submit_dir_light(const glm::vec3 &rotation, const DirLight &light);
+void submit_point_light(const glm::vec3 &position, const PointLight &light);
 void submit_spot_light(const Transform &transform, const SpotLight &light);
 
 SoftShadowProps &soft_shadow_props();
+TextureSlots texture_slots();
 
 void draw_to_screen_quad();
 
@@ -115,13 +122,6 @@ void draw_arrays_instanced(const Shader &shader, const VertexArray &vao,
 void draw_elements(const Shader &shader, const VertexArray &vao);
 void draw_elements_instanced(const Shader &shader, const VertexArray &vao,
                              uint32_t instances_count);
-
-enum class RenderPassMode {
-    BASE,
-    FLAT,
-
-    COUNT
-};
 
 } // namespace eng
 

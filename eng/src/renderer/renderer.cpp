@@ -30,17 +30,18 @@ using ShaderGroupedInstances = std::unordered_map<AssetID, InstancesMap>;
 
 struct Renderer {
     GPU gpu;
+    TextureSlots slots;
 
     VertexArray screen_quad_vao;
     Shader screen_quad_shader;
 
     UniformBuffer camera_uni_buffer;
 
-    UniformBuffer point_lights_uni_buffer;
-    std::vector<PointLightData> point_lights;
-
     UniformBuffer dir_lights_uni_buffer;
     std::vector<DirLightData> dir_lights;
+
+    UniformBuffer point_lights_uni_buffer;
+    std::vector<PointLightData> point_lights;
 
     UniformBuffer spot_lights_uni_buffer;
     std::vector<SpotLightData> spot_lights;
@@ -140,8 +141,7 @@ bool init() {
     GL_CALL(gpu_spec.vendor = (char *)glGetString(GL_VENDOR));
     GL_CALL(gpu_spec.device_name = (char *)glGetString(GL_RENDERER));
     GL_CALL(gpu_spec.opengl_version = (char *)glGetString(GL_VERSION));
-    GL_CALL(glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS,
-                          &gpu_spec.texture_units));
+    GL_CALL(glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &gpu_spec.texture_units));
     GL_CALL(glGetIntegerv(GL_MAX_GEOMETRY_SHADER_INVOCATIONS,
                           &gpu_spec.max_geom_invocations));
 
@@ -149,7 +149,12 @@ bool init() {
     printf("GPU Device: %s\n", gpu_spec.device_name);
     printf("OpenGL version: %s\n", gpu_spec.opengl_version);
     printf("Max texture units: %d\n", gpu_spec.texture_units);
-    printf("Max geom shader invocs: %d\n", gpu_spec.max_geom_invocations);
+    printf("Max geometry shader invocations: %d\n",
+           gpu_spec.max_geom_invocations);
+
+    s_renderer.slots.point_lights_shadowmaps = gpu_spec.texture_units - 1;
+    s_renderer.slots.spot_lights_shadowmaps = gpu_spec.texture_units - 2;
+    s_renderer.slots.random_offsets_texture = gpu_spec.texture_units - 3;
 
     GL_CALL(glEnable(GL_DEBUG_OUTPUT));
     GL_CALL(glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS));
@@ -218,15 +223,15 @@ bool init() {
     s_renderer.camera_uni_buffer = UniformBuffer::create(nullptr, size);
     s_renderer.camera_uni_buffer.bind_buffer_range(CAMERA_BINDING, 0, size);
 
-    size = MAX_POINT_LIGHTS * sizeof(PointLightData) + sizeof(int32_t);
-    s_renderer.point_lights_uni_buffer = UniformBuffer::create(nullptr, size);
-    s_renderer.point_lights_uni_buffer.bind_buffer_range(POINT_LIGHTS_BINDING,
-                                                         0, size);
-
     size = MAX_DIR_LIGHTS * sizeof(DirLightData) + sizeof(int32_t);
     s_renderer.dir_lights_uni_buffer = UniformBuffer::create(nullptr, size);
     s_renderer.dir_lights_uni_buffer.bind_buffer_range(DIR_LIGHTS_BINDING, 0,
                                                        size);
+
+    size = MAX_POINT_LIGHTS * sizeof(PointLightData) + sizeof(int32_t);
+    s_renderer.point_lights_uni_buffer = UniformBuffer::create(nullptr, size);
+    s_renderer.point_lights_uni_buffer.bind_buffer_range(POINT_LIGHTS_BINDING,
+                                                         0, size);
 
     size = MAX_SPOT_LIGHTS * sizeof(SpotLightData) + sizeof(int32_t);
     s_renderer.spot_lights_uni_buffer = UniformBuffer::create(nullptr, size);
@@ -245,7 +250,7 @@ bool init() {
         spec.wrap = GL_CLAMP_TO_BORDER;
         spec.min_filter = spec.mag_filter = GL_NEAREST;
         spec.size = {512, 512};
-        spec.layers = MAX_SPOT_LIGHTS;
+        spec.layers = MAX_DIR_LIGHTS * 6;
         spec.gen_minmaps = false;
         spec.border_color = glm::vec4(1.0f);
 
@@ -253,36 +258,8 @@ bool init() {
         s_renderer.shadow_fbo.bind();
         s_renderer.shadow_fbo.add_color_attachment(spec);
 
-        spec.layers = MAX_DIR_LIGHTS * 6;
+        spec.layers = MAX_SPOT_LIGHTS;
         s_renderer.shadow_fbo.add_color_attachment(spec);
-    }
-
-    {
-        s_renderer.spotlight_shadow_shader = Shader::create();
-
-        ShaderSpec spec;
-        spec.vertex_shader.path = "resources/shaders/depth.vert";
-        spec.fragment_shader.path = "resources/shaders/depth.frag";
-        spec.geometry_shader = {
-            .path = "resources/shaders/shadows/spotlight.geom",
-            .replacements = {
-                {
-                    "${SPOT_LIGHTS_BINDING}",
-                    std::to_string(renderer::SPOT_LIGHTS_BINDING)
-                },
-                {
-                    "${MAX_SPOT_LIGHTS}",
-                    std::to_string(renderer::MAX_SPOT_LIGHTS)
-                },
-                {
-                    "${INVOCATIONS}",
-                    std::to_string(s_renderer.gpu.max_geom_invocations)
-                }
-            }
-        };
-
-        assert(s_renderer.spotlight_shadow_shader.build(spec) &&
-               "Spotlight shadow shader not built");
     }
 
     {
@@ -313,6 +290,35 @@ bool init() {
                "Pointlight shadow shader not built");
     }
 
+    {
+        s_renderer.spotlight_shadow_shader = Shader::create();
+
+        ShaderSpec spec;
+        spec.vertex_shader.path = "resources/shaders/depth.vert";
+        spec.fragment_shader.path = "resources/shaders/depth.frag";
+        spec.geometry_shader = {
+            .path = "resources/shaders/shadows/spotlight.geom",
+            .replacements = {
+                {
+                    "${SPOT_LIGHTS_BINDING}",
+                    std::to_string(renderer::SPOT_LIGHTS_BINDING)
+                },
+                {
+                    "${MAX_SPOT_LIGHTS}",
+                    std::to_string(renderer::MAX_SPOT_LIGHTS)
+                },
+                {
+                    "${INVOCATIONS}",
+                    std::to_string(s_renderer.gpu.max_geom_invocations)
+                }
+            }
+        };
+
+        assert(s_renderer.spotlight_shadow_shader.build(spec) &&
+               "Spotlight shadow shader not built");
+    }
+
+
     soft_shadow_random_offset_texture_create();
 
     size = MAX_MATERIALS * sizeof(MaterialData);
@@ -325,8 +331,8 @@ bool init() {
 
 void shutdown() {
     s_renderer.camera_uni_buffer.destroy();
-    s_renderer.point_lights_uni_buffer.destroy();
     s_renderer.dir_lights_uni_buffer.destroy();
+    s_renderer.point_lights_uni_buffer.destroy();
     s_renderer.spot_lights_uni_buffer.destroy();
     s_renderer.soft_shadow_uni_buffer.destroy();
     s_renderer.material_uni_buffer.destroy();
@@ -341,8 +347,8 @@ void scene_begin(const CameraData &camera, AssetPack &asset_pack) {
 
     assert(s_asset_pack && "Empty asset pack object");
 
-    s_renderer.point_lights.clear();
     s_renderer.dir_lights.clear();
+    s_renderer.point_lights.clear();
     s_renderer.spot_lights.clear();
     s_renderer.material_ids.clear();
     s_renderer.texture_ids.clear();
@@ -359,6 +365,7 @@ void scene_begin(const CameraData &camera, AssetPack &asset_pack) {
     s_renderer.camera_uni_buffer.bind();
     s_renderer.camera_uni_buffer.set_data(&camera, sizeof(CameraData));
 
+    /* Reconstruct if values changed. */
     if (memcmp(&s_renderer.soft_shadow_props,
                &s_renderer.cached_soft_shadow_props,
                sizeof(SoftShadowProps)) != 0) {
@@ -372,21 +379,21 @@ void scene_begin(const CameraData &camera, AssetPack &asset_pack) {
 }
 
 void scene_end() {
-    s_renderer.point_lights_uni_buffer.bind();
     s_renderer.dir_lights_uni_buffer.bind();
+    s_renderer.point_lights_uni_buffer.bind();
     s_renderer.spot_lights_uni_buffer.bind();
 
-    int32_t count = s_renderer.point_lights.size();
-    int32_t offset = MAX_POINT_LIGHTS * sizeof(PointLightData);
-    s_renderer.point_lights_uni_buffer.set_data(s_renderer.point_lights.data(),
-                                                count * sizeof(PointLightData));
-    s_renderer.point_lights_uni_buffer.set_data(&count, sizeof(int32_t), offset);
-
-    count = s_renderer.dir_lights.size();
-    offset = MAX_DIR_LIGHTS * sizeof(DirLightData);
+    int32_t count = s_renderer.dir_lights.size();
+    int32_t offset = MAX_DIR_LIGHTS * sizeof(DirLightData);
     s_renderer.dir_lights_uni_buffer.set_data(s_renderer.dir_lights.data(),
                                                 count * sizeof(DirLightData));
     s_renderer.dir_lights_uni_buffer.set_data(&count, sizeof(int32_t), offset);
+
+    count = s_renderer.point_lights.size();
+    offset = MAX_POINT_LIGHTS * sizeof(PointLightData);
+    s_renderer.point_lights_uni_buffer.set_data(s_renderer.point_lights.data(),
+                                                count * sizeof(PointLightData));
+    s_renderer.point_lights_uni_buffer.set_data(&count, sizeof(int32_t), offset);
 
     count = s_renderer.spot_lights.size();
     offset = MAX_SPOT_LIGHTS * sizeof(SpotLightData);
@@ -448,11 +455,13 @@ void scene_end() {
     }
 
     /* TODO: assign IDS when texture atlas is ready. */
-    int32_t slot = s_renderer.texture_ids.size() * 2;
-    s_renderer.shadow_fbo.bind_color_attachment(0, slot);
-    s_renderer.shadow_fbo.bind_color_attachment(1, slot + 1);
+    s_renderer.shadow_fbo.bind_color_attachment(
+        0, s_renderer.slots.point_lights_shadowmaps);
+    s_renderer.shadow_fbo.bind_color_attachment(
+        1, s_renderer.slots.spot_lights_shadowmaps);
 
-    GL_CALL(glActiveTexture(GL_TEXTURE0 + slot + 2));
+    GL_CALL(
+        glActiveTexture(GL_TEXTURE0 + s_renderer.slots.random_offsets_texture));
     GL_CALL(glBindTexture(GL_TEXTURE_3D, s_renderer.random_offset_tex_id));
 
     for (auto &[shader_id, instance_map] : s_renderer.instances) {
@@ -461,10 +470,6 @@ void scene_end() {
 
         Shader &curr_shader = s_asset_pack->shaders.at(shader_id);
         curr_shader.bind();
-        curr_shader.try_set_uniform_1i("u_spot_lights_shadowmaps", slot);
-        curr_shader.try_set_uniform_1i("u_point_lights_shadowmaps", slot + 1);
-        curr_shader.try_set_uniform_1i("u_soft_shadow_offsets_texture",
-                                       slot + 2);
 
         /*  When I make textures into a texture atlas we will make it
          *  better... */
@@ -488,8 +493,8 @@ void scene_end() {
 void shadow_pass_begin(AssetPack &asset_pack) {
     s_asset_pack = &asset_pack;
 
-    s_renderer.point_lights.clear();
     s_renderer.dir_lights.clear();
+    s_renderer.point_lights.clear();
     s_renderer.spot_lights.clear();
     s_renderer.material_ids.clear();
     s_renderer.texture_ids.clear();
@@ -505,21 +510,21 @@ void shadow_pass_begin(AssetPack &asset_pack) {
 }
 
 void shadow_pass_end() {
-    s_renderer.point_lights_uni_buffer.bind();
     s_renderer.dir_lights_uni_buffer.bind();
+    s_renderer.point_lights_uni_buffer.bind();
     s_renderer.spot_lights_uni_buffer.bind();
 
-    int32_t count = s_renderer.point_lights.size();
-    int32_t offset = MAX_POINT_LIGHTS * sizeof(PointLightData);
-    s_renderer.point_lights_uni_buffer.set_data(s_renderer.point_lights.data(),
-                                                count * sizeof(PointLightData));
-    s_renderer.point_lights_uni_buffer.set_data(&count, sizeof(int32_t), offset);
-
-    count = s_renderer.dir_lights.size();
-    offset = MAX_DIR_LIGHTS * sizeof(DirLightData);
+    int32_t count = s_renderer.dir_lights.size();
+    int32_t offset = MAX_DIR_LIGHTS * sizeof(DirLightData);
     s_renderer.dir_lights_uni_buffer.set_data(s_renderer.dir_lights.data(),
                                                 count * sizeof(DirLightData));
     s_renderer.dir_lights_uni_buffer.set_data(&count, sizeof(int32_t), offset);
+
+    count = s_renderer.point_lights.size();
+    offset = MAX_POINT_LIGHTS * sizeof(PointLightData);
+    s_renderer.point_lights_uni_buffer.set_data(s_renderer.point_lights.data(),
+                                                count * sizeof(PointLightData));
+    s_renderer.point_lights_uni_buffer.set_data(&count, sizeof(int32_t), offset);
 
     count = s_renderer.spot_lights.size();
     offset = MAX_SPOT_LIGHTS * sizeof(SpotLightData);
@@ -546,18 +551,6 @@ void shadow_pass_end() {
 
     s_renderer.shadow_fbo.draw_to_depth_map(0);
     GL_CALL(glClear(GL_DEPTH_BUFFER_BIT));
-    s_renderer.spotlight_shadow_shader.bind();
-    for (auto &[mesh_id, instances] : instance_map) {
-        if (instances.empty())
-            continue;
-
-        Mesh &mesh = s_asset_pack->meshes.at(mesh_id);
-        draw_elements_instanced(s_renderer.spotlight_shadow_shader, mesh.vao,
-                                instances.size());
-    }
-
-    s_renderer.shadow_fbo.draw_to_depth_map(1);
-    GL_CALL(glClear(GL_DEPTH_BUFFER_BIT));
     s_renderer.pointlight_shadow_shader.bind();
     for (auto &[mesh_id, instances] : instance_map) {
         if (instances.empty())
@@ -565,6 +558,18 @@ void shadow_pass_end() {
 
         Mesh &mesh = s_asset_pack->meshes.at(mesh_id);
         draw_elements_instanced(s_renderer.pointlight_shadow_shader, mesh.vao,
+                                instances.size());
+    }
+
+    s_renderer.shadow_fbo.draw_to_depth_map(1);
+    GL_CALL(glClear(GL_DEPTH_BUFFER_BIT));
+    s_renderer.spotlight_shadow_shader.bind();
+    for (auto &[mesh_id, instances] : instance_map) {
+        if (instances.empty())
+            continue;
+
+        Mesh &mesh = s_asset_pack->meshes.at(mesh_id);
+        draw_elements_instanced(s_renderer.spotlight_shadow_shader, mesh.vao,
                                 instances.size());
     }
 
@@ -618,6 +623,16 @@ static float light_radius(float constant, float linear, float quadratic,
     return num / (2.0f * quadratic);
 }
 
+void submit_dir_light(const glm::vec3 &rotation, const DirLight &light) {
+    if (s_renderer.dir_lights.size() >= MAX_DIR_LIGHTS)
+        return;
+
+    DirLightData &light_data = s_renderer.dir_lights.emplace_back();
+    light_data.direction = glm::vec4(
+        glm::toMat3(glm::quat(rotation)) * glm::vec3(0.0f, 0.0f, -1.0f), 1.0f);
+    light_data.color = glm::vec4(light.color, 1.0f);
+}
+
 void submit_point_light(const glm::vec3 &position, const PointLight &light) {
     if (s_renderer.point_lights.size() >= MAX_POINT_LIGHTS)
         return;
@@ -647,16 +662,6 @@ void submit_point_light(const glm::vec3 &position, const PointLight &light) {
         glm::vec4(light.color * light.intensity, light.quadratic);
 }
 
-void submit_dir_light(const glm::vec3 &rotation, const DirLight &light) {
-    if (s_renderer.dir_lights.size() >= MAX_DIR_LIGHTS)
-        return;
-
-    DirLightData &light_data = s_renderer.dir_lights.emplace_back();
-    light_data.direction = glm::vec4(
-        glm::toMat3(glm::quat(rotation)) * glm::vec3(0.0f, 0.0f, -1.0f), 1.0f);
-    light_data.color = glm::vec4(light.color, 1.0f);
-}
-
 void submit_spot_light(const Transform &transform, const SpotLight &light) {
     if (s_renderer.spot_lights.size() >= MAX_SPOT_LIGHTS)
         return;
@@ -684,6 +689,10 @@ void submit_spot_light(const Transform &transform, const SpotLight &light) {
 
 SoftShadowProps &soft_shadow_props() {
     return s_renderer.soft_shadow_props;
+}
+
+TextureSlots texture_slots() {
+    return s_renderer.slots;
 }
 
 void draw_to_screen_quad() {

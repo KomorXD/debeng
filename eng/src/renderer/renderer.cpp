@@ -619,6 +619,9 @@ static float light_radius(float constant, float linear, float quadratic,
 }
 
 void submit_point_light(const glm::vec3 &position, const PointLight &light) {
+    if (s_renderer.point_lights.size() >= MAX_POINT_LIGHTS)
+        return;
+
     float radius = light_radius(1.0f, light.linear, light.quadratic,
                                 max_component(light.color));
     glm::mat4 proj = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, radius);
@@ -645,6 +648,9 @@ void submit_point_light(const glm::vec3 &position, const PointLight &light) {
 }
 
 void submit_dir_light(const glm::vec3 &rotation, const DirLight &light) {
+    if (s_renderer.dir_lights.size() >= MAX_DIR_LIGHTS)
+        return;
+
     DirLightData &light_data = s_renderer.dir_lights.emplace_back();
     light_data.direction = glm::vec4(
         glm::toMat3(glm::quat(rotation)) * glm::vec3(0.0f, 0.0f, -1.0f), 1.0f);
@@ -652,6 +658,9 @@ void submit_dir_light(const glm::vec3 &rotation, const DirLight &light) {
 }
 
 void submit_spot_light(const Transform &transform, const SpotLight &light) {
+    if (s_renderer.spot_lights.size() >= MAX_SPOT_LIGHTS)
+        return;
+
     float radius = light_radius(1.0f, light.linear, light.quadratic,
                                 max_component(light.color));
     glm::vec3 dir = glm::toMat3(glm::quat(transform.rotation)) *

@@ -134,6 +134,10 @@ AssetPack AssetPack::create(const std::string &pack_name) {
                 std::to_string(renderer::MAX_SPOT_LIGHTS)
             },
             {
+                "${SOFT_SHADOW_PROPS_BINDING}",
+                std::to_string(renderer::SOFT_SHADOW_PROPS_BINDING)
+            },
+            {
                 "${MATERIALS_BINDING}",
                 std::to_string(renderer::MATERIALS_BINDING)
             },

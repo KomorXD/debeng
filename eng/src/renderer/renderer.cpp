@@ -4,8 +4,11 @@
 #include "eng/scene/components.hpp"
 #include "GLFW/glfw3.h"
 #include "glm/fwd.hpp"
+#include "glm/gtc/constants.hpp"
 
 #include <algorithm>
+#include <cstring>
+#include <random>
 #include <vector>
 
 #define GLM_ENABLE_EXPERIMENTAL
@@ -46,6 +49,11 @@ struct Renderer {
     Shader spotlight_shadow_shader;
     Shader pointlight_shadow_shader;
 
+    GLuint random_offset_tex_id = 0;
+    UniformBuffer soft_shadow_uni_buffer;
+    SoftShadowProps soft_shadow_props;
+    SoftShadowProps cached_soft_shadow_props;
+
     UniformBuffer material_uni_buffer;
     std::vector<AssetID> material_ids;
 
@@ -70,6 +78,58 @@ void opengl_msg_cb(unsigned source, unsigned type, unsigned id,
         printf("%s\r\n", msg);
         return;
     }
+}
+
+static void soft_shadow_random_offset_texture_create() {
+    std::default_random_engine eng{};
+    std::uniform_real_distribution<float> dist(-0.5f, 0.5f);
+
+    int32_t window_size = s_renderer.cached_soft_shadow_props.offsets_tex_size;
+    int32_t filter_size =
+        s_renderer.cached_soft_shadow_props.offsets_filter_size;
+    int32_t buffer_size =
+        window_size * window_size * filter_size * filter_size * 2;
+
+    std::vector<float> tex_data;
+    tex_data.resize(buffer_size);
+
+    int32_t idx = 0;
+    for (int32_t y = 0; y < window_size; y++) {
+        for (int32_t x = 0; x < window_size; x++) {
+            for (int32_t v = filter_size - 1; v >= 0; v--) {
+                for (int32_t u = 0; u < filter_size; u++) {
+                    assert(idx < tex_data.size());
+
+                    float x =
+                        ((float)u + 0.5f + dist(eng)) / (float)filter_size;
+                    float y =
+                        ((float)v + 0.5f + dist(eng)) / (float)filter_size;
+
+                    tex_data[idx + 0] =
+                        glm::sqrt(y) * glm::cos(glm::two_pi<float>() * x);
+                    tex_data[idx + 1] =
+                        glm::sqrt(y) * glm::sin(glm::two_pi<float>() * x);
+
+                    idx += 2;
+                }
+            }
+        }
+    }
+
+    if (s_renderer.random_offset_tex_id != 0)
+        GL_CALL(glDeleteTextures(1, &s_renderer.random_offset_tex_id));
+
+    int32_t filter_samples = filter_size * filter_size;
+    GL_CALL(glGenTextures(1, &s_renderer.random_offset_tex_id));
+    GL_CALL(glBindTexture(GL_TEXTURE_3D, s_renderer.random_offset_tex_id));
+    GL_CALL(glTexStorage3D(GL_TEXTURE_3D, 1, GL_RGBA32F, filter_samples / 2,
+                           window_size, window_size));
+    GL_CALL(glTexSubImage3D(GL_TEXTURE_3D, 0, 0, 0, 0, filter_samples / 2,
+                            window_size, window_size, GL_RGBA, GL_FLOAT,
+                            tex_data.data()));
+    GL_CALL(glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
+    GL_CALL(glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
+    GL_CALL(glBindTexture(GL_TEXTURE_3D, 0));
 }
 
 bool init() {
@@ -173,6 +233,11 @@ bool init() {
     s_renderer.spot_lights_uni_buffer.bind_buffer_range(SPOT_LIGHTS_BINDING, 0,
                                                         size);
 
+    size = sizeof(SoftShadowProps);
+    s_renderer.soft_shadow_uni_buffer= UniformBuffer::create(nullptr, size);
+    s_renderer.soft_shadow_uni_buffer.bind_buffer_range(
+        SOFT_SHADOW_PROPS_BINDING, 0, size);
+
     {
         ColorAttachmentSpec spec;
         spec.type = ColorAttachmentType::TEX_2D_ARRAY_SHADOW;
@@ -180,7 +245,7 @@ bool init() {
         spec.wrap = GL_CLAMP_TO_BORDER;
         spec.min_filter = spec.mag_filter = GL_NEAREST;
         spec.size = {512, 512};
-        spec.layers = 3;
+        spec.layers = MAX_SPOT_LIGHTS;
         spec.gen_minmaps = false;
         spec.border_color = glm::vec4(1.0f);
 
@@ -188,7 +253,7 @@ bool init() {
         s_renderer.shadow_fbo.bind();
         s_renderer.shadow_fbo.add_color_attachment(spec);
 
-        spec.layers = 16 * 6;
+        spec.layers = MAX_DIR_LIGHTS * 6;
         s_renderer.shadow_fbo.add_color_attachment(spec);
     }
 
@@ -248,6 +313,8 @@ bool init() {
                "Pointlight shadow shader not built");
     }
 
+    soft_shadow_random_offset_texture_create();
+
     size = MAX_MATERIALS * sizeof(MaterialData);
     s_renderer.material_uni_buffer = UniformBuffer::create(nullptr, size);
     s_renderer.material_uni_buffer.bind_buffer_range(MATERIALS_BINDING, 0,
@@ -261,6 +328,7 @@ void shutdown() {
     s_renderer.point_lights_uni_buffer.destroy();
     s_renderer.dir_lights_uni_buffer.destroy();
     s_renderer.spot_lights_uni_buffer.destroy();
+    s_renderer.soft_shadow_uni_buffer.destroy();
     s_renderer.material_uni_buffer.destroy();
 
     s_renderer.shadow_fbo.destroy();
@@ -290,6 +358,17 @@ void scene_begin(const CameraData &camera, AssetPack &asset_pack) {
 
     s_renderer.camera_uni_buffer.bind();
     s_renderer.camera_uni_buffer.set_data(&camera, sizeof(CameraData));
+
+    if (memcmp(&s_renderer.soft_shadow_props,
+               &s_renderer.cached_soft_shadow_props,
+               sizeof(SoftShadowProps)) != 0) {
+        s_renderer.cached_soft_shadow_props = s_renderer.soft_shadow_props;
+        soft_shadow_random_offset_texture_create();
+    }
+
+    s_renderer.soft_shadow_uni_buffer.bind();
+    s_renderer.soft_shadow_uni_buffer.set_data(
+        &s_renderer.cached_soft_shadow_props, sizeof(SoftShadowProps));
 }
 
 void scene_end() {
@@ -373,6 +452,9 @@ void scene_end() {
     s_renderer.shadow_fbo.bind_color_attachment(0, slot);
     s_renderer.shadow_fbo.bind_color_attachment(1, slot + 1);
 
+    GL_CALL(glActiveTexture(GL_TEXTURE0 + slot + 2));
+    GL_CALL(glBindTexture(GL_TEXTURE_3D, s_renderer.random_offset_tex_id));
+
     for (auto &[shader_id, instance_map] : s_renderer.instances) {
         if (instance_map.empty())
             continue;
@@ -381,6 +463,8 @@ void scene_end() {
         curr_shader.bind();
         curr_shader.try_set_uniform_1i("u_spot_lights_shadowmaps", slot);
         curr_shader.try_set_uniform_1i("u_point_lights_shadowmaps", slot + 1);
+        curr_shader.try_set_uniform_1i("u_soft_shadow_offsets_texture",
+                                       slot + 2);
 
         /*  When I make textures into a texture atlas we will make it
          *  better... */
@@ -587,6 +671,10 @@ void submit_spot_light(const Transform &transform, const SpotLight &light) {
     light_data.color_and_linear =
         glm::vec4(light.color * light.intensity, light.linear);
     light_data.quadratic = light.quadratic;
+}
+
+SoftShadowProps &soft_shadow_props() {
+    return s_renderer.soft_shadow_props;
 }
 
 void draw_to_screen_quad() {

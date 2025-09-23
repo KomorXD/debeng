@@ -12,7 +12,8 @@ constexpr int32_t CAMERA_BINDING = 0;
 constexpr int32_t POINT_LIGHTS_BINDING = 1;
 constexpr int32_t DIR_LIGHTS_BINDING = 2;
 constexpr int32_t SPOT_LIGHTS_BINDING = 3;
-constexpr int32_t MATERIALS_BINDING = 4;
+constexpr int32_t SOFT_SHADOW_PROPS_BINDING = 4;
+constexpr int32_t MATERIALS_BINDING = 5;
 
 constexpr int32_t MAX_MESH_INSTANCES = 128;
 constexpr int32_t MAX_POINT_LIGHTS = 32;
@@ -55,6 +56,14 @@ struct SpotLightData {
     glm::vec3 padding;
 };
 
+struct SoftShadowProps {
+    int32_t offsets_tex_size = 16;
+    int32_t offsets_filter_size = 8;
+    float offset_radius = 3.0f;
+
+    float padding;
+};
+
 struct MaterialData {
     glm::vec4 color = glm::vec4(1.0f);
     glm::vec2 tiling_factor = glm::vec2(1.0f);
@@ -94,6 +103,8 @@ void submit_shadow_pass_mesh(const glm::mat4 &transform, AssetID mesh_id);
 void submit_point_light(const glm::vec3 &position, const PointLight &light);
 void submit_dir_light(const glm::vec3 &rotation, const DirLight &light);
 void submit_spot_light(const Transform &transform, const SpotLight &light);
+
+SoftShadowProps &soft_shadow_props();
 
 void draw_to_screen_quad();
 

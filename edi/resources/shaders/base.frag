@@ -9,6 +9,8 @@
 #define SPOT_LIGHTS_BINDING ${SPOT_LIGHTS_BINDING}
 #define MAX_SPOT_LIGHTS ${MAX_SPOT_LIGHTS}
 
+#define SOFT_SHADOW_PROPS_BINDING ${SOFT_SHADOW_PROPS_BINDING}
+
 #define MATERIALS_BINDING ${MATERIALS_BINDING}
 #define MAX_MATERIALS ${MAX_MATERIALS}
 
@@ -64,6 +66,16 @@ layout (std140, binding = SPOT_LIGHTS_BINDING) uniform SpotLights {
     int count;
 } u_spot_lights;
 
+struct SoftShadowProps {
+    int offsets_texture_size;
+    int offsets_filter_size;
+    float offset_radius;
+};
+
+layout (std140, binding = SOFT_SHADOW_PROPS_BINDING) uniform SoftShadowPropsUni {
+    SoftShadowProps props;
+} u_soft_shadow_props;
+
 struct Material {
     vec4 color;
     vec2 tiling_factor;
@@ -89,23 +101,70 @@ layout (std140, binding = MATERIALS_BINDING) uniform Materials {
 uniform sampler2D u_textures[MAX_TEXTURES];
 uniform sampler2DArrayShadow u_spot_lights_shadowmaps;
 uniform sampler2DArrayShadow u_point_lights_shadowmaps;
+uniform sampler3D u_soft_shadow_offsets_texture;
 
 float calc_shadow(sampler2DArrayShadow shadowmaps, mat4 light_space_mat,
-                  int layer) {
+                  int layer, vec3 N, vec3 L) {
     vec4 frag_position_light_space
         = light_space_mat * vec4(fs_in.world_space_position, 1.0);
+    float bias = max(0.005 * (1.0 - dot(N, L)), 0.00005);
     vec3 proj_coords = frag_position_light_space.xyz
         / frag_position_light_space.w;
     proj_coords = proj_coords * 0.5 + 0.5;
+    proj_coords.z -= bias;
 
-    float depth = proj_coords.z;
-    float shadow_depth
-        = texture(shadowmaps, vec4(proj_coords.xy, layer, proj_coords.z));
+    float current_depth = proj_coords.z;
+    if (current_depth > 1.0)
+        return 0.0;
 
-    if (depth < shadow_depth)
-        return 1.0;
+    SoftShadowProps props = u_soft_shadow_props.props;
+    vec2 f
+        = mod(gl_FragCoord.xy, vec2(props.offsets_texture_size));
+    ivec3 offset_coord;
+    offset_coord.yz = ivec2(f);
 
-    return 0.0;
+    int samples_div2 = int(props.offsets_filter_size
+                           * props.offsets_filter_size / 2.0);
+    vec4 sc = vec4(proj_coords, 1.0);
+    const vec2 texel_size = 1.0 / textureSize(shadowmaps, 0).xy;
+
+    float depth = 0.0;
+    float shadow = 0.0;
+    for (int i = 0; i < 4; i++) {
+        offset_coord.x = i;
+        vec4 offsets = texelFetch(u_soft_shadow_offsets_texture,
+                                  offset_coord, 0) * props.offset_radius;
+
+        sc.xy = proj_coords.xy + offsets.rg * texel_size;
+        depth = texture(shadowmaps, vec4(sc.xy, layer, proj_coords.z));
+        shadow += depth;
+
+        sc.xy = proj_coords.xy + offsets.ba * texel_size;
+        depth = texture(shadowmaps, vec4(sc.xy, layer, proj_coords.z));
+        shadow += depth;
+    }
+
+    shadow /= 8.0;
+    if (shadow == 0.0 || shadow == 1.0)
+        return shadow;
+
+    shadow *= 8.0;
+    for (int i = 4; i < samples_div2; i++) {
+        offset_coord.x = i;
+        vec4 offsets = texelFetch(u_soft_shadow_offsets_texture,
+                                  offset_coord, 0) * props.offset_radius;
+
+        sc.xy = proj_coords.xy + offsets.rg * texel_size;
+        depth = texture(shadowmaps, vec4(sc.xy, layer, proj_coords.z));
+        shadow += depth;
+
+        sc.xy = proj_coords.xy + offsets.ba * texel_size;
+        depth = texture(shadowmaps, vec4(sc.xy, layer, proj_coords.z));
+        shadow += depth;
+    }
+
+    shadow /= float(samples_div2) * 2.0;
+    return shadow;
 }
 
 const float PI = 3.14159265359;
@@ -199,7 +258,8 @@ void main() {
         int local_layer = i * 6;
         for (int face = 0; face < 6; face++) {
             shadow += calc_shadow(u_point_lights_shadowmaps,
-                                  pl.light_space_mats[face], local_layer);
+                                  pl.light_space_mats[face], local_layer,
+                                  N, L);
             local_layer++;
         }
 
@@ -264,7 +324,8 @@ void main() {
             kD *= 1.0 - metallic;
 
             float shadow_factor
-                = calc_shadow(u_spot_lights_shadowmaps, sl.light_space_mat, i);
+                = calc_shadow(u_spot_lights_shadowmaps, sl.light_space_mat, i,
+                              N, L);
 
             Lo += (kD * diffuse.rgb / PI + specular) * radiance
                 * max(dot(N, L), 0.0) * intensity * shadow_factor;

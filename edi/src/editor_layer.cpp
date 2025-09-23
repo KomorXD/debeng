@@ -560,6 +560,21 @@ static void render_control_panel(EditorLayer &layer) {
                                horizontal_size);
         ImGui::Unindent(16.0f);
     }
+
+    if (ImGui::CollapsingHeader("Soft shadows", ImGuiTreeNodeFlags_DefaultOpen)) {
+        eng::renderer::SoftShadowProps &props =
+            eng::renderer::soft_shadow_props();
+
+        float horizontal_size = ImGui::CalcTextSize("Filter size").x;
+        ImGui::Indent(8.0f);
+        ImGui::PrettyDragInt("Window size", &props.offsets_tex_size, 2, INT_MAX,
+                             horizontal_size);
+        ImGui::PrettyDragInt("Filter size", &props.offsets_filter_size, 1,
+                             INT_MAX, horizontal_size);
+        ImGui::PrettyDragFloat("Radius", &props.offset_radius, 0.05f, 0.0f,
+                               FLT_MAX, "%.2f", horizontal_size);
+        ImGui::Unindent(8.0f);
+    }
 }
 
 static void render_entity_panel(EditorLayer &layer) {

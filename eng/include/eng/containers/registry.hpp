@@ -193,8 +193,6 @@ struct Registry {
 
         T &new_data =
             new_comp_vec.storage.emplace_back(std::forward<Args>(args)...);
-        record.row = new_comp_vec.storage.size() - 1;
-
         return new_data;
     }
 
@@ -384,8 +382,12 @@ Archetype *extended_archetype(Registry &reg, Archetype &source) {
     /*  If there already exists an archetype we're trying to create,
         return it. */
     auto duplicate = reg.archetype_index.find(new_type);
-    if (duplicate != reg.archetype_index.end())
+    if (duplicate != reg.archetype_index.end()) {
+        duplicate->second.edges[comp_hash].remove = &source;
+        source.edges[comp_hash].add = &reg.archetype_index[new_type];
+
         return &duplicate->second;
+    }
 
     Archetype new_archetype;
     new_archetype.id = reg.arch_id_counter++;
@@ -464,8 +466,12 @@ Archetype *trimmed_archetype(Registry &reg, Archetype &source) {
     /*  If there already exists an archetype we're trying to create,
         return it. */
     auto existing_archetype = reg.archetype_index.find(new_type);
-    if (existing_archetype != reg.archetype_index.end())
+    if (existing_archetype != reg.archetype_index.end()) {
+        existing_archetype->second.edges[comp_hash].add = &source;
+        source.edges[comp_hash].remove = &reg.archetype_index[new_type];
+
         return &existing_archetype->second;
+    }
 
     Archetype new_archetype;
     new_archetype.id = reg.arch_id_counter++;
@@ -531,7 +537,7 @@ void extend_entity(Registry &reg, Archetype &curr_atype, Archetype &next_atype,
         cont::GenericVectorWrapper *curr_cont = curr_atype.components[index];
         cont::GenericVectorWrapper *next_cont =
             next_atype.components[target_idx];
-        (void)curr_cont->transfer_element(next_cont, curr_row);
+        curr_record.row = curr_cont->transfer_element(next_cont, curr_row);
     }
 
     curr_record.archetype = &next_atype;

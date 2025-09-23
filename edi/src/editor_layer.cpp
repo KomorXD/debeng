@@ -833,6 +833,10 @@ static void render_entity_panel(EditorLayer &layer) {
             ImGui::Indent(8.0f);
             ImGui::ColorEdit3("Color", &dl.color[0],
                               ImGuiColorEditFlags_NoInputs);
+
+            if (ImGui::PrettyButton("Remove component"))
+                ent.remove_component<eng::DirLight>();
+
             ImGui::Unindent(8.0f);
         }
     }
@@ -856,6 +860,9 @@ static void render_entity_panel(EditorLayer &layer) {
                                    FLT_MAX, "%.2f", width);
             ImGui::PrettyDragFloat("Quadratic", &pl.quadratic, 0.01f, 0.0f,
                                    FLT_MAX, "%.2f", width);
+
+            if (ImGui::PrettyButton("Remove component"))
+                ent.remove_component<eng::PointLight>();
 
             ImGui::Unindent(8.0f);
 
@@ -882,6 +889,9 @@ static void render_entity_panel(EditorLayer &layer) {
                                    "%.5f");
             ImGui::PrettyDragFloat("Quadratic", &sl.quadratic, 0.00001f, 0.0f,
                                    FLT_MAX, "%.5f");
+
+            if (ImGui::PrettyButton("Remove component"))
+                ent.remove_component<eng::SpotLight>();
 
             ImGui::Unindent(8.0f);
         }

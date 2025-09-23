@@ -617,6 +617,8 @@ namespace ImGui
     // Widgets: MINE
     bool PrettyButton(const char *label,
                       const ImVec2 &size = ImVec2(0.0f, 0.0f));
+    void PrettyDragInt(const char *label, int *v, int min = 0, int max = 0,
+                       float label_width = 64.0f);
     void PrettyDragFloat(const char *label, float *v, float speed = 1.0f,
                          float min = 0.0f, float max = 0.0f,
                          const char *format = "%.3f",

@@ -2815,6 +2815,36 @@ bool ImGui::PrettyButton(const char *label, const ImVec2 &size) {
     return pressed;
 }
 
+void ImGui::PrettyDragInt(const char *label, int *v, int min, int max,
+                          float label_width) {
+    ImGui::PushID(label);
+
+    if (ImGui::BeginTable("#Int1", 2)) {
+        ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed,
+                                label_width);
+        ImGui::TableSetupColumn("Data", ImGuiTableColumnFlags_WidthStretch);
+
+        ImGui::TableNextColumn();
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text(label);
+
+        ImGui::TableNextColumn();
+        ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.1f, 0.1f, 0.1f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_FrameBgHovered,
+                              ImVec4(0.15f, 0.15f, 0.15f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_FrameBgActive,
+                              ImVec4(0.2f, 0.2f, 0.2f, 1.0f));
+        ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x);
+        ImGui::DragInt("##Value", v, 1.0f, min, max);
+        ImGui::PopStyleColor(3);
+        ImGui::PopItemWidth();
+
+        ImGui::EndTable();
+    }
+
+    ImGui::PopID();
+}
+
 void ImGui::PrettyDragFloat(const char *label, float *v, float speed, float min,
                             float max, const char *format, float label_width) {
     ImGui::PushID(label);

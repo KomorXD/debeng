@@ -110,12 +110,8 @@ AssetPack AssetPack::create(const std::string &pack_name) {
         spec.fragment_shader.path = "resources/shaders/base.frag";
         spec.fragment_shader.replacements = {
             {
-                "${POINT_LIGHTS_BINDING}",
-                std::to_string(renderer::POINT_LIGHTS_BINDING)
-            },
-            {
-                "${MAX_POINT_LIGHTS}",
-                std::to_string(renderer::MAX_POINT_LIGHTS)
+                "${CAMERA_BINDING}",
+                std::to_string(renderer::CAMERA_BINDING)
             },
             {
                 "${DIR_LIGHTS_BINDING}",
@@ -124,6 +120,18 @@ AssetPack AssetPack::create(const std::string &pack_name) {
             {
                 "${MAX_DIR_LIGHTS}",
                 std::to_string(renderer::MAX_DIR_LIGHTS)
+            },
+            {
+                "${CASCADES_COUNT}",
+                std::to_string(renderer::CASCADES_COUNT)
+            },
+            {
+                "${POINT_LIGHTS_BINDING}",
+                std::to_string(renderer::POINT_LIGHTS_BINDING)
+            },
+            {
+                "${MAX_POINT_LIGHTS}",
+                std::to_string(renderer::MAX_POINT_LIGHTS)
             },
             {
                 "${SPOT_LIGHTS_BINDING}",
@@ -155,6 +163,8 @@ AssetPack AssetPack::create(const std::string &pack_name) {
 
         renderer::TextureSlots slots = eng::renderer::texture_slots();
         base_shader.bind();
+        base_shader.set_uniform_1i("u_dir_lights_csm_shadowmaps",
+                                   slots.dir_csm_shadowmaps);
         base_shader.set_uniform_1i("u_point_lights_shadowmaps",
                                    slots.point_lights_shadowmaps);
         base_shader.set_uniform_1i("u_spot_lights_shadowmaps",

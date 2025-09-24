@@ -133,6 +133,7 @@ renderer::CameraData SpectatorCamera::render_data() const {
     cdata.exposure = exposure;
     cdata.near_clip = near_clip;
     cdata.far_clip = far_clip;
+    cdata.fov = fov;
 
     return cdata;
 }

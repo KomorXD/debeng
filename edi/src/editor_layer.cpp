@@ -219,7 +219,8 @@ static void render_gizmo(EditorLayer &layer);
 static void on_shadow_pass(EditorLayer &layer) {
     eng::Scene &scene = layer.scene;
 
-    eng::renderer::shadow_pass_begin(layer.asset_pack);
+    eng::renderer::shadow_pass_begin(layer.camera.render_data(),
+                                     layer.asset_pack);
 
     eng::ecs::RegistryView rview =
         scene.registry.view<eng::Transform, eng::DirLight>();

@@ -19,6 +19,11 @@ layout (std140, binding = CAMERA_BINDING) uniform Camera {
     float gamma;
     float near_clip;
     float far_clip;
+    float fov;
+
+    float pad1;
+    float pad2;
+    float pad3;
 } u_camera;
 
 void main() {

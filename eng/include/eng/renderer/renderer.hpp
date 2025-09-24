@@ -22,7 +22,10 @@ constexpr int32_t MAX_SPOT_LIGHTS = 32;
 constexpr int32_t MAX_MATERIALS = 128;
 constexpr int32_t MAX_TEXTURES = 16;
 
+constexpr int32_t CASCADES_COUNT = 5;
+
 struct TextureSlots {
+    int32_t dir_csm_shadowmaps{};
     int32_t point_lights_shadowmaps{};
     int32_t spot_lights_shadowmaps{};
     int32_t random_offsets_texture{};
@@ -39,9 +42,13 @@ struct CameraData {
     float gamma;
     float near_clip;
     float far_clip;
+    float fov;
+
+    glm::vec3 padding;
 };
 
 struct DirLightData {
+    std::array<glm::mat4, CASCADES_COUNT> cascade_mats;
     glm::vec4 direction;
     glm::vec4 color;
 };
@@ -99,7 +106,7 @@ void shutdown();
 void scene_begin(const CameraData &camera, AssetPack &asset_pack);
 void scene_end();
 
-void shadow_pass_begin(AssetPack &asset_pack);
+void shadow_pass_begin(const CameraData &camera, AssetPack &asset_pack);
 void shadow_pass_end();
 
 void submit_mesh(const glm::mat4 &transform, AssetID mesh_id,

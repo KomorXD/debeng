@@ -1,7 +1,10 @@
 #version 430 core
 
+#define CAMERA_BINDING ${CAMERA_BINDING}
+
 #define DIR_LIGHTS_BINDING ${DIR_LIGHTS_BINDING}
 #define MAX_DIR_LIGHTS ${MAX_DIR_LIGHTS}
+#define CASCADES_COUNT ${CASCADES_COUNT}
 
 #define POINT_LIGHTS_BINDING ${POINT_LIGHTS_BINDING}
 #define MAX_POINT_LIGHTS ${MAX_POINT_LIGHTS}
@@ -33,6 +36,7 @@ layout(location = 0) out vec4 final_color;
 layout(location = 1) out vec4 picker_id;
 
 struct DirLight {
+    mat4 cascades_mats[CASCADES_COUNT];
     vec4 direction;
     vec4 color;
 };
@@ -98,7 +102,28 @@ layout (std140, binding = MATERIALS_BINDING) uniform Materials {
     Material materials[MAX_MATERIALS];
 } u_materials;
 
+layout (std140, binding = CAMERA_BINDING) uniform Camera {
+    mat4 view_projection;
+    mat4 projection;
+    mat4 view;
+    vec4 position;
+    vec2 viewport;
+
+    float exposure;
+    float gamma;
+    float near_clip;
+    float far_clip;
+    float fov;
+
+    float pad1;
+    float pad2;
+    float pad3;
+} u_camera;
+
 uniform sampler2D u_textures[MAX_TEXTURES];
+
+uniform float u_cascade_distances[CASCADES_COUNT];
+uniform sampler2DArrayShadow u_dir_lights_csm_shadowmaps;
 uniform sampler2DArrayShadow u_point_lights_shadowmaps;
 uniform sampler2DArrayShadow u_spot_lights_shadowmaps;
 uniform sampler3D u_soft_shadow_offsets_texture;
@@ -167,6 +192,27 @@ float calc_shadow(sampler2DArrayShadow shadowmaps, mat4 light_space_mat,
     return shadow;
 }
 
+float calc_csm_shadow(int dir_light_idx, vec3 N, vec3 L) {
+    vec4 frag_pos_view_space
+        = u_camera.view * vec4(fs_in.world_space_position, 1.0);
+    float depth = abs(frag_pos_view_space.z);
+
+    int layer = -1;
+    for (int i = 0; i < CASCADES_COUNT; i++) {
+        if (depth < u_cascade_distances[i]) {
+            layer = i;
+            break;
+        }
+    }
+
+    if (layer == -1)
+        return 1.0;
+
+    return calc_shadow(u_dir_lights_csm_shadowmaps,
+                       u_dir_lights.lights[dir_light_idx].cascades_mats[layer],
+                       dir_light_idx * CASCADES_COUNT + layer, N, L);
+}
+
 const float PI = 3.14159265359;
 
 float dist_ggx(vec3 N, vec3 H, float roughness) {
@@ -227,6 +273,28 @@ void main() {
 
     vec3 Lo = vec3(0.0);
     vec3 F0 = mix(vec3(0.04), diffuse.rgb, metallic);
+    for (int i = 0; i < u_dir_lights.count; i++) {
+        DirLight dl = u_dir_lights.lights[i];
+
+        vec3 radiance = dl.color.rgb;
+        vec3 L = fs_in.TBN * dl.direction.xyz;
+        vec3 H = normalize(V + L);
+
+        float NDF   = dist_ggx(N, H, roughness);
+        float G     = geo_smith(N, V, L, roughness);
+        vec3 F      = fresnel_schlick(clamp(dot(H, V), 0.0, 1.0), F0);
+
+        float denom = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
+        vec3 specular = NDF * G * F / denom;
+        vec3 kS = F;
+        vec3 kD = vec3(1.0) - kS;
+        kD *= 1.0 - metallic;
+
+        float shadow = calc_csm_shadow(i, N, L);
+        Lo += (kD * diffuse.rgb / PI + specular) * radiance
+            * max(dot(N, L), 0.0) * shadow;
+    }
+
     for (int i = 0; i < u_point_lights.count; i++) {
         PointLight pl           = u_point_lights.lights[i];
         vec3 position           = pl.position_and_linear.xyz;
@@ -265,26 +333,6 @@ void main() {
 
         Lo += (kD * diffuse.rgb / PI + specular) * radiance
             * max(dot(N, L), 0.0) * shadow;
-    }
-
-    for (int i = 0; i < u_dir_lights.count; i++) {
-        DirLight dl = u_dir_lights.lights[i];
-
-        vec3 radiance = dl.color.rgb;
-        vec3 L = fs_in.TBN * dl.direction.xyz;
-        vec3 H = normalize(V + L);
-
-        float NDF   = dist_ggx(N, H, roughness);
-        float G     = geo_smith(N, V, L, roughness);
-        vec3 F      = fresnel_schlick(clamp(dot(H, V), 0.0, 1.0), F0);
-
-        float denom = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
-        vec3 specular = NDF * G * F / denom;
-        vec3 kS = F;
-        vec3 kD = vec3(1.0) - kS;
-        kD *= 1.0 - metallic;
-
-        Lo += (kD * diffuse.rgb / PI + specular) * radiance * max(dot(N, L), 0.0);
     }
 
     for (int i = 0; i < u_spot_lights.count; i++) {

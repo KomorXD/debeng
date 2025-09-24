@@ -252,6 +252,16 @@ void Shader::set_uniform_1f(const std::string &name, float val) {
     GL_CALL(glUniform1f(loc.value(), val));
 }
 
+void Shader::try_set_uniform_1f(const std::string &name, float val) {
+    assert(id != 0 && "Trying to set uniform of invalid shader object");
+
+    std::optional<GLint> loc = get_uniform_location(name);
+    if (!loc.has_value())
+        return;
+
+    GL_CALL(glUniform1f(loc.value(), val));
+}
+
 void Shader::set_uniform_2f(const std::string &name, const glm::vec2 &val) {
     assert(id != 0 && "Trying to set uniform of invalid shader object");
 

@@ -50,8 +50,9 @@ struct Renderer {
     std::vector<SpotLightData> spot_lights;
 
     Framebuffer shadow_fbo;
-    Shader spotlight_shadow_shader;
+    Shader dirlight_shadow_shader;
     Shader pointlight_shadow_shader;
+    Shader spotlight_shadow_shader;
 
     GLuint random_offset_tex_id = 0;
     UniformBuffer soft_shadow_uni_buffer;
@@ -68,6 +69,7 @@ struct Renderer {
 
 static Renderer s_renderer{};
 static AssetPack *s_asset_pack{};
+static const CameraData *s_active_camera{};
 
 void opengl_msg_cb(unsigned source, unsigned type, unsigned id,
                    unsigned severity, int length, const char *msg,
@@ -165,9 +167,10 @@ bool init() {
     printf("Max geometry shader invocations: %d\n",
            gpu_spec.max_geom_invocations);
 
-    s_renderer.slots.point_lights_shadowmaps = gpu_spec.texture_units - 1;
-    s_renderer.slots.spot_lights_shadowmaps = gpu_spec.texture_units - 2;
-    s_renderer.slots.random_offsets_texture = gpu_spec.texture_units - 3;
+    s_renderer.slots.dir_csm_shadowmaps = gpu_spec.texture_units - 1;
+    s_renderer.slots.point_lights_shadowmaps = gpu_spec.texture_units - 2;
+    s_renderer.slots.spot_lights_shadowmaps = gpu_spec.texture_units - 3;
+    s_renderer.slots.random_offsets_texture = gpu_spec.texture_units - 4;
 
     GL_CALL(glEnable(GL_DEBUG_OUTPUT));
     GL_CALL(glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS));
@@ -262,8 +265,8 @@ bool init() {
         spec.format = TextureFormat::DEPTH_32F;
         spec.wrap = GL_CLAMP_TO_BORDER;
         spec.min_filter = spec.mag_filter = GL_NEAREST;
-        spec.size = {512, 512};
-        spec.layers = MAX_DIR_LIGHTS * 6;
+        spec.size = {2048, 2048};
+        spec.layers = MAX_DIR_LIGHTS * CASCADES_COUNT;
         spec.gen_minmaps = false;
         spec.border_color = glm::vec4(1.0f);
 
@@ -271,8 +274,48 @@ bool init() {
         s_renderer.shadow_fbo.bind();
         s_renderer.shadow_fbo.add_color_attachment(spec);
 
+        spec.size = {512, 512};
+        spec.layers = MAX_DIR_LIGHTS * 6;
+        s_renderer.shadow_fbo.add_color_attachment(spec);
+
         spec.layers = MAX_SPOT_LIGHTS;
         s_renderer.shadow_fbo.add_color_attachment(spec);
+    }
+
+    {
+        s_renderer.dirlight_shadow_shader = Shader::create();
+
+        ShaderSpec spec;
+        spec.vertex_shader.path = "resources/shaders/depth.vert";
+        spec.fragment_shader.path = "resources/shaders/depth.frag";
+        spec.geometry_shader = {
+            .path = "resources/shaders/shadows/dirlight.geom",
+            .replacements = {
+                {
+                    "${DIR_LIGHTS_BINDING}",
+                    std::to_string(renderer::DIR_LIGHTS_BINDING)
+                },
+                {
+                    "${MAX_DIR_LIGHTS}",
+                    std::to_string(renderer::MAX_DIR_LIGHTS)
+                },
+                {
+                    "${INVOCATIONS}",
+                    std::to_string(s_renderer.gpu.max_geom_invocations)
+                },
+                {
+                    "${CASCADES_COUNT}",
+                    std::to_string(renderer::CASCADES_COUNT)
+                },
+                {
+                    "${MAX_VERTICES}",
+                    std::to_string(renderer::CASCADES_COUNT * 3)
+                }
+            }
+        };
+
+        assert(s_renderer.dirlight_shadow_shader.build(spec) &&
+               "Dirlight shadow shader not built");
     }
 
     {
@@ -351,12 +394,14 @@ void shutdown() {
     s_renderer.material_uni_buffer.destroy();
 
     s_renderer.shadow_fbo.destroy();
+    s_renderer.dirlight_shadow_shader.destroy();
     s_renderer.spotlight_shadow_shader.destroy();
     s_renderer.pointlight_shadow_shader.destroy();
 }
 
 void scene_begin(const CameraData &camera, AssetPack &asset_pack) {
     s_asset_pack = &asset_pack;
+    s_active_camera = &camera;
 
     assert(s_asset_pack && "Empty asset pack object");
 
@@ -469,13 +514,23 @@ void scene_end() {
 
     /* TODO: assign IDS when texture atlas is ready. */
     s_renderer.shadow_fbo.bind_color_attachment(
-        0, s_renderer.slots.point_lights_shadowmaps);
+        0, s_renderer.slots.dir_csm_shadowmaps);
     s_renderer.shadow_fbo.bind_color_attachment(
-        1, s_renderer.slots.spot_lights_shadowmaps);
+        1, s_renderer.slots.point_lights_shadowmaps);
+    s_renderer.shadow_fbo.bind_color_attachment(
+        2, s_renderer.slots.spot_lights_shadowmaps);
 
     GL_CALL(
         glActiveTexture(GL_TEXTURE0 + s_renderer.slots.random_offsets_texture));
     GL_CALL(glBindTexture(GL_TEXTURE_3D, s_renderer.random_offset_tex_id));
+
+    std::array<float, CASCADES_COUNT> cascade_distances = {
+        s_active_camera->far_clip / 50.0f,
+        s_active_camera->far_clip / 25.0f,
+        s_active_camera->far_clip / 10.0f,
+        s_active_camera->far_clip / 2.0f,
+        s_active_camera->far_clip
+    };
 
     for (auto &[shader_id, instance_map] : s_renderer.instances) {
         if (instance_map.empty())
@@ -483,6 +538,11 @@ void scene_end() {
 
         Shader &curr_shader = s_asset_pack->shaders.at(shader_id);
         curr_shader.bind();
+
+        for (int32_t i = 0; i < CASCADES_COUNT; i++)
+            curr_shader.try_set_uniform_1f("u_cascade_distances[" +
+                                               std::to_string(i) + "]",
+                                           cascade_distances[i]);
 
         /*  When I make textures into a texture atlas we will make it
          *  better... */
@@ -503,8 +563,9 @@ void scene_end() {
     }
 }
 
-void shadow_pass_begin(AssetPack &asset_pack) {
+void shadow_pass_begin(const CameraData &camera, AssetPack &asset_pack) {
     s_asset_pack = &asset_pack;
+    s_active_camera = &camera;
 
     s_renderer.dir_lights.clear();
     s_renderer.point_lights.clear();
@@ -564,6 +625,18 @@ void shadow_pass_end() {
 
     s_renderer.shadow_fbo.draw_to_depth_map(0);
     GL_CALL(glClear(GL_DEPTH_BUFFER_BIT));
+    s_renderer.dirlight_shadow_shader.bind();
+    for (auto &[mesh_id, instances] : instance_map) {
+        if (instances.empty())
+            continue;
+
+        Mesh &mesh = s_asset_pack->meshes.at(mesh_id);
+        draw_elements_instanced(s_renderer.dirlight_shadow_shader, mesh.vao,
+                                instances.size());
+    }
+
+    s_renderer.shadow_fbo.draw_to_depth_map(1);
+    GL_CALL(glClear(GL_DEPTH_BUFFER_BIT));
     s_renderer.pointlight_shadow_shader.bind();
     for (auto &[mesh_id, instances] : instance_map) {
         if (instances.empty())
@@ -574,7 +647,7 @@ void shadow_pass_end() {
                                 instances.size());
     }
 
-    s_renderer.shadow_fbo.draw_to_depth_map(1);
+    s_renderer.shadow_fbo.draw_to_depth_map(2);
     GL_CALL(glClear(GL_DEPTH_BUFFER_BIT));
     s_renderer.spotlight_shadow_shader.bind();
     for (auto &[mesh_id, instances] : instance_map) {
@@ -636,11 +709,89 @@ static float light_radius(float constant, float linear, float quadratic,
     return num / (2.0f * quadratic);
 }
 
+static std::vector<glm::vec4>
+frustrum_corners_world_space(const glm::mat4 &proj_view) {
+    glm::mat4 inv = glm::inverse(proj_view);
+    std::vector<glm::vec4> corners;
+
+    for (int32_t x = 0; x < 2; x++) {
+        for (int32_t y = 0; y < 2; y++) {
+            for (int32_t z = 0; z < 2; z++) {
+                glm::vec4 pt = inv * glm::vec4(2.0f * x - 1.0f, 2.0f * y - 1.0f,
+                                               2.0f * z - 1.0f, 1.0f);
+                corners.push_back(pt / pt.w);
+            }
+        }
+    }
+
+    return corners;
+}
+
 void submit_dir_light(const glm::vec3 &rotation, const DirLight &light) {
     if (s_renderer.dir_lights.size() >= MAX_DIR_LIGHTS)
         return;
 
+    std::array<float, CASCADES_COUNT> near_planes = {
+        s_active_camera->near_clip,
+        s_active_camera->far_clip / 50.0f,
+        s_active_camera->far_clip / 25.0f,
+        s_active_camera->far_clip / 10.0f,
+        s_active_camera->far_clip / 2.0f
+    };
+    std::array<float, CASCADES_COUNT> far_planes = {
+        near_planes[1],
+        near_planes[2],
+        near_planes[3],
+        near_planes[4],
+        s_active_camera->far_clip
+    };
+
+    std::array<glm::mat4, CASCADES_COUNT> cascaded_mats;
+    glm::vec3 dir =
+        glm::toMat3(glm::quat(rotation)) * glm::vec3(0.0f, 0.0f, -1.0f);
+
+    for (int32_t i = 0; i < near_planes.size(); i++) {
+        glm::mat4 proj = glm::perspective(glm::radians(s_active_camera->fov),
+                                          s_active_camera->viewport.x /
+                                              s_active_camera->viewport.y,
+                                          near_planes[i], far_planes[i]);
+        std::vector<glm::vec4> view_corners =
+            frustrum_corners_world_space(proj * s_active_camera->view);
+
+        glm::vec3 center(0.0f);
+        for (const glm::vec4 &corner : view_corners)
+             center += glm::vec3(corner);
+
+        center /= view_corners.size();
+
+        glm::mat4 light_view =
+            glm::lookAt(center + dir, center, glm::vec3(0.0f, 1.0f, 0.0f));
+        float xmin =  FLT_MAX;
+        float xmax = -FLT_MAX;
+        float ymin =  FLT_MAX;
+        float ymax = -FLT_MAX;
+        float zmin =  FLT_MAX;
+        float zmax = -FLT_MAX;
+        for (const glm::vec4 &corner : view_corners) {
+            glm::vec4 trf = light_view * corner;
+            xmin = glm::min(xmin, trf.x);
+            xmax = glm::max(xmax, trf.x);
+            ymin = glm::min(ymin, trf.y);
+            ymax = glm::max(ymax, trf.y);
+            zmin = glm::min(zmin, trf.z);
+            zmax = glm::max(zmax, trf.z);
+        }
+
+        constexpr float Z_MULT = 10.0f;
+        zmin = (zmin < 0.0f ? zmin * Z_MULT : zmin / Z_MULT);
+        zmax = (zmax < 0.0f ? zmax / Z_MULT : zmax * Z_MULT);
+
+        glm::mat4 light_proj = glm::ortho(xmin, xmax, ymin, ymax, zmin, zmax);
+        cascaded_mats[i] = light_proj * light_view;
+    }
+
     DirLightData &light_data = s_renderer.dir_lights.emplace_back();
+    light_data.cascade_mats = cascaded_mats;
     light_data.direction = glm::vec4(
         glm::toMat3(glm::quat(rotation)) * glm::vec3(0.0f, 0.0f, -1.0f), 1.0f);
     light_data.color = glm::vec4(light.color, 1.0f);

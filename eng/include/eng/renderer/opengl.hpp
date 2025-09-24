@@ -168,10 +168,15 @@ struct Texture {
     void bind(uint32_t slot = 0) const;
     void unbind() const;
 
+    void set_subtexture(const uint8_t *data, const glm::ivec2 &offset,
+                        const glm::ivec2 &size);
+
     GLuint id = 0;
     int32_t width = 0;
     int32_t height = 0;
     int32_t bpp = 0;
+
+    TextureFormatDetails format;
 
     std::string path;
     std::string name;

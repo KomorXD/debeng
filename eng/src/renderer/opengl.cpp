@@ -485,8 +485,9 @@ TextureFormatDetails format_details(TextureFormat format) {
 
 Texture Texture::create(const std::string &path, TextureFormat format) {
     Texture tex;
+    tex.format = format_details(format);
 
-    auto [internal, pixel_format, type, bpp] = format_details(format);
+    auto [internal, pixel_format, type, bpp] = tex.format;
     void *buffer = nullptr;
     stbi_set_flip_vertically_on_load(1);
 
@@ -530,6 +531,7 @@ Texture Texture::create(const std::string &path, TextureFormat format) {
 Texture Texture::create(const void *data, int32_t width, int32_t height,
                         TextureFormat format) {
     Texture tex;
+    tex.format = format_details(format);
 
     GL_CALL(glGenTextures(1, &tex.id));
     GL_CALL(glBindTexture(GL_TEXTURE_2D, tex.id));
@@ -541,7 +543,7 @@ Texture Texture::create(const void *data, int32_t width, int32_t height,
     GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT));
 
 
-    auto [internal, pixel_format, type, bpp] = format_details(format);
+    auto [internal, pixel_format, type, bpp] = tex.format;
     tex.width = width;
     tex.height = height;
     tex.bpp = bpp;
@@ -569,6 +571,15 @@ void Texture::bind(uint32_t slot) const {
 
 void Texture::unbind() const {
     GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
+}
+
+void Texture::set_subtexture(const uint8_t *data, const glm::ivec2 &offset,
+                             const glm::ivec2 &size) {
+    assert(id != 0 && "Trying to set subdata of invalid texture object");
+
+    bind();
+    GL_CALL(glTexSubImage2D(GL_TEXTURE_2D, 0, offset.x, offset.y, size.x,
+                            size.y, format.format, format.type, data));
 }
 
 RenderbufferDetails rbo_details(const RenderbufferSpec &spec) {

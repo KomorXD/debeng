@@ -1,6 +1,8 @@
 #include "eng/scene/assets.hpp"
+#include "eng/renderer/opengl.hpp"
 #include "eng/renderer/primitives.hpp"
 #include "eng/renderer/renderer.hpp"
+#include <filesystem>
 
 namespace eng {
 
@@ -66,19 +68,36 @@ AssetPack AssetPack::create(const std::string &pack_name) {
     }
 
     {
+        AssetID ctxs[] = {ATLAS_RGBA8, ATLAS_RGB8, ATLAS_R8};
+        TextureFormat formats[] = {TextureFormat::RGBA8, TextureFormat::RGB8,
+                                   TextureFormat::R8};
+
+        for (int32_t i = 0; i < 3; i++) {
+            AtlasContext &ctx = pack.atlases[ctxs[i]];
+            ctx.atlas = Texture::create(nullptr, 8192, 8192, formats[i]);
+            ctx.nodes.resize(256);
+
+            stbrp_init_target(&ctx.context, ctx.atlas.width, ctx.atlas.height,
+                              ctx.nodes.data(), ctx.nodes.size());
+        }
+    }
+
+    {
         uint8_t white_pixel[] = { 255, 255, 255, 255 };
-        Texture default_albedo =
-            Texture::create(white_pixel, 1, 1, TextureFormat::RGBA8);
-        default_albedo.name = "White";
-        (void)pack.add_texture(default_albedo);
+        AssetID id = pack.add_texture(white_pixel, 1, 1, TextureFormat::RGBA8);
+        pack.tex_records.at(id).file_name = "White";
     }
 
     {
         uint8_t normal_pixel[] = { 127, 127, 255 };
-        Texture default_normal =
-            Texture::create(normal_pixel, 1, 1, TextureFormat::RGB8);
-        default_normal.name = "Normal";
-        (void)pack.add_texture(default_normal);
+        AssetID id = pack.add_texture(normal_pixel, 1, 1, TextureFormat::RGB8);
+        pack.tex_records.at(id).file_name = "Normal";
+    }
+
+    {
+        uint8_t white = 255;
+        AssetID id = pack.add_texture(&white, 1, 1, TextureFormat::R8);
+        pack.tex_records.at(id).file_name = "White R";
     }
 
     {
@@ -163,6 +182,9 @@ AssetPack AssetPack::create(const std::string &pack_name) {
 
         renderer::TextureSlots slots = eng::renderer::texture_slots();
         base_shader.bind();
+        base_shader.set_uniform_1i("u_rgba_atlas", slots.rgba_atlas);
+        base_shader.set_uniform_1i("u_rgb_atlas", slots.rgb_atlas);
+        base_shader.set_uniform_1i("u_r_atlas", slots.r_atlas);
         base_shader.set_uniform_1i("u_dir_lights_csm_shadowmaps",
                                    slots.dir_csm_shadowmaps);
         base_shader.set_uniform_1i("u_point_lights_shadowmaps",
@@ -205,6 +227,10 @@ AssetPack AssetPack::create(const std::string &pack_name) {
 
         assert(flat_shader.build(spec) && "Default shaders not found");
 
+        renderer::TextureSlots slots = eng::renderer::texture_slots();
+        flat_shader.bind();
+        flat_shader.set_uniform_1i("u_rgba_atlas", slots.rgba_atlas);
+
         (void)pack.add_shader(flat_shader);
     }
 
@@ -215,11 +241,13 @@ void AssetPack::destroy() {
     for (auto &[mesh_id, mesh] : meshes)
         mesh.vao.destroy();
 
-    for (auto &[tex_id, texture] : textures)
-        texture.destroy();
-
     for (auto &[shader_id, shader] : shaders)
         shader.destroy();
+
+    tex_records.clear();
+
+    for (auto &[atlas_id, atlas_ctx] : atlases)
+        atlas_ctx.atlas.destroy();
 
     meshes.clear();
 }
@@ -233,18 +261,6 @@ AssetID AssetPack::add_mesh(Mesh mesh) {
 
     Mesh &new_mesh = meshes[id];
     new_mesh = mesh;
-    return id;
-}
-
-AssetID AssetPack::add_texture(Texture &texture) {
-    AssetID id = 0;
-    if (textures.empty())
-        id = 1;
-    else
-        id = textures.rbegin()->first + 1;
-
-    Texture &new_texture = textures[id];
-    new_texture = texture;
     return id;
 }
 
@@ -269,6 +285,71 @@ AssetID AssetPack::add_shader(Shader &shader) {
 
     Shader &new_shader = shaders[id];
     new_shader = shader;
+    return id;
+}
+
+AssetID AssetPack::add_texture(const void *data, int32_t width, int32_t height,
+                               TextureFormat format,
+                               std::optional<std::string> path) {
+    AssetID id = 0;
+    if (tex_records.empty())
+        id = 1;
+    else
+        id = tex_records.rbegin()->first + 1;
+
+    AssetID owning_atlas = 1;
+
+    switch (format) {
+    case TextureFormat::RGBA8:
+        owning_atlas = ATLAS_RGBA8;
+        break;
+    case TextureFormat::RGB8:
+        owning_atlas = ATLAS_RGB8;
+        break;
+    case TextureFormat::R8:
+        owning_atlas = ATLAS_R8;
+        break;
+    default:
+        assert(true && "Unsupported texture asset type");
+        break;
+    }
+
+    TextureRecord &new_record = tex_records[id];
+    new_record.owning_atlas = owning_atlas;
+    new_record.file_path = path.value_or("");
+    new_record.file_name =
+        std::filesystem::path(new_record.file_path).stem().string();
+
+    stbrp_rect new_rect{};
+    new_rect.id = id;
+    new_rect.w = width;
+    new_rect.h = height;
+
+    AtlasContext &ctx = atlases.at(owning_atlas);
+    ctx.rects.push_back(new_rect);
+
+    Texture old_tex = std::move(ctx.atlas);
+    ctx.atlas =
+        Texture::create(nullptr, old_tex.width, old_tex.height, old_tex.format);
+
+    if (stbrp_pack_rects(&ctx.context, ctx.rects.data(), ctx.rects.size())) {
+        for (const stbrp_rect &rect : ctx.rects) {
+            TextureRecord &record = tex_records.at(rect.id);
+            if (rect.id != id)
+                old_tex.copy_to(ctx.atlas, record.offset, {rect.x, rect.y},
+                                {rect.w, rect.h});
+
+            record.offset = glm::vec2(rect.x, rect.y);
+            record.size = glm::vec2(rect.w, rect.h);
+        }
+    }
+
+    ctx.atlas.set_subtexture((uint8_t *)data, new_record.offset,
+                             new_record.size);
+    ctx.atlas.gen_mipmaps();
+
+    old_tex.destroy();
+
     return id;
 }
 

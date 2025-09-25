@@ -167,6 +167,9 @@ bool init() {
     printf("Max geometry shader invocations: %d\n",
            gpu_spec.max_geom_invocations);
 
+    s_renderer.slots.rgba_atlas = 0;
+    s_renderer.slots.rgb_atlas = 1;
+    s_renderer.slots.r_atlas = 2;
     s_renderer.slots.dir_csm_shadowmaps = gpu_spec.texture_units - 1;
     s_renderer.slots.point_lights_shadowmaps = gpu_spec.texture_units - 2;
     s_renderer.slots.spot_lights_shadowmaps = gpu_spec.texture_units - 3;
@@ -472,32 +475,23 @@ void scene_end() {
         mat_data.metallic = mat.metallic;
         mat_data.ao = mat.ao;
 
-        AssetID *material_tex_ids[] = {
-            &mat.albedo_texture_id, &mat.normal_texture_id,
-            &mat.roughness_texture_id, &mat.metallic_texture_id,
-            &mat.ao_texture_id};
-        int32_t *buffer_tex_ids[] = {&mat_data.albedo_idx, &mat_data.normal_idx,
-                                     &mat_data.roughness_idx,
-                                     &mat_data.metallic_idx, &mat_data.ao_idx};
-        constexpr int32_t IDS_SIZE =
-            sizeof(material_tex_ids) / sizeof(material_tex_ids[0]);
+        std::array<AssetID, 5> tex_records = {
+            mat.albedo_tex_record_id, mat.normal_tex_record_id,
+            mat.roughness_tex_record_id, mat.metallic_tex_record_id,
+            mat.ao_tex_record_id};
+        std::array<TexRecordData *, 5> records = {
+            &mat_data.albedo_tex, &mat_data.normal_tex, &mat_data.roughness_tex,
+            &mat_data.metallic_tex, &mat_data.ao_tex};
 
-        std::vector<AssetID> &texture_ids = s_renderer.texture_ids;
-        for (int32_t i = 0; i < IDS_SIZE; i++) {
-            AssetID *material_tex_id = material_tex_ids[i];
-            int32_t *buffer_tex_id = buffer_tex_ids[i];
+        for (int32_t i = 0; i < tex_records.size(); i++) {
+            TextureRecord &tr = s_asset_pack->tex_records.at(tex_records[i]);
+            AtlasContext &ac = s_asset_pack->atlases.at(tr.owning_atlas);
 
-            for (int32_t i = 0; i < texture_ids.size(); i++) {
-                if (texture_ids[i] == *material_tex_id) {
-                    *buffer_tex_id = i;
-                    break;
-                }
-            }
-
-            if (*buffer_tex_id == -1) {
-                *buffer_tex_id = texture_ids.size();
-                texture_ids.push_back(*material_tex_id);
-            }
+            TexRecordData &rec = *records[i];
+            rec.offset = ac.atlas.to_uv(tr.offset);
+            rec.size = ac.atlas.to_uv(tr.size);
+            rec.layer = tr.layer;
+            rec.record_id = tex_records[i];
         }
     }
 
@@ -505,14 +499,6 @@ void scene_end() {
     s_renderer.material_uni_buffer.set_data(materials.data(),
                                             count * sizeof(MaterialData));
 
-    for (int32_t i = 0; i < s_renderer.texture_ids.size(); i++) {
-        AssetID tex_id = s_renderer.texture_ids[i];
-        Texture &tex = s_asset_pack->textures.at(tex_id);
-
-        tex.bind(i);
-    }
-
-    /* TODO: assign IDS when texture atlas is ready. */
     s_renderer.shadow_fbo.bind_color_attachment(
         0, s_renderer.slots.dir_csm_shadowmaps);
     s_renderer.shadow_fbo.bind_color_attachment(
@@ -523,6 +509,13 @@ void scene_end() {
     GL_CALL(
         glActiveTexture(GL_TEXTURE0 + s_renderer.slots.random_offsets_texture));
     GL_CALL(glBindTexture(GL_TEXTURE_3D, s_renderer.random_offset_tex_id));
+
+    s_asset_pack->atlases.at(AssetPack::ATLAS_RGBA8)
+        .atlas.bind(s_renderer.slots.rgba_atlas);
+    s_asset_pack->atlases.at(AssetPack::ATLAS_RGB8)
+        .atlas.bind(s_renderer.slots.rgb_atlas);
+    s_asset_pack->atlases.at(AssetPack::ATLAS_R8)
+        .atlas.bind(s_renderer.slots.r_atlas);
 
     std::array<float, CASCADES_COUNT> cascade_distances = {
         s_active_camera->far_clip / 50.0f,
@@ -543,13 +536,6 @@ void scene_end() {
             curr_shader.try_set_uniform_1f("u_cascade_distances[" +
                                                std::to_string(i) + "]",
                                            cascade_distances[i]);
-
-        /*  When I make textures into a texture atlas we will make it
-         *  better... */
-        for (int32_t i = 0; i < s_renderer.texture_ids.size(); i++) {
-            curr_shader.set_uniform_1i("u_textures[" + std::to_string(i) + "]",
-                                       i);
-        }
 
         for (auto &[mesh_id, instances] : instance_map) {
             if (instances.empty())

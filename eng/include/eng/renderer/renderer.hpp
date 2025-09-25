@@ -25,6 +25,9 @@ constexpr int32_t MAX_TEXTURES = 16;
 constexpr int32_t CASCADES_COUNT = 5;
 
 struct TextureSlots {
+    int32_t rgba_atlas{};
+    int32_t rgb_atlas{};
+    int32_t r_atlas{};
     int32_t dir_csm_shadowmaps{};
     int32_t point_lights_shadowmaps{};
     int32_t spot_lights_shadowmaps{};
@@ -77,22 +80,31 @@ struct SoftShadowProps {
     float padding;
 };
 
+struct TexRecordData {
+    glm::vec2 offset;
+    glm::vec2 size;
+    int32_t layer;
+    int32_t record_id;
+
+    glm::vec2 padding;
+};
+
 struct MaterialData {
     glm::vec4 color = glm::vec4(1.0f);
     glm::vec2 tiling_factor = glm::vec2(1.0f);
     glm::vec2 texture_offset = glm::vec2(0.0f);
 
-    int32_t albedo_idx = -1;
-    int32_t normal_idx = -1;
+    TexRecordData albedo_tex;
+    TexRecordData normal_tex;
+    TexRecordData roughness_tex;
+    TexRecordData metallic_tex;
+    TexRecordData ao_tex;
 
-    int32_t roughness_idx = -1;
     float roughness = -1.0f;
-
-    int32_t metallic_idx = -1;
     float metallic = -1.0f;
-
-    int32_t ao_idx = -1;
     float ao = -1.0f;
+
+    float padding;
 };
 
 void opengl_msg_cb(unsigned source, unsigned type, unsigned id,

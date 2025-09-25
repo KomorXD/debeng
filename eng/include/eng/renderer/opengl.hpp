@@ -183,6 +183,33 @@ struct Texture {
     TextureFormat format;
 };
 
+struct TextureArray {
+    [[nodiscard]] static TextureArray create(const void *data, int32_t width,
+                                             int32_t height,
+                                             TextureFormat format,
+                                             int32_t layers = 2);
+
+    void destroy();
+
+    void bind(uint32_t slot = 0) const;
+    void unbind() const;
+
+    void set_subtexture(const uint8_t *data, const glm::ivec2 &offset,
+                        const glm::ivec2 &size, int32_t layer);
+    void copy_to(const TextureArray &target, const glm::ivec2 &src_coords,
+                 const glm::ivec2 &dst_coords, const glm::ivec2 &size,
+                 int32_t layer);
+    void gen_mipmaps();
+
+    GLuint id = 0;
+    int32_t width = 0;
+    int32_t height = 0;
+    int32_t bpp = 0;
+    int32_t layers = 0;
+
+    TextureFormat format;
+};
+
 enum class RenderbufferType {
     DEPTH,
     STENICL,

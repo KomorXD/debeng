@@ -565,6 +565,93 @@ glm::vec2 Texture::to_uv(const glm::vec2 &pixel_coords) {
     return pixel_coords / glm::vec2(width, height);
 }
 
+TextureArray TextureArray::create(const void *data, int32_t width,
+                                  int32_t height, TextureFormat format,
+                                  int32_t layers) {
+    TextureArray tex;
+    tex.format = format;
+    tex.layers = layers;
+
+    GL_CALL(glGenTextures(1, &tex.id));
+    GL_CALL(glBindTexture(GL_TEXTURE_2D_ARRAY, tex.id));
+
+    GL_CALL(glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER,
+                            GL_NEAREST_MIPMAP_NEAREST));
+    GL_CALL(glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER,
+                            GL_NEAREST));
+    GL_CALL(glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_REPEAT));
+    GL_CALL(glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT));
+    GL_CALL(glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_COMPARE_MODE,
+                            GL_COMPARE_REF_TO_TEXTURE));
+
+    auto [internal, pixel_format, type, bpp] = format_details(tex.format);
+    tex.width = width;
+    tex.height = height;
+    tex.bpp = bpp;
+
+    if (pixel_format == GL_RED) {
+        GLint swizzle_mask[4] = {GL_RED, GL_RED, GL_RED, GL_ONE};
+        GL_CALL(glTexParameteriv(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_SWIZZLE_RGBA,
+                                 swizzle_mask));
+    }
+
+    GL_CALL(glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, internal, tex.width,
+                         tex.height, tex.layers, 0, pixel_format, type, data));
+    GL_CALL(glGenerateMipmap(GL_TEXTURE_2D_ARRAY));
+    GL_CALL(glBindTexture(GL_TEXTURE_2D_ARRAY, 0));
+
+    return tex;
+}
+
+void TextureArray::destroy() {
+    assert(id != 0 && "Trying to destroy invalid texture object");
+
+    GL_CALL(glDeleteTextures(1, &id));
+}
+
+void TextureArray::bind(uint32_t slot) const {
+    assert(id != 0 && "Trying to bind invalid texture object");
+
+    GL_CALL(glActiveTexture(GL_TEXTURE0 + slot));
+    GL_CALL(glBindTexture(GL_TEXTURE_2D_ARRAY, id));
+}
+
+void TextureArray::unbind() const {
+    GL_CALL(glBindTexture(GL_TEXTURE_2D_ARRAY, 0));
+}
+
+void TextureArray::set_subtexture(const uint8_t *data, const glm::ivec2 &offset,
+                                  const glm::ivec2 &size, int32_t layer) {
+    assert(id != 0 && "Trying to set subdata of invalid texture object");
+
+    TextureFormatDetails format_det = format_details(format);
+
+    bind();
+    GL_CALL(glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, offset.x, offset.y, layer,
+                            size.x, size.y, 1, format_det.format,
+                            format_det.type, data));
+}
+
+void TextureArray::copy_to(const TextureArray &target,
+                           const glm::ivec2 &src_coords,
+                           const glm::ivec2 &dst_coords, const glm::ivec2 &size,
+                           int32_t layer) {
+    assert(width == target.width && height == target.height &&
+           format == target.format &&
+           "Textures must be of same dimension and format");
+    assert(layer < layers && layer < target.layers && "Layer not reachable");
+
+    GL_CALL(glCopyImageSubData(id, GL_TEXTURE_2D_ARRAY, 0, src_coords.x,
+                               src_coords.y, layer, target.id,
+                               GL_TEXTURE_2D_ARRAY, 0, dst_coords.x,
+                               dst_coords.y, layer, size.x, size.y, 1));
+}
+
+void TextureArray::gen_mipmaps() {
+    bind();
+    GL_CALL(glGenerateMipmap(GL_TEXTURE_2D_ARRAY));
+}
+
 RenderbufferDetails rbo_details(const RenderbufferSpec &spec) {
     static GLint type[] = {GL_DEPTH_COMPONENT, GL_STENCIL_COMPONENTS,
                            GL_DEPTH24_STENCIL8};

@@ -1,9 +1,8 @@
 #include "eng/renderer/opengl.hpp"
 #include "eng/random_utils.hpp"
-#include "stb/stb_image.hpp"
+#include "glm/gtc/integer.hpp"
 #include <alloca.h>
 #include <cstdio>
-#include <filesystem>
 
 void gl_clear_errors() {
     while (glGetError() != GL_NO_ERROR)
@@ -483,70 +482,31 @@ TextureFormatDetails format_details(TextureFormat format) {
     };
 }
 
-Texture Texture::create(const std::string &path, TextureFormat format) {
+Texture Texture::create(const void *data, int32_t width, int32_t height,
+                        TextureFormat format) {
     Texture tex;
-    tex.format = format_details(format);
-
-    auto [internal, pixel_format, type, bpp] = tex.format;
-    void *buffer = nullptr;
-    stbi_set_flip_vertically_on_load(1);
-
-    if (type == GL_FLOAT)
-        buffer =
-            stbi_loadf(path.c_str(), &tex.width, &tex.height, &tex.bpp, bpp);
-    else
-        buffer =
-            stbi_load(path.c_str(), &tex.width, &tex.height, &tex.bpp, bpp);
+    tex.format = format;
 
     GL_CALL(glGenTextures(1, &tex.id));
     GL_CALL(glBindTexture(GL_TEXTURE_2D, tex.id));
 
     GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
-                            GL_NEAREST_MIPMAP_LINEAR));
+                            GL_NEAREST_MIPMAP_NEAREST));
     GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
     GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT));
     GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT));
+
+
+    auto [internal, pixel_format, type, bpp] = format_details(tex.format);
+    tex.width = width;
+    tex.height = height;
+    tex.bpp = bpp;
 
     if (pixel_format == GL_RED) {
         GLint swizzle_mask[4] = {GL_RED, GL_RED, GL_RED, GL_ONE};
         GL_CALL(glTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA,
                                  swizzle_mask));
     }
-
-    GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, internal, tex.width, tex.height, 0,
-                         pixel_format, type, buffer));
-    GL_CALL(glGenerateMipmap(GL_TEXTURE_2D));
-    GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
-
-    if (buffer)
-        stbi_image_free(buffer);
-
-    std::filesystem::path tex_path = path;
-    tex.path = path;
-    tex.name = tex_path.filename().string();
-
-    return tex;
-}
-
-Texture Texture::create(const void *data, int32_t width, int32_t height,
-                        TextureFormat format) {
-    Texture tex;
-    tex.format = format_details(format);
-
-    GL_CALL(glGenTextures(1, &tex.id));
-    GL_CALL(glBindTexture(GL_TEXTURE_2D, tex.id));
-
-    GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
-                            GL_NEAREST_MIPMAP_LINEAR));
-    GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
-    GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT));
-    GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT));
-
-
-    auto [internal, pixel_format, type, bpp] = tex.format;
-    tex.width = width;
-    tex.height = height;
-    tex.bpp = bpp;
 
     GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, internal, tex.width, tex.height, 0,
                          pixel_format, type, data));
@@ -577,9 +537,32 @@ void Texture::set_subtexture(const uint8_t *data, const glm::ivec2 &offset,
                              const glm::ivec2 &size) {
     assert(id != 0 && "Trying to set subdata of invalid texture object");
 
+    TextureFormatDetails format_det = format_details(format);
+
     bind();
     GL_CALL(glTexSubImage2D(GL_TEXTURE_2D, 0, offset.x, offset.y, size.x,
-                            size.y, format.format, format.type, data));
+                            size.y, format_det.format, format_det.type, data));
+}
+
+void Texture::copy_to(const Texture &target, const glm::ivec2 &src_coords,
+                      const glm::ivec2 &dst_coords, const glm::ivec2 &size,
+                      bool with_mips) {
+    assert(width == target.width && height == target.height &&
+           format == target.format &&
+           "Textures must be of same dimension and format");
+
+    GL_CALL(glCopyImageSubData(id, GL_TEXTURE_2D, 0, src_coords.x, src_coords.y,
+                               0, target.id, GL_TEXTURE_2D, 0, dst_coords.x,
+                               dst_coords.y, 0, size.x, size.y, 1));
+}
+
+void Texture::gen_mipmaps() {
+    bind();
+    GL_CALL(glGenerateMipmap(GL_TEXTURE_2D));
+}
+
+glm::vec2 Texture::to_uv(const glm::vec2 &pixel_coords) {
+    return pixel_coords / glm::vec2(width, height);
 }
 
 RenderbufferDetails rbo_details(const RenderbufferSpec &spec) {

@@ -158,8 +158,6 @@ struct TextureFormatDetails {
 [[nodiscard]] TextureFormatDetails format_details(TextureFormat format);
 
 struct Texture {
-    [[nodiscard]] static Texture create(const std::string &path,
-                                        TextureFormat format);
     [[nodiscard]] static Texture create(const void *data, int32_t width,
                                         int32_t height, TextureFormat format);
 
@@ -170,16 +168,19 @@ struct Texture {
 
     void set_subtexture(const uint8_t *data, const glm::ivec2 &offset,
                         const glm::ivec2 &size);
+    void copy_to(const Texture &target, const glm::ivec2 &src_coords,
+                 const glm::ivec2 &dst_coords, const glm::ivec2 &size,
+                 bool with_mips = true);
+    void gen_mipmaps();
+
+    glm::vec2 to_uv(const glm::vec2 &pixel_coords);
 
     GLuint id = 0;
     int32_t width = 0;
     int32_t height = 0;
     int32_t bpp = 0;
 
-    TextureFormatDetails format;
-
-    std::string path;
-    std::string name;
+    TextureFormat format;
 };
 
 enum class RenderbufferType {

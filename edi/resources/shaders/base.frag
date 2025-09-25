@@ -17,7 +17,8 @@
 #define MATERIALS_BINDING ${MATERIALS_BINDING}
 #define MAX_MATERIALS ${MAX_MATERIALS}
 
-#define MAX_TEXTURES ${MAX_TEXTURES}
+#define TEX_RECORDS_BINDING ${TEX_RECORDS_BINDING}
+#define MAX_TEX_RECORDS ${MAX_TEX_RECORDS}
 
 in VS_OUT {
     vec3 world_space_position;
@@ -80,6 +81,26 @@ layout (std140, binding = SOFT_SHADOW_PROPS_BINDING) uniform SoftShadowPropsUni 
     SoftShadowProps props;
 } u_soft_shadow_props;
 
+struct Material {
+    vec4 color;
+    vec2 tiling_factor;
+    vec2 texture_offset;
+
+    int albedo_record_idx;
+    int normal_record_idx;
+    int roughness_record_idx;
+    int metallic_record_idx;
+    int ao_record_idx;
+
+    float roughness;
+    float metallic;
+    float ao;
+};
+
+layout (std140, binding = MATERIALS_BINDING) uniform Materials {
+    Material materials[MAX_MATERIALS];
+} u_materials;
+
 struct TexRecord {
     vec2 offset;
     vec2 size;
@@ -89,27 +110,9 @@ struct TexRecord {
     vec2 padding;
 };
 
-struct Material {
-    vec4 color;
-    vec2 tiling_factor;
-    vec2 texture_offset;
-
-    TexRecord albedo_rec;
-    TexRecord normal_rec;
-    TexRecord roughness_rec;
-    TexRecord metallic_rec;
-    TexRecord ao_rec;
-
-    float roughness;
-    float metallic;
-    float ao;
-
-    float padding;
-};
-
-layout (std140, binding = MATERIALS_BINDING) uniform Materials {
-    Material materials[MAX_MATERIALS];
-} u_materials;
+layout (std140, binding = TEX_RECORDS_BINDING) uniform TexRecords {
+    TexRecord tex_records[MAX_TEX_RECORDS];
+} u_tex_records;
 
 layout (std140, binding = CAMERA_BINDING) uniform Camera {
     mat4 view_projection;
@@ -259,6 +262,15 @@ vec3 fresnel_schlick(float cos_theta, vec3 F0) {
     return F0 + (1.0 - F0) * pow(clamp(1.0 - cos_theta, 0.0, 1.0), 5.0);
 }
 
+vec4 material_tex_read(vec2 base_coords, int record_idx,
+                       sampler2D source_texture) {
+    TexRecord record = u_tex_records.tex_records[record_idx];
+    vec2 tex_coords = base_coords * record.size + record.offset;
+    vec4 color = texture(source_texture, tex_coords);
+
+    return color;
+}
+
 void main() {
     int ent_id = int(fs_in.ent_id);
     int r_int = int(mod(int(ent_id / 65025.0), 255));
@@ -273,26 +285,19 @@ void main() {
 
     vec2 base_coords = fs_in.texture_uv * mat.tiling_factor + mat.texture_offset;
     base_coords -= floor(base_coords);
-    vec2 tex_coords
-        = base_coords * mat.albedo_rec.size + mat.albedo_rec.offset;
-    vec4 diffuse = texture(u_rgba_atlas, tex_coords);
 
-    tex_coords
-        = base_coords * mat.roughness_rec.size + mat.roughness_rec.offset;
-    float roughness = texture(u_r_atlas, tex_coords).r * mat.roughness;
-
-    tex_coords
-        = base_coords * mat.metallic_rec.size + mat.metallic_rec.offset;
-    float metallic = texture(u_r_atlas, tex_coords).r * mat.metallic;
-
-    tex_coords
-        = base_coords * mat.ao_rec.size + mat.ao_rec.offset;
-    float ao = texture(u_r_atlas, tex_coords).r * mat.ao;
-
-    tex_coords
-        = base_coords * mat.normal_rec.size + mat.normal_rec.offset;
-    vec3 N = texture(u_rgb_atlas, tex_coords).rgb;
+    vec4 diffuse = material_tex_read(base_coords, mat.albedo_record_idx,
+                                     u_rgba_atlas);
+    vec3 N = material_tex_read(base_coords, mat.normal_record_idx,
+                               u_rgb_atlas).rgb;
     N = N * 2.0 - 1.0;
+
+    float roughness = material_tex_read(base_coords, mat.roughness_record_idx,
+                                        u_r_atlas).r * mat.roughness;
+    float metallic = material_tex_read(base_coords, mat.metallic_record_idx,
+                                       u_r_atlas).r * mat.metallic;
+    float ao = material_tex_read(base_coords, mat.ao_record_idx,
+                                 u_r_atlas).r * mat.ao;
 
     vec3 V = normalize(fs_in.tangent_view_position - fs_in.tangent_world_position);
 

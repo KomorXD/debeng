@@ -62,7 +62,8 @@ struct Renderer {
     UniformBuffer material_uni_buffer;
     std::vector<AssetID> material_ids;
 
-    std::vector<AssetID> texture_ids;
+    UniformBuffer tex_records_uni_buffer;
+    std::vector<AssetID> tex_record_ids;
 
     ShaderGroupedInstances instances;
 };
@@ -385,6 +386,11 @@ bool init() {
     s_renderer.material_uni_buffer.bind_buffer_range(MATERIALS_BINDING, 0,
                                                      size);
 
+    size = MAX_MATERIALS * sizeof(TexRecordData) * 5;
+    s_renderer.tex_records_uni_buffer = UniformBuffer::create(nullptr, size);
+    s_renderer.tex_records_uni_buffer.bind_buffer_range(TEX_RECORDS_BINDING, 0,
+                                                        size);
+
     return true;
 }
 
@@ -395,6 +401,7 @@ void shutdown() {
     s_renderer.spot_lights_uni_buffer.destroy();
     s_renderer.soft_shadow_uni_buffer.destroy();
     s_renderer.material_uni_buffer.destroy();
+    s_renderer.tex_records_uni_buffer.destroy();
 
     s_renderer.shadow_fbo.destroy();
     s_renderer.dirlight_shadow_shader.destroy();
@@ -412,7 +419,7 @@ void scene_begin(const CameraData &camera, AssetPack &asset_pack) {
     s_renderer.point_lights.clear();
     s_renderer.spot_lights.clear();
     s_renderer.material_ids.clear();
-    s_renderer.texture_ids.clear();
+    s_renderer.tex_record_ids.clear();
 
     for (auto &[shader_id, instance_map] : s_renderer.instances) {
         for (auto &[mesh_id, instances] : instance_map)
@@ -465,6 +472,11 @@ void scene_end() {
     std::vector<MaterialData> materials;
     materials.reserve(s_renderer.material_ids.size());
 
+    std::vector<TexRecordData> tex_records_data;
+    tex_records_data.reserve(s_renderer.material_ids.size());
+
+    std::vector<AssetID> &tex_record_ids = s_renderer.tex_record_ids;
+
     for (AssetID id : s_renderer.material_ids) {
         Material &mat = s_asset_pack->materials.at(id);
         MaterialData &mat_data = materials.emplace_back();
@@ -479,25 +491,46 @@ void scene_end() {
             mat.albedo_tex_record_id, mat.normal_tex_record_id,
             mat.roughness_tex_record_id, mat.metallic_tex_record_id,
             mat.ao_tex_record_id};
-        std::array<TexRecordData *, 5> records = {
-            &mat_data.albedo_tex, &mat_data.normal_tex, &mat_data.roughness_tex,
-            &mat_data.metallic_tex, &mat_data.ao_tex};
+        std::array<int32_t *, 5> record_idxs = {
+            &mat_data.albedo_record_idx, &mat_data.normal_record_idx,
+            &mat_data.roughness_record_idx, &mat_data.metallic_record_idx,
+            &mat_data.ao_record_idx};
 
         for (int32_t i = 0; i < tex_records.size(); i++) {
-            TextureRecord &tr = s_asset_pack->tex_records.at(tex_records[i]);
-            AtlasContext &ac = s_asset_pack->atlases.at(tr.owning_atlas);
+            int32_t target_idx = -1;
+            for (int32_t j = 0; j < tex_record_ids.size(); j++) {
+                if (tex_record_ids[j] == tex_records[i]) {
+                    target_idx = j;
+                    break;
+                }
+            }
 
-            TexRecordData &rec = *records[i];
-            rec.offset = ac.atlas.to_uv(tr.offset);
-            rec.size = ac.atlas.to_uv(tr.size);
-            rec.layer = tr.layer;
-            rec.record_id = tex_records[i];
+            if (target_idx == -1) {
+                tex_record_ids.push_back(tex_records[i]);
+                target_idx = tex_record_ids.size() - 1;
+
+                TextureRecord &tr =
+                    s_asset_pack->tex_records.at(tex_records[i]);
+                AtlasContext &ac = s_asset_pack->atlases.at(tr.owning_atlas);
+
+                TexRecordData &rec = tex_records_data.emplace_back();
+                rec.offset = ac.atlas.to_uv(tr.offset);
+                rec.size = ac.atlas.to_uv(tr.size);
+                rec.layer = tr.layer;
+                rec.record_id = tex_records[i];
+            }
+
+            *record_idxs[i] = target_idx;
         }
     }
 
     count = materials.size();
     s_renderer.material_uni_buffer.set_data(materials.data(),
                                             count * sizeof(MaterialData));
+
+    count = tex_records_data.size();
+    s_renderer.tex_records_uni_buffer.set_data(tex_records_data.data(),
+                                               count * sizeof(TexRecordData));
 
     s_renderer.shadow_fbo.bind_color_attachment(
         0, s_renderer.slots.dir_csm_shadowmaps);
@@ -557,7 +590,7 @@ void shadow_pass_begin(const CameraData &camera, AssetPack &asset_pack) {
     s_renderer.point_lights.clear();
     s_renderer.spot_lights.clear();
     s_renderer.material_ids.clear();
-    s_renderer.texture_ids.clear();
+    s_renderer.tex_record_ids.clear();
 
     for (auto &[shader_id, instance_map] : s_renderer.instances) {
         for (auto &[mesh_id, instances] : instance_map)

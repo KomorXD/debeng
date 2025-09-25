@@ -3,7 +3,8 @@
 #define MATERIALS_BINDING ${MATERIALS_BINDING}
 #define MAX_MATERIALS ${MAX_MATERIALS}
 
-#define MAX_TEXTURES ${MAX_TEXTURES}
+#define TEX_RECORDS_BINDING ${TEX_RECORDS_BINDING}
+#define MAX_TEX_RECORDS ${MAX_TEX_RECORDS}
 
 in VS_OUT {
     vec3 world_space_position;
@@ -19,6 +20,26 @@ in VS_OUT {
 layout(location = 0) out vec4 final_color;
 layout(location = 1) out vec4 picker_id;
 
+struct Material {
+    vec4 color;
+    vec2 tiling_factor;
+    vec2 texture_offset;
+
+    int albedo_record_idx;
+    int normal_record_idx;
+    int roughness_record_idx;
+    int metallic_record_idx;
+    int ao_record_idx;
+
+    float roughness;
+    float metallic;
+    float ao;
+};
+
+layout (std140, binding = MATERIALS_BINDING) uniform Materials {
+    Material materials[MAX_MATERIALS];
+} u_materials;
+
 struct TexRecord {
     vec2 offset;
     vec2 size;
@@ -28,27 +49,9 @@ struct TexRecord {
     vec2 padding;
 };
 
-struct Material {
-    vec4 color;
-    vec2 tiling_factor;
-    vec2 texture_offset;
-
-    TexRecord albedo_rec;
-    TexRecord normal_rec;
-    TexRecord roughness_rec;
-    TexRecord metallic_rec;
-    TexRecord ao_rec;
-
-    float roughness;
-    float metallic;
-    float ao;
-
-    float padding;
-};
-
-layout (std140, binding = MATERIALS_BINDING) uniform Materials {
-    Material materials[MAX_MATERIALS];
-} u_materials;
+layout (std140, binding = TEX_RECORDS_BINDING) uniform TexRecords {
+    TexRecord tex_records[MAX_TEX_RECORDS];
+} u_tex_records;
 
 uniform sampler2D u_rgba_atlas;
 uniform sampler2D u_rgb_atlas;
@@ -65,8 +68,12 @@ void main() {
     picker_id = vec4(r, g, b, 1.0);
 
     Material mat = u_materials.materials[int(fs_in.material_idx)];
-    vec2 tex_coords
-        = fs_in.texture_uv * mat.albedo_rec.size + mat.albedo_rec.offset;
+
+    vec2 base_coords = fs_in.texture_uv * mat.tiling_factor + mat.texture_offset;
+    base_coords -= floor(base_coords);
+
+    TexRecord tex_record = u_tex_records.tex_records[mat.albedo_record_idx];
+    vec2 tex_coords = base_coords * tex_record.size + tex_record.offset;
     vec4 albedo = texture(u_rgba_atlas, tex_coords) * mat.color;
 
     final_color = albedo;

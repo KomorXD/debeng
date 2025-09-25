@@ -173,8 +173,12 @@ AssetPack AssetPack::create(const std::string &pack_name) {
                 std::to_string(renderer::MAX_MATERIALS)
             },
             {
-                "${MAX_TEXTURES}",
-                std::to_string(renderer::MAX_TEXTURES)
+                "${TEX_RECORDS_BINDING}",
+                std::to_string(renderer::TEX_RECORDS_BINDING)
+            },
+            {
+                "${MAX_TEX_RECORDS}",
+                std::to_string(renderer::MAX_TEX_RECORDS)
             }
         };
 
@@ -220,8 +224,12 @@ AssetPack AssetPack::create(const std::string &pack_name) {
                 std::to_string(renderer::MAX_MATERIALS)
             },
             {
-                "${MAX_TEXTURES}",
-                std::to_string(renderer::MAX_TEXTURES)
+                "${TEX_RECORDS_BINDING}",
+                std::to_string(renderer::TEX_RECORDS_BINDING)
+            },
+            {
+                "${MAX_TEX_RECORDS}",
+                std::to_string(renderer::MAX_TEX_RECORDS)
             }
         };
 

@@ -14,13 +14,14 @@ constexpr int32_t POINT_LIGHTS_BINDING = 2;
 constexpr int32_t SPOT_LIGHTS_BINDING = 3;
 constexpr int32_t SOFT_SHADOW_PROPS_BINDING = 4;
 constexpr int32_t MATERIALS_BINDING = 5;
+constexpr int32_t TEX_RECORDS_BINDING = 6;
 
 constexpr int32_t MAX_MESH_INSTANCES = 128;
 constexpr int32_t MAX_DIR_LIGHTS = 4;
 constexpr int32_t MAX_POINT_LIGHTS = 32;
 constexpr int32_t MAX_SPOT_LIGHTS = 32;
 constexpr int32_t MAX_MATERIALS = 128;
-constexpr int32_t MAX_TEXTURES = 16;
+constexpr int32_t MAX_TEX_RECORDS = MAX_MATERIALS * 5;
 
 constexpr int32_t CASCADES_COUNT = 5;
 
@@ -94,17 +95,15 @@ struct MaterialData {
     glm::vec2 tiling_factor = glm::vec2(1.0f);
     glm::vec2 texture_offset = glm::vec2(0.0f);
 
-    TexRecordData albedo_tex;
-    TexRecordData normal_tex;
-    TexRecordData roughness_tex;
-    TexRecordData metallic_tex;
-    TexRecordData ao_tex;
+    int32_t albedo_record_idx;
+    int32_t normal_record_idx;
+    int32_t roughness_record_idx;
+    int32_t metallic_record_idx;
+    int32_t ao_record_idx;
 
     float roughness = -1.0f;
     float metallic = -1.0f;
     float ao = -1.0f;
-
-    float padding;
 };
 
 void opengl_msg_cb(unsigned source, unsigned type, unsigned id,

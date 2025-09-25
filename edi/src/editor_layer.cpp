@@ -17,8 +17,10 @@
 #include "imgui/imgui.h"
 #include "imgui/imgui_internal.h"
 #include "imgui/ImGuizmo.h"
+#include "stb/stb_image.hpp"
 #include "layers.hpp"
 #include <cfloat>
+#include <cstring>
 #include <string>
 #include <signal.h>
 
@@ -685,78 +687,100 @@ static void render_entity_panel(EditorLayer &layer) {
             static eng::AssetID *selected_id = nullptr;
             static TextureFormat desired_format{};
 
-            Texture *tex = &layer.asset_pack.textures.at(mat.albedo_texture_id);
+            eng::TextureRecord *tr =
+                &layer.asset_pack.tex_records.at(mat.albedo_tex_record_id);
+            eng::AtlasContext *owning_atlas =
+                &layer.asset_pack.atlases.at(tr->owning_atlas);
+            glm::vec2 uv0 = owning_atlas->atlas.to_uv(tr->offset);
+            glm::vec2 uv1 = uv0 + owning_atlas->atlas.to_uv(tr->size);
             if (ImGui::TextureFrame(
-                    "##Albedo", (ImTextureID)tex->id,
-                    [&tex, &mat]() {
+                    "##Albedo", (ImTextureID)owning_atlas->atlas.id,
+                    {uv0.x, uv0.y}, {uv1.x, uv1.y},
+                    [&tr, &mat]() {
                         ImGui::Text("Diffuse texture");
-                        ImGui::Text("%s", tex->name.c_str());
+                        ImGui::Text("%s", tr->file_name.c_str());
                         ImGui::ColorEdit4("Color", &mat.color[0],
                                           ImGuiColorEditFlags_NoInputs);
                     },
                     96.0f)) {
-                selected_id = &mat.albedo_texture_id;
+                selected_id = &mat.albedo_tex_record_id;
                 desired_format = TextureFormat::RGBA8;
                 ImGui::OpenPopup(avail_tex_group);
             }
 
-            tex = &layer.asset_pack.textures.at(mat.normal_texture_id);
+            tr = &layer.asset_pack.tex_records.at(mat.normal_tex_record_id);
+            owning_atlas = &layer.asset_pack.atlases.at(tr->owning_atlas);
+            uv0 = owning_atlas->atlas.to_uv(tr->offset);
+            uv1 = uv0 + owning_atlas->atlas.to_uv(tr->size);
             if (ImGui::TextureFrame(
-                    "##Normal", (ImTextureID)tex->id,
-                    [&tex]() {
+                    "##Normal", (ImTextureID)owning_atlas->atlas.id,
+                    {uv0.x, uv0.y}, {uv1.x, uv1.y},
+                    [&tr]() {
                         ImGui::Text("Normal texture");
-                        ImGui::Text("%s", tex->name.c_str());
+                        ImGui::Text("%s", tr->file_name.c_str());
                     },
                     96.0f)) {
-                selected_id = &mat.normal_texture_id;
+                selected_id = &mat.normal_tex_record_id;
                 desired_format = TextureFormat::RGB8;
                 ImGui::OpenPopup(avail_tex_group);
             }
 
-            tex = &layer.asset_pack.textures.at(mat.roughness_texture_id);
+            tr = &layer.asset_pack.tex_records.at(mat.roughness_tex_record_id);
+            owning_atlas = &layer.asset_pack.atlases.at(tr->owning_atlas);
+            uv0 = owning_atlas->atlas.to_uv(tr->offset);
+            uv1 = uv0 + owning_atlas->atlas.to_uv(tr->size);
             if (ImGui::TextureFrame(
-                    "##Roughness", (ImTextureID)tex->id,
-                    [&tex, &mat]() {
+                    "##Roughness", (ImTextureID)owning_atlas->atlas.id,
+                    {uv0.x, uv0.y}, {uv1.x, uv1.y},
+                    [&tr, &mat]() {
                         ImGui::Text("Roughness texture");
-                        ImGui::Text("%s", tex->name.c_str());
+                        ImGui::Text("%s", tr->file_name.c_str());
                         ImGui::PrettyDragFloat(
                             "Roughness", &mat.roughness, 0.01f, 0.0f, 1.0f,
                             "%0.2f", ImGui::CalcTextSize("Roughness").x);
                     },
                     96.0f)) {
-                selected_id = &mat.roughness_texture_id;
+                selected_id = &mat.roughness_tex_record_id;
                 desired_format = TextureFormat::R8;
                 ImGui::OpenPopup(avail_tex_group);
             }
 
-            tex = &layer.asset_pack.textures.at(mat.metallic_texture_id);
+            tr = &layer.asset_pack.tex_records.at(mat.metallic_tex_record_id);
+            owning_atlas = &layer.asset_pack.atlases.at(tr->owning_atlas);
+            uv0 = owning_atlas->atlas.to_uv(tr->offset);
+            uv1 = uv0 + owning_atlas->atlas.to_uv(tr->size);
             if (ImGui::TextureFrame(
-                    "##Metallic", (ImTextureID)tex->id,
-                    [&tex, &mat]() {
+                    "##Metallic", (ImTextureID)owning_atlas->atlas.id,
+                    {uv0.x, uv0.y}, {uv1.x, uv1.y},
+                    [&tr, &mat]() {
                         ImGui::Text("Metallic texture");
-                        ImGui::Text("%s", tex->name.c_str());
+                        ImGui::Text("%s", tr->file_name.c_str());
                         ImGui::PrettyDragFloat(
                             "Metallic", &mat.metallic, 0.01f, 0.0f, 1.0f,
                             "%0.2f", ImGui::CalcTextSize("Roughness").x);
                     },
                     96.0f)) {
-                selected_id = &mat.metallic_texture_id;
+                selected_id = &mat.metallic_tex_record_id;
                 desired_format = TextureFormat::R8;
                 ImGui::OpenPopup(avail_tex_group);
             }
 
-            tex = &layer.asset_pack.textures.at(mat.ao_texture_id);
+            tr = &layer.asset_pack.tex_records.at(mat.ao_tex_record_id);
+            owning_atlas = &layer.asset_pack.atlases.at(tr->owning_atlas);
+            uv0 = owning_atlas->atlas.to_uv(tr->offset);
+            uv1 = uv0 + owning_atlas->atlas.to_uv(tr->size);
             if (ImGui::TextureFrame(
-                    "##AO", (ImTextureID)tex->id,
-                    [&tex, &mat]() {
+                    "##AO", (ImTextureID)owning_atlas->atlas.id,
+                    {uv0.x, uv0.y}, {uv1.x, uv1.y},
+                    [&tr, &mat]() {
                         ImGui::Text("AO texture");
-                        ImGui::Text("%s", tex->name.c_str());
+                        ImGui::Text("%s", tr->file_name.c_str());
                         ImGui::PrettyDragFloat(
-                            "AO", &mat.ao, 0.01f, 0.0f, 1.0f,
-                            "%0.2f", ImGui::CalcTextSize("Roughness").x);
+                            "AO", &mat.ao, 0.01f, 0.0f, 1.0f, "%0.2f",
+                            ImGui::CalcTextSize("Roughness").x);
                     },
                     96.0f)) {
-                selected_id = &mat.ao_texture_id;
+                selected_id = &mat.ao_tex_record_id;
                 desired_format = TextureFormat::R8;
                 ImGui::OpenPopup(avail_tex_group);
             }
@@ -766,12 +790,22 @@ static void render_entity_panel(EditorLayer &layer) {
                 ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, {15.0f, 0.0f});
 
                 uint32_t count = 0;
-                for (const auto &[id, texture] : layer.asset_pack.textures) {
-                    ImGui::PushID(count);
+                for (const auto &[id, tex_record] :
+                     layer.asset_pack.tex_records) {
+                    eng::AtlasContext &owning_atlas =
+                        layer.asset_pack.atlases.at(tex_record.owning_atlas);
 
+                    if (owning_atlas.atlas.format != desired_format)
+                        continue;
+
+                    glm::vec2 uv0 = owning_atlas.atlas.to_uv(tex_record.offset);
+                    glm::vec2 uv1 =
+                        uv0 + owning_atlas.atlas.to_uv(tex_record.size);
+
+                    ImGui::PushID(count);
                     if (ImGui::ImageButton(
-                            "#Texture", (ImTextureID)(texture.id),
-                            {64.0f, 64.0f}, {0.0f, 1.0f}, {1.0f, 0.0f})) {
+                            "#Texture", (ImTextureID)(owning_atlas.atlas.id),
+                            {64.0f, 64.0f}, {uv0.x, uv0.y}, {uv1.x, uv1.y})) {
                         *selected_id = id;
                     }
 
@@ -809,9 +843,19 @@ static void render_entity_panel(EditorLayer &layer) {
                     std::string path =
                         ImGuiFileDialog::Instance()->GetFilePathName();
 
-                    Texture new_tex =
-                        Texture::create(path, desired_format);
-                    *selected_id = layer.asset_pack.add_texture(new_tex);
+                    TextureFormatDetails details =
+                        format_details(desired_format);
+
+                    int32_t width = 0;
+                    int32_t height = 0;
+                    int32_t bpp = 0;
+                    void *buffer = nullptr;
+                    stbi_set_flip_vertically_on_load(1);
+                    buffer = stbi_load(path.c_str(), &width, &height, &bpp,
+                                       details.bpp);
+
+                    *selected_id = layer.asset_pack.add_texture(
+                        buffer, width, height, desired_format, path);
                 }
 
                 ImGuiFileDialog::Instance()->Close();

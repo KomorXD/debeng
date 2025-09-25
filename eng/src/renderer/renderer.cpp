@@ -584,6 +584,9 @@ void shadow_pass_begin(const CameraData &camera, AssetPack &asset_pack) {
 }
 
 void shadow_pass_end() {
+    if (s_renderer.instances.empty())
+        return;
+
     s_renderer.dir_lights_uni_buffer.bind();
     s_renderer.point_lights_uni_buffer.bind();
     s_renderer.spot_lights_uni_buffer.bind();

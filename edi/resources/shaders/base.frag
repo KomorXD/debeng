@@ -80,22 +80,31 @@ layout (std140, binding = SOFT_SHADOW_PROPS_BINDING) uniform SoftShadowPropsUni 
     SoftShadowProps props;
 } u_soft_shadow_props;
 
+struct TexRecord {
+    vec2 offset;
+    vec2 size;
+    int layer;
+    int record_id;
+
+    vec2 padding;
+};
+
 struct Material {
     vec4 color;
     vec2 tiling_factor;
     vec2 texture_offset;
 
-    int albedo_idx;
-    int normal_idx;
+    TexRecord albedo_rec;
+    TexRecord normal_rec;
+    TexRecord roughness_rec;
+    TexRecord metallic_rec;
+    TexRecord ao_rec;
 
-    int roughness_idx;
     float roughness;
-
-    int metallic_idx;
     float metallic;
-
-    int ao_idx;
     float ao;
+
+    float padding;
 };
 
 layout (std140, binding = MATERIALS_BINDING) uniform Materials {
@@ -120,7 +129,9 @@ layout (std140, binding = CAMERA_BINDING) uniform Camera {
     float pad3;
 } u_camera;
 
-uniform sampler2D u_textures[MAX_TEXTURES];
+uniform sampler2D u_rgba_atlas;
+uniform sampler2D u_rgb_atlas;
+uniform sampler2D u_r_atlas;
 
 uniform float u_cascade_distances[CASCADES_COUNT];
 uniform sampler2DArrayShadow u_dir_lights_csm_shadowmaps;
@@ -259,14 +270,28 @@ void main() {
     picker_id = vec4(r, g, b, 1.0);
 
     Material mat = u_materials.materials[int(fs_in.material_idx)];
-    vec2 tex_coords
-        = fs_in.texture_uv * mat.tiling_factor + mat.texture_offset;
 
-    vec4 diffuse = texture(u_textures[mat.albedo_idx], tex_coords);
-    float roughness = texture(u_textures[mat.roughness_idx], tex_coords).r * mat.roughness;
-    float metallic = texture(u_textures[mat.metallic_idx], tex_coords).r * mat.metallic;
-    float ao = texture(u_textures[mat.ao_idx], tex_coords).r * mat.ao;
-    vec3 N = texture(u_textures[mat.normal_idx], tex_coords).rgb;
+    vec2 base_coords = fs_in.texture_uv * mat.tiling_factor + mat.texture_offset;
+    base_coords -= floor(base_coords);
+    vec2 tex_coords
+        = base_coords * mat.albedo_rec.size + mat.albedo_rec.offset;
+    vec4 diffuse = texture(u_rgba_atlas, tex_coords);
+
+    tex_coords
+        = base_coords * mat.roughness_rec.size + mat.roughness_rec.offset;
+    float roughness = texture(u_r_atlas, tex_coords).r * mat.roughness;
+
+    tex_coords
+        = base_coords * mat.metallic_rec.size + mat.metallic_rec.offset;
+    float metallic = texture(u_r_atlas, tex_coords).r * mat.metallic;
+
+    tex_coords
+        = base_coords * mat.ao_rec.size + mat.ao_rec.offset;
+    float ao = texture(u_r_atlas, tex_coords).r * mat.ao;
+
+    tex_coords
+        = base_coords * mat.normal_rec.size + mat.normal_rec.offset;
+    vec3 N = texture(u_rgb_atlas, tex_coords).rgb;
     N = N * 2.0 - 1.0;
 
     vec3 V = normalize(fs_in.tangent_view_position - fs_in.tangent_world_position);

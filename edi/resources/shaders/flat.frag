@@ -19,30 +19,40 @@ in VS_OUT {
 layout(location = 0) out vec4 final_color;
 layout(location = 1) out vec4 picker_id;
 
+struct TexRecord {
+    vec2 offset;
+    vec2 size;
+    int layer;
+    int record_id;
+
+    vec2 padding;
+};
+
 struct Material {
     vec4 color;
     vec2 tiling_factor;
     vec2 texture_offset;
 
-    int albedo_idx;
-    int normal_idx;
+    TexRecord albedo_rec;
+    TexRecord normal_rec;
+    TexRecord roughness_rec;
+    TexRecord metallic_rec;
+    TexRecord ao_rec;
 
-    int roughness_idx;
     float roughness;
-
-    int metallic_idx;
     float metallic;
-
-    int ao_index;
     float ao;
+
+    float padding;
 };
 
 layout (std140, binding = MATERIALS_BINDING) uniform Materials {
     Material materials[MAX_MATERIALS];
 } u_materials;
 
-uniform sampler2D u_textures[MAX_TEXTURES];
-uniform sampler2DArrayShadow u_point_lights_shadowmaps;
+uniform sampler2D u_rgba_atlas;
+uniform sampler2D u_rgb_atlas;
+uniform sampler2D u_r_atlas;
 
 void main() {
     int ent_id = int(fs_in.ent_id);
@@ -56,8 +66,8 @@ void main() {
 
     Material mat = u_materials.materials[int(fs_in.material_idx)];
     vec2 tex_coords
-        = fs_in.texture_uv * mat.tiling_factor + mat.texture_offset;
-    vec4 albedo = texture(u_textures[mat.albedo_idx], tex_coords) * mat.color;
+        = fs_in.texture_uv * mat.albedo_rec.size + mat.albedo_rec.offset;
+    vec4 albedo = texture(u_rgba_atlas, tex_coords) * mat.color;
 
     final_color = albedo;
     final_color.rgb *= fs_in.color_sens;

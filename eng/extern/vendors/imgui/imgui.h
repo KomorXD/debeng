@@ -640,8 +640,8 @@ namespace ImGui
     void BeginPrettyCombo(const char *label, const char *preview,
                           std::function<void(void)> combo_body_f,
                           float label_width = 64.0f);
-    bool TextureFrame(const char *label, ImTextureID tex_id,
-                      std::function<void(void)> info_body_func,
+    bool TextureFrame(const char *label, ImTextureID tex_id, ImVec2 uv0,
+                      ImVec2 uv1, std::function<void(void)> info_body_func,
                       float icon_size);
 
     // Widgets: Regular Sliders

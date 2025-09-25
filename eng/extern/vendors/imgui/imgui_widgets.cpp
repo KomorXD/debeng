@@ -3139,8 +3139,8 @@ void ImGui::BeginPrettyCombo(const char *label, const char *preview,
     }
 }
 
-bool ImGui::TextureFrame(const char *label, ImTextureID tex_id,
-                         std::function<void(void)> info_body_func,
+bool ImGui::TextureFrame(const char *label, ImTextureID tex_id, ImVec2 uv0,
+                         ImVec2 uv1, std::function<void(void)> info_body_func,
                          float icon_size) {
     bool pressed = false;
 
@@ -3152,9 +3152,8 @@ bool ImGui::TextureFrame(const char *label, ImTextureID tex_id,
         ImGui::TableNextColumn();
         ImGui::AlignTextToFramePadding();
         icon_size = std::max(0.0f, icon_size - 32.0f);
-        pressed =
-            ImGui::ImageButton(label, tex_id, ImVec2(icon_size, icon_size),
-                               {0.0f, 1.0f}, {1.0f, 0.0f});
+        pressed = ImGui::ImageButton(label, tex_id,
+                                     ImVec2(icon_size, icon_size), uv0, uv1);
 
         ImGui::TableNextColumn();
         info_body_func();

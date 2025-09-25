@@ -84,7 +84,7 @@ Result<Context *, ContextError> Context::create() {
         return {.error = ContextError::GLFW_FAIL};
 
     std::optional<eng::Window> window_opt =
-        eng::Window::create({1600, 900, "EDI DEBENG", true, false});
+        eng::Window::create({1600, 900, "EDI DEBENG", true, true});
     if (!window_opt.has_value())
         return {.error = ContextError::WINDOW_FAIL};
 

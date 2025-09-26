@@ -32,11 +32,11 @@ Mesh create_mesh(VertexData vertex_data) {
     layout.push_float(4); // 7 - transform
     layout.push_float(4); // 8 - transform
     layout.push_float(1); // 9 - material idx
-    layout.push_float(1); // 10 - entity idx
-    layout.push_float(1); // 11 - color sens
+    layout.push_float(1); // 10 - entity id
+    layout.push_float(1); // 11 - draw params idx
 
     vbo = VertexBuffer::create();
-    vbo.allocate(nullptr, 128 * sizeof(MeshInstance));
+    vbo.allocate(nullptr, renderer::MAX_MESH_INSTANCES * sizeof(MeshInstance));
     mesh.vao.add_instanced_vertex_buffer(vbo, layout, 5);
     mesh.vao.unbind();
 
@@ -156,6 +156,14 @@ AssetPack AssetPack::create(const std::string &pack_name) {
             {
                 "${MAX_TEXTURES}",
                 std::to_string(renderer::MAX_TEXTURES)
+            },
+            {
+                "${DRAW_PARAMS_BINDING}",
+                std::to_string(renderer::DRAW_PARAMS_BINDING)
+            },
+            {
+                "${MAX_DRAW_PARAMS}",
+                std::to_string(renderer::MAX_DRAW_PARAMS)
             }
         };
 
@@ -200,6 +208,14 @@ AssetPack AssetPack::create(const std::string &pack_name) {
             {
                 "${MAX_TEXTURES}",
                 std::to_string(renderer::MAX_TEXTURES)
+            },
+            {
+                "${DRAW_PARAMS_BINDING}",
+                std::to_string(renderer::DRAW_PARAMS_BINDING)
+            },
+            {
+                "${MAX_DRAW_PARAMS}",
+                std::to_string(renderer::MAX_DRAW_PARAMS)
             }
         };
 

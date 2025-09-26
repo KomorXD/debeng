@@ -64,6 +64,9 @@ struct Renderer {
 
     std::vector<AssetID> texture_ids;
 
+    UniformBuffer draw_params_uni_buffer;
+    std::vector<DrawParams> draw_params;
+
     ShaderGroupedInstances instances;
 };
 
@@ -382,6 +385,11 @@ bool init() {
     s_renderer.material_uni_buffer.bind_buffer_range(MATERIALS_BINDING, 0,
                                                      size);
 
+    size = MAX_DRAW_PARAMS * sizeof(DrawParams);
+    s_renderer.draw_params_uni_buffer = UniformBuffer::create(nullptr, size);
+    s_renderer.draw_params_uni_buffer.bind_buffer_range(DRAW_PARAMS_BINDING, 0,
+                                                        size);
+
     return true;
 }
 
@@ -392,6 +400,7 @@ void shutdown() {
     s_renderer.spot_lights_uni_buffer.destroy();
     s_renderer.soft_shadow_uni_buffer.destroy();
     s_renderer.material_uni_buffer.destroy();
+    s_renderer.draw_params_uni_buffer.destroy();
 
     s_renderer.shadow_fbo.destroy();
     s_renderer.dirlight_shadow_shader.destroy();
@@ -410,6 +419,7 @@ void scene_begin(const CameraData &camera, AssetPack &asset_pack) {
     s_renderer.spot_lights.clear();
     s_renderer.material_ids.clear();
     s_renderer.texture_ids.clear();
+    s_renderer.draw_params.clear();
 
     for (auto &[shader_id, instance_map] : s_renderer.instances) {
         for (auto &[mesh_id, instances] : instance_map)
@@ -505,6 +515,10 @@ void scene_end() {
     s_renderer.material_uni_buffer.set_data(materials.data(),
                                             count * sizeof(MaterialData));
 
+    count = s_renderer.draw_params.size();
+    s_renderer.draw_params_uni_buffer.set_data(s_renderer.draw_params.data(),
+                                               count * sizeof(DrawParams));
+
     for (int32_t i = 0; i < s_renderer.texture_ids.size(); i++) {
         AssetID tex_id = s_renderer.texture_ids[i];
         Texture &tex = s_asset_pack->textures.at(tex_id);
@@ -512,7 +526,6 @@ void scene_end() {
         tex.bind(i);
     }
 
-    /* TODO: assign IDS when texture atlas is ready. */
     s_renderer.shadow_fbo.bind_color_attachment(
         0, s_renderer.slots.dir_csm_shadowmaps);
     s_renderer.shadow_fbo.bind_color_attachment(
@@ -572,6 +585,7 @@ void shadow_pass_begin(const CameraData &camera, AssetPack &asset_pack) {
     s_renderer.spot_lights.clear();
     s_renderer.material_ids.clear();
     s_renderer.texture_ids.clear();
+    s_renderer.draw_params.clear();
 
     for (auto &[shader_id, instance_map] : s_renderer.instances) {
         for (auto &[mesh_id, instances] : instance_map)
@@ -666,7 +680,8 @@ void shadow_pass_end() {
 }
 
 void submit_mesh(const glm::mat4 &transform, AssetID mesh_id,
-                 AssetID material_id, int32_t ent_id, float color_sens) {
+                 AssetID material_id, int32_t ent_id,
+                 const DrawParams &params) {
     Material &mat = s_asset_pack->materials.at(material_id);
     InstancesMap &group = s_renderer.instances[mat.shader_id];
     std::vector<MeshInstance> &instances = group[mesh_id];
@@ -674,20 +689,29 @@ void submit_mesh(const glm::mat4 &transform, AssetID mesh_id,
     MeshInstance &instance = instances.emplace_back();
     instance.transform = transform;
     instance.entity_id = ent_id;
-    instance.color_sens = color_sens;
 
     std::vector<AssetID> &material_ids = s_renderer.material_ids;
-
     auto it =
         std::lower_bound(material_ids.begin(), material_ids.end(), material_id);
 
-    if (it != material_ids.end() && (*it) == material_id) {
+    if (it != material_ids.end() && (*it) == material_id)
         instance.material_idx = (float)std::distance(material_ids.begin(), it);
-        return;
+    else {
+        it = material_ids.insert(it, material_id);
+        instance.material_idx = std::distance(material_ids.begin(), it);
     }
 
-    it = material_ids.insert(it, material_id);
-    instance.material_idx = std::distance(material_ids.begin(), it);
+    std::vector<DrawParams> &draw_params = s_renderer.draw_params;
+    for (int32_t i = 0; i < draw_params.size(); i++) {
+        DrawParams &curr_params = draw_params[i];
+        if (memcmp(&curr_params, &params, sizeof(DrawParams)) == 0) {
+            instance.draw_params_idx = i;
+            return;
+        }
+    }
+
+    draw_params.push_back(params);
+    instance.draw_params_idx = draw_params.size() - 1;
 }
 
 void submit_shadow_pass_mesh(const glm::mat4 &transform, AssetID mesh_id) {

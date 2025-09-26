@@ -13,14 +13,12 @@ constexpr int32_t DIR_LIGHTS_BINDING = 1;
 constexpr int32_t POINT_LIGHTS_BINDING = 2;
 constexpr int32_t SPOT_LIGHTS_BINDING = 3;
 constexpr int32_t SOFT_SHADOW_PROPS_BINDING = 4;
-constexpr int32_t MATERIALS_BINDING = 5;
-constexpr int32_t DRAW_PARAMS_BINDING = 6;
+constexpr int32_t DRAW_PARAMS_BINDING = 5;
 
 constexpr int32_t MAX_MESH_INSTANCES = 128;
 constexpr int32_t MAX_DIR_LIGHTS = 4;
 constexpr int32_t MAX_POINT_LIGHTS = 32;
 constexpr int32_t MAX_SPOT_LIGHTS = 32;
-constexpr int32_t MAX_MATERIALS = 128;
 constexpr int32_t MAX_TEXTURES = 16;
 constexpr int32_t MAX_DRAW_PARAMS = 128;
 
@@ -84,17 +82,11 @@ struct MaterialData {
     glm::vec2 tiling_factor = glm::vec2(1.0f);
     glm::vec2 texture_offset = glm::vec2(0.0f);
 
-    int32_t albedo_idx = -1;
-    int32_t normal_idx = -1;
-
-    int32_t roughness_idx = -1;
     float roughness = -1.0f;
-
-    int32_t metallic_idx = -1;
     float metallic = -1.0f;
-
-    int32_t ao_idx = -1;
     float ao = -1.0f;
+
+    float padding;
 };
 
 struct DrawParams {

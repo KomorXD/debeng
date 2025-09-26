@@ -8,7 +8,6 @@ namespace eng {
 
 struct MeshInstance {
     glm::mat4 transform;
-    float material_idx = 0.0f;
     float entity_id = 0.0f;
     float draw_params_idx = 0.0f;
 };

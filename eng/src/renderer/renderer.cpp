@@ -6,7 +6,6 @@
 #include "glm/fwd.hpp"
 #include "glm/gtc/constants.hpp"
 
-#include <algorithm>
 #include <cstring>
 #include <random>
 #include <vector>
@@ -28,8 +27,9 @@ struct GPU {
     int32_t max_geom_invocations = 0;
 };
 
-using InstancesMap = std::unordered_map<AssetID, std::vector<MeshInstance>>;
-using ShaderGroupedInstances = std::unordered_map<AssetID, InstancesMap>;
+using MeshGroup = std::unordered_map<AssetID, std::vector<MeshInstance>>;
+using MaterialGroup = std::unordered_map<AssetID, MeshGroup>;
+using ShaderGroup = std::unordered_map<AssetID, MaterialGroup>;
 
 struct Renderer {
     GPU gpu;
@@ -59,15 +59,10 @@ struct Renderer {
     SoftShadowProps soft_shadow_props;
     SoftShadowProps cached_soft_shadow_props;
 
-    UniformBuffer material_uni_buffer;
-    std::vector<AssetID> material_ids;
-
-    std::vector<AssetID> texture_ids;
-
     UniformBuffer draw_params_uni_buffer;
     std::vector<DrawParams> draw_params;
 
-    ShaderGroupedInstances instances;
+    ShaderGroup shader_render_group;
 };
 
 static Renderer s_renderer{};
@@ -380,11 +375,6 @@ bool init() {
 
     soft_shadow_random_offset_texture_create();
 
-    size = MAX_MATERIALS * sizeof(MaterialData);
-    s_renderer.material_uni_buffer = UniformBuffer::create(nullptr, size);
-    s_renderer.material_uni_buffer.bind_buffer_range(MATERIALS_BINDING, 0,
-                                                     size);
-
     size = MAX_DRAW_PARAMS * sizeof(DrawParams);
     s_renderer.draw_params_uni_buffer = UniformBuffer::create(nullptr, size);
     s_renderer.draw_params_uni_buffer.bind_buffer_range(DRAW_PARAMS_BINDING, 0,
@@ -399,7 +389,6 @@ void shutdown() {
     s_renderer.point_lights_uni_buffer.destroy();
     s_renderer.spot_lights_uni_buffer.destroy();
     s_renderer.soft_shadow_uni_buffer.destroy();
-    s_renderer.material_uni_buffer.destroy();
     s_renderer.draw_params_uni_buffer.destroy();
 
     s_renderer.shadow_fbo.destroy();
@@ -417,18 +406,20 @@ void scene_begin(const CameraData &camera, AssetPack &asset_pack) {
     s_renderer.dir_lights.clear();
     s_renderer.point_lights.clear();
     s_renderer.spot_lights.clear();
-    s_renderer.material_ids.clear();
-    s_renderer.texture_ids.clear();
     s_renderer.draw_params.clear();
 
-    for (auto &[shader_id, instance_map] : s_renderer.instances) {
-        for (auto &[mesh_id, instances] : instance_map)
-            instances.clear();
+    for (auto &[shader_id, shader_group] : s_renderer.shader_render_group) {
+        for (auto &[mat_id, mat_group] : shader_group) {
+            for (auto &[mesh_id, instances] : mat_group)
+                instances.clear();
 
-        instance_map.clear();
+            mat_group.clear();
+        }
+
+        shader_group.clear();
     }
 
-    s_renderer.instances.clear();
+    s_renderer.shader_render_group.clear();
 
     s_renderer.camera_uni_buffer.bind();
     s_renderer.camera_uni_buffer.set_data(&camera, sizeof(CameraData));
@@ -450,18 +441,20 @@ void scene_end() {
     s_renderer.dir_lights_uni_buffer.bind();
     s_renderer.point_lights_uni_buffer.bind();
     s_renderer.spot_lights_uni_buffer.bind();
+    s_renderer.draw_params_uni_buffer.bind();
 
     int32_t count = s_renderer.dir_lights.size();
     int32_t offset = MAX_DIR_LIGHTS * sizeof(DirLightData);
     s_renderer.dir_lights_uni_buffer.set_data(s_renderer.dir_lights.data(),
-                                                count * sizeof(DirLightData));
+                                              count * sizeof(DirLightData));
     s_renderer.dir_lights_uni_buffer.set_data(&count, sizeof(int32_t), offset);
 
     count = s_renderer.point_lights.size();
     offset = MAX_POINT_LIGHTS * sizeof(PointLightData);
     s_renderer.point_lights_uni_buffer.set_data(s_renderer.point_lights.data(),
                                                 count * sizeof(PointLightData));
-    s_renderer.point_lights_uni_buffer.set_data(&count, sizeof(int32_t), offset);
+    s_renderer.point_lights_uni_buffer.set_data(&count, sizeof(int32_t),
+                                                offset);
 
     count = s_renderer.spot_lights.size();
     offset = MAX_SPOT_LIGHTS * sizeof(SpotLightData);
@@ -469,62 +462,9 @@ void scene_end() {
                                                count * sizeof(SpotLightData));
     s_renderer.spot_lights_uni_buffer.set_data(&count, sizeof(int32_t), offset);
 
-    std::vector<MaterialData> materials;
-    materials.reserve(s_renderer.material_ids.size());
-
-    for (AssetID id : s_renderer.material_ids) {
-        Material &mat = s_asset_pack->materials.at(id);
-        MaterialData &mat_data = materials.emplace_back();
-        mat_data.color = mat.color;
-        mat_data.tiling_factor = mat.tiling_factor;
-        mat_data.texture_offset = mat.texture_offset;
-        mat_data.roughness = mat.roughness;
-        mat_data.metallic = mat.metallic;
-        mat_data.ao = mat.ao;
-
-        AssetID *material_tex_ids[] = {
-            &mat.albedo_texture_id, &mat.normal_texture_id,
-            &mat.roughness_texture_id, &mat.metallic_texture_id,
-            &mat.ao_texture_id};
-        int32_t *buffer_tex_ids[] = {&mat_data.albedo_idx, &mat_data.normal_idx,
-                                     &mat_data.roughness_idx,
-                                     &mat_data.metallic_idx, &mat_data.ao_idx};
-        constexpr int32_t IDS_SIZE =
-            sizeof(material_tex_ids) / sizeof(material_tex_ids[0]);
-
-        std::vector<AssetID> &texture_ids = s_renderer.texture_ids;
-        for (int32_t i = 0; i < IDS_SIZE; i++) {
-            AssetID *material_tex_id = material_tex_ids[i];
-            int32_t *buffer_tex_id = buffer_tex_ids[i];
-
-            for (int32_t i = 0; i < texture_ids.size(); i++) {
-                if (texture_ids[i] == *material_tex_id) {
-                    *buffer_tex_id = i;
-                    break;
-                }
-            }
-
-            if (*buffer_tex_id == -1) {
-                *buffer_tex_id = texture_ids.size();
-                texture_ids.push_back(*material_tex_id);
-            }
-        }
-    }
-
-    count = materials.size();
-    s_renderer.material_uni_buffer.set_data(materials.data(),
-                                            count * sizeof(MaterialData));
-
     count = s_renderer.draw_params.size();
     s_renderer.draw_params_uni_buffer.set_data(s_renderer.draw_params.data(),
                                                count * sizeof(DrawParams));
-
-    for (int32_t i = 0; i < s_renderer.texture_ids.size(); i++) {
-        AssetID tex_id = s_renderer.texture_ids[i];
-        Texture &tex = s_asset_pack->textures.at(tex_id);
-
-        tex.bind(i);
-    }
 
     s_renderer.shadow_fbo.bind_color_attachment(
         0, s_renderer.slots.dir_csm_shadowmaps);
@@ -538,17 +478,11 @@ void scene_end() {
     GL_CALL(glBindTexture(GL_TEXTURE_3D, s_renderer.random_offset_tex_id));
 
     std::array<float, CASCADES_COUNT> cascade_distances = {
-        s_active_camera->far_clip / 50.0f,
-        s_active_camera->far_clip / 25.0f,
-        s_active_camera->far_clip / 10.0f,
-        s_active_camera->far_clip / 2.0f,
-        s_active_camera->far_clip
-    };
+        s_active_camera->far_clip / 50.0f, s_active_camera->far_clip / 25.0f,
+        s_active_camera->far_clip / 10.0f, s_active_camera->far_clip / 2.0f,
+        s_active_camera->far_clip};
 
-    for (auto &[shader_id, instance_map] : s_renderer.instances) {
-        if (instance_map.empty())
-            continue;
-
+    for (auto &[shader_id, material_group] : s_renderer.shader_render_group) {
         Shader &curr_shader = s_asset_pack->shaders.at(shader_id);
         curr_shader.bind();
 
@@ -557,21 +491,34 @@ void scene_end() {
                                                std::to_string(i) + "]",
                                            cascade_distances[i]);
 
-        /*  When I make textures into a texture atlas we will make it
-         *  better... */
-        for (int32_t i = 0; i < s_renderer.texture_ids.size(); i++) {
-            curr_shader.set_uniform_1i("u_textures[" + std::to_string(i) + "]",
-                                       i);
-        }
+        for (auto &[mat_id, mesh_group] : material_group) {
+            Material &mat = s_asset_pack->materials.at(mat_id);
+            curr_shader.try_set_uniform_4f("u_material.color", mat.color);
+            curr_shader.try_set_uniform_2f("u_material.tiling_factor",
+                                           mat.tiling_factor);
+            curr_shader.try_set_uniform_2f("u_material.texture_offset",
+                                           mat.texture_offset);
+            curr_shader.try_set_uniform_1f("u_material.roughness",
+                                           mat.roughness);
+            curr_shader.try_set_uniform_1f("u_material.metallic", mat.metallic);
+            curr_shader.try_set_uniform_1f("u_material.ao", mat.ao);
 
-        for (auto &[mesh_id, instances] : instance_map) {
-            if (instances.empty())
-                continue;
+            std::array<AssetID, 5> tex_ids = {
+                mat.albedo_texture_id, mat.normal_texture_id,
+                mat.roughness_texture_id, mat.metallic_texture_id,
+                mat.ao_texture_id};
+            for (int32_t i = 0; i < tex_ids.size(); i++) {
+                Texture &tex = s_asset_pack->textures.at(tex_ids[i]);
+                tex.bind(i);
+            }
 
-            Mesh &mesh = s_asset_pack->meshes.at(mesh_id);
-            mesh.vao.vbo_instanced.set_data(
-                instances.data(), instances.size() * sizeof(MeshInstance));
-            draw_elements_instanced(curr_shader, mesh.vao, instances.size());
+            for (auto &[mesh_id, instances] : mesh_group) {
+                Mesh &mesh = s_asset_pack->meshes.at(mesh_id);
+                mesh.vao.vbo_instanced.set_data(
+                    instances.data(), instances.size() * sizeof(MeshInstance));
+                draw_elements_instanced(curr_shader, mesh.vao,
+                                        instances.size());
+            }
         }
     }
 }
@@ -583,22 +530,24 @@ void shadow_pass_begin(const CameraData &camera, AssetPack &asset_pack) {
     s_renderer.dir_lights.clear();
     s_renderer.point_lights.clear();
     s_renderer.spot_lights.clear();
-    s_renderer.material_ids.clear();
-    s_renderer.texture_ids.clear();
     s_renderer.draw_params.clear();
 
-    for (auto &[shader_id, instance_map] : s_renderer.instances) {
-        for (auto &[mesh_id, instances] : instance_map)
-            instances.clear();
+    for (auto &[shader_id, shader_group] : s_renderer.shader_render_group) {
+        for (auto &[mat_id, mat_group] : shader_group) {
+            for (auto &[mesh_id, instances] : mat_group)
+                instances.clear();
 
-        instance_map.clear();
+            mat_group.clear();
+        }
+
+        shader_group.clear();
     }
 
-    s_renderer.instances.clear();
+    s_renderer.shader_render_group.clear();
 }
 
 void shadow_pass_end() {
-    if (s_renderer.instances.empty())
+    if (s_renderer.shader_render_group.empty())
         return;
 
     s_renderer.dir_lights_uni_buffer.bind();
@@ -623,14 +572,15 @@ void shadow_pass_end() {
                                                count * sizeof(SpotLightData));
     s_renderer.spot_lights_uni_buffer.set_data(&count, sizeof(int32_t), offset);
 
-    assert(s_renderer.instances.size() == 1 &&
-           "More than 1 shader_id (shadow one) submitted");
+    assert(s_renderer.shader_render_group.size() == 1 &&
+           "More than 1 shader submitted for shadow pass");
 
-    InstancesMap &instance_map = s_renderer.instances[0];
-    for (auto &[mesh_id, instances] : instance_map) {
-        if (instances.empty())
-            continue;
+    MaterialGroup &material_group = s_renderer.shader_render_group[0];
+    assert(material_group.size() == 1 &&
+           "More than 1 material submitted for shadow pass");
 
+    MeshGroup &mesh_group = material_group[0];
+    for (auto &[mesh_id, instances] : mesh_group) {
         Mesh &mesh = s_asset_pack->meshes.at(mesh_id);
         mesh.vao.vbo_instanced.set_data(
             instances.data(), instances.size() * sizeof(MeshInstance));
@@ -643,7 +593,7 @@ void shadow_pass_end() {
     s_renderer.shadow_fbo.draw_to_depth_map(0);
     GL_CALL(glClear(GL_DEPTH_BUFFER_BIT));
     s_renderer.dirlight_shadow_shader.bind();
-    for (auto &[mesh_id, instances] : instance_map) {
+    for (auto &[mesh_id, instances] : mesh_group) {
         if (instances.empty())
             continue;
 
@@ -655,7 +605,7 @@ void shadow_pass_end() {
     s_renderer.shadow_fbo.draw_to_depth_map(1);
     GL_CALL(glClear(GL_DEPTH_BUFFER_BIT));
     s_renderer.pointlight_shadow_shader.bind();
-    for (auto &[mesh_id, instances] : instance_map) {
+    for (auto &[mesh_id, instances] : mesh_group) {
         if (instances.empty())
             continue;
 
@@ -667,7 +617,7 @@ void shadow_pass_end() {
     s_renderer.shadow_fbo.draw_to_depth_map(2);
     GL_CALL(glClear(GL_DEPTH_BUFFER_BIT));
     s_renderer.spotlight_shadow_shader.bind();
-    for (auto &[mesh_id, instances] : instance_map) {
+    for (auto &[mesh_id, instances] : mesh_group) {
         if (instances.empty())
             continue;
 
@@ -683,23 +633,13 @@ void submit_mesh(const glm::mat4 &transform, AssetID mesh_id,
                  AssetID material_id, int32_t ent_id,
                  const DrawParams &params) {
     Material &mat = s_asset_pack->materials.at(material_id);
-    InstancesMap &group = s_renderer.instances[mat.shader_id];
-    std::vector<MeshInstance> &instances = group[mesh_id];
+    MaterialGroup &mat_grp = s_renderer.shader_render_group[mat.shader_id];
+    MeshGroup &mesh_grp = mat_grp[material_id];
+    std::vector<MeshInstance> &instances = mesh_grp[mesh_id];
 
     MeshInstance &instance = instances.emplace_back();
     instance.transform = transform;
     instance.entity_id = ent_id;
-
-    std::vector<AssetID> &material_ids = s_renderer.material_ids;
-    auto it =
-        std::lower_bound(material_ids.begin(), material_ids.end(), material_id);
-
-    if (it != material_ids.end() && (*it) == material_id)
-        instance.material_idx = (float)std::distance(material_ids.begin(), it);
-    else {
-        it = material_ids.insert(it, material_id);
-        instance.material_idx = std::distance(material_ids.begin(), it);
-    }
 
     std::vector<DrawParams> &draw_params = s_renderer.draw_params;
     for (int32_t i = 0; i < draw_params.size(); i++) {
@@ -716,8 +656,9 @@ void submit_mesh(const glm::mat4 &transform, AssetID mesh_id,
 
 void submit_shadow_pass_mesh(const glm::mat4 &transform, AssetID mesh_id) {
     /* Only one shader in use at a time in shadow passes. */
-    InstancesMap &group = s_renderer.instances[0];
-    std::vector<MeshInstance> &instances = group[mesh_id];
+    MaterialGroup &mat_grp = s_renderer.shader_render_group[0];
+    MeshGroup &mesh_grp = mat_grp[0];
+    std::vector<MeshInstance> &instances = mesh_grp[mesh_id];
 
     MeshInstance &instance = instances.emplace_back();
     instance.transform = transform;

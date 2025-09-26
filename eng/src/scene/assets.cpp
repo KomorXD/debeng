@@ -31,9 +31,8 @@ Mesh create_mesh(VertexData vertex_data) {
     layout.push_float(4); // 6 - transform
     layout.push_float(4); // 7 - transform
     layout.push_float(4); // 8 - transform
-    layout.push_float(1); // 9 - material idx
-    layout.push_float(1); // 10 - entity id
-    layout.push_float(1); // 11 - draw params idx
+    layout.push_float(1); // 9 - entity id
+    layout.push_float(1); // 10 - draw params idx
 
     vbo = VertexBuffer::create();
     vbo.allocate(nullptr, renderer::MAX_MESH_INSTANCES * sizeof(MeshInstance));
@@ -146,14 +145,6 @@ AssetPack AssetPack::create(const std::string &pack_name) {
                 std::to_string(renderer::SOFT_SHADOW_PROPS_BINDING)
             },
             {
-                "${MATERIALS_BINDING}",
-                std::to_string(renderer::MATERIALS_BINDING)
-            },
-            {
-                "${MAX_MATERIALS}",
-                std::to_string(renderer::MAX_MATERIALS)
-            },
-            {
                 "${MAX_TEXTURES}",
                 std::to_string(renderer::MAX_TEXTURES)
             },
@@ -180,6 +171,11 @@ AssetPack AssetPack::create(const std::string &pack_name) {
         base_shader.set_uniform_1i("u_soft_shadow_offsets_texture",
                                    slots.random_offsets_texture);
 
+        std::array<const char *, 5> unis = {
+            "u_albedo", "u_normal", "u_roughness", "u_metallic", "u_ao"};
+        for (int32_t i = 0; i < unis.size(); i++)
+            base_shader.set_uniform_1i(unis[i], i);
+
         (void)pack.add_shader(base_shader);
     }
 
@@ -198,14 +194,6 @@ AssetPack AssetPack::create(const std::string &pack_name) {
         spec.fragment_shader.path = "resources/shaders/flat.frag";
         spec.fragment_shader.replacements = {
             {
-                "${MATERIALS_BINDING}",
-                std::to_string(renderer::MATERIALS_BINDING)
-            },
-            {
-                "${MAX_MATERIALS}",
-                std::to_string(renderer::MAX_MATERIALS)
-            },
-            {
                 "${MAX_TEXTURES}",
                 std::to_string(renderer::MAX_TEXTURES)
             },
@@ -220,6 +208,9 @@ AssetPack AssetPack::create(const std::string &pack_name) {
         };
 
         assert(flat_shader.build(spec) && "Default shaders not found");
+
+        flat_shader.bind();
+        flat_shader.set_uniform_1i("u_albedo", 0);
 
         (void)pack.add_shader(flat_shader);
     }

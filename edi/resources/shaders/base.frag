@@ -14,11 +14,6 @@
 
 #define SOFT_SHADOW_PROPS_BINDING ${SOFT_SHADOW_PROPS_BINDING}
 
-#define MATERIALS_BINDING ${MATERIALS_BINDING}
-#define MAX_MATERIALS ${MAX_MATERIALS}
-
-#define MAX_TEXTURES ${MAX_TEXTURES}
-
 #define DRAW_PARAMS_BINDING ${DRAW_PARAMS_BINDING}
 #define MAX_DRAW_PARAMS ${MAX_DRAW_PARAMS}
 
@@ -30,7 +25,6 @@ in VS_OUT {
     vec3 tangent_world_position;
     vec3 tangent_view_position;
     vec2 texture_uv;
-    flat float material_idx;
     flat float ent_id;
     flat float draw_params_idx;
 } fs_in;
@@ -83,28 +77,6 @@ layout (std140, binding = SOFT_SHADOW_PROPS_BINDING) uniform SoftShadowPropsUni 
     SoftShadowProps props;
 } u_soft_shadow_props;
 
-struct Material {
-    vec4 color;
-    vec2 tiling_factor;
-    vec2 texture_offset;
-
-    int albedo_idx;
-    int normal_idx;
-
-    int roughness_idx;
-    float roughness;
-
-    int metallic_idx;
-    float metallic;
-
-    int ao_idx;
-    float ao;
-};
-
-layout (std140, binding = MATERIALS_BINDING) uniform Materials {
-    Material materials[MAX_MATERIALS];
-} u_materials;
-
 struct DrawParams {
     float color_intensity;
 
@@ -135,7 +107,24 @@ layout (std140, binding = CAMERA_BINDING) uniform Camera {
     float pad3;
 } u_camera;
 
-uniform sampler2D u_textures[MAX_TEXTURES];
+struct Material {
+    vec4 color;
+    vec2 tiling_factor;
+    vec2 texture_offset;
+
+    float roughness;
+    float metallic;
+    float ao;
+
+    float padding;
+};
+
+uniform Material u_material;
+uniform sampler2D u_albedo;
+uniform sampler2D u_normal;
+uniform sampler2D u_roughness;
+uniform sampler2D u_metallic;
+uniform sampler2D u_ao;
 
 uniform float u_cascade_distances[CASCADES_COUNT];
 uniform sampler2DArrayShadow u_dir_lights_csm_shadowmaps;
@@ -273,16 +262,16 @@ void main() {
     float b = float(b_int) / 255.0;
     picker_id = vec4(r, g, b, 1.0);
 
-    Material mat = u_materials.materials[int(fs_in.material_idx)];
     vec2 tex_coords
-        = fs_in.texture_uv * mat.tiling_factor + mat.texture_offset;
+        = fs_in.texture_uv * u_material.tiling_factor + u_material.texture_offset;
 
-    vec4 diffuse = texture(u_textures[mat.albedo_idx], tex_coords);
-    float roughness = texture(u_textures[mat.roughness_idx], tex_coords).r * mat.roughness;
-    float metallic = texture(u_textures[mat.metallic_idx], tex_coords).r * mat.metallic;
-    float ao = texture(u_textures[mat.ao_idx], tex_coords).r * mat.ao;
-    vec3 N = texture(u_textures[mat.normal_idx], tex_coords).rgb;
+    vec4 diffuse = texture(u_albedo, tex_coords);
+    vec3 N = texture(u_normal, tex_coords).rgb;
     N = N * 2.0 - 1.0;
+
+    float roughness = texture(u_roughness, tex_coords).r * u_material.roughness;
+    float metallic = texture(u_metallic, tex_coords).r * u_material.metallic;
+    float ao = texture(u_ao, tex_coords).r * u_material.ao;
 
     vec3 V = normalize(fs_in.tangent_view_position - fs_in.tangent_world_position);
 
@@ -395,9 +384,9 @@ void main() {
         }
     }
 
-    final_color.rgb = (0.1 + Lo) * mat.color.rgb * ao;
+    final_color.rgb = (0.1 + Lo) * u_material.color.rgb * ao;
 
     DrawParams params = u_draw_params.params[int(fs_in.draw_params_idx)];
     final_color.rgb *= max(1.0, params.color_intensity);
-    final_color.a = diffuse.a * mat.color.a;
+    final_color.a = diffuse.a * u_material.color.a;
 }

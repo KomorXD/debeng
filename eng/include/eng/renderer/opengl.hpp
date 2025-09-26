@@ -73,21 +73,22 @@ struct Shader {
     get_uniform_location(const std::string &name);
 
     void set_uniform_1i(const std::string &name, int32_t val);
-
-    /* set_uniform_1i version that won't print an error if uniform is not found.
-     */
     void try_set_uniform_1i(const std::string &name, int32_t val);
 
     void set_uniform_1f(const std::string &name, float val);
-
-    /* set_uniform_1f version that won't print an error if uniform is not found.
-     */
     void try_set_uniform_1f(const std::string &name, float val);
 
     void set_uniform_2f(const std::string &name, const glm::vec2 &val);
+    void try_set_uniform_2f(const std::string &name, const glm::vec2 &val);
+
     void set_uniform_3f(const std::string &name, const glm::vec3 &val);
+    void try_set_uniform_3f(const std::string &name, const glm::vec3 &val);
+
     void set_uniform_4f(const std::string &name, const glm::vec4 &val);
+    void try_set_uniform_4f(const std::string &name, const glm::vec4 &val);
+
     void set_uniform_mat4(const std::string &name, const glm::mat4 &val);
+    void try_set_uniform_mat4(const std::string &name, const glm::mat4 &val);
 
     std::string name;
     GLuint id = 0;

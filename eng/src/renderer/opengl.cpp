@@ -220,7 +220,7 @@ void Shader::set_uniform_1i(const std::string &name, int32_t val) {
     assert(id != 0 && "Trying to set uniform of invalid shader object");
 
     std::optional<GLint> loc = get_uniform_location(name);
-    if(!loc.has_value()) {
+    if (!loc.has_value()) {
         fprintf(stderr, "Unable to get location of uniform '%s'\r\n",
                 name.c_str());
         return;
@@ -243,7 +243,7 @@ void Shader::set_uniform_1f(const std::string &name, float val) {
     assert(id != 0 && "Trying to set uniform of invalid shader object");
 
     std::optional<GLint> loc = get_uniform_location(name);
-    if(!loc.has_value()) {
+    if (!loc.has_value()) {
         fprintf(stderr, "Unable to get location of uniform '%s'\r\n",
                 name.c_str());
         return;
@@ -266,7 +266,7 @@ void Shader::set_uniform_2f(const std::string &name, const glm::vec2 &val) {
     assert(id != 0 && "Trying to set uniform of invalid shader object");
 
     std::optional<GLint> loc = get_uniform_location(name);
-    if(!loc.has_value()) {
+    if (!loc.has_value()) {
         fprintf(stderr, "Unable to get location of uniform '%s'\r\n",
                 name.c_str());
         return;
@@ -275,11 +275,21 @@ void Shader::set_uniform_2f(const std::string &name, const glm::vec2 &val) {
     GL_CALL(glUniform2f(loc.value(), val.x, val.y));
 }
 
+void Shader::try_set_uniform_2f(const std::string &name, const glm::vec2 &val) {
+    assert(id != 0 && "Trying to set uniform of invalid shader object");
+
+    std::optional<GLint> loc = get_uniform_location(name);
+    if (!loc.has_value())
+        return;
+
+    GL_CALL(glUniform2f(loc.value(), val.x, val.y));
+}
+
 void Shader::set_uniform_3f(const std::string &name, const glm::vec3 &val) {
     assert(id != 0 && "Trying to set uniform of invalid shader object");
 
     std::optional<GLint> loc = get_uniform_location(name);
-    if(!loc.has_value()) {
+    if (!loc.has_value()) {
         fprintf(stderr, "Unable to get location of uniform '%s'\r\n",
                 name.c_str());
         return;
@@ -288,11 +298,21 @@ void Shader::set_uniform_3f(const std::string &name, const glm::vec3 &val) {
     GL_CALL(glUniform3f(loc.value(), val.x, val.y, val.z));
 }
 
+void Shader::try_set_uniform_3f(const std::string &name, const glm::vec3 &val) {
+    assert(id != 0 && "Trying to set uniform of invalid shader object");
+
+    std::optional<GLint> loc = get_uniform_location(name);
+    if (!loc.has_value())
+        return;
+
+    GL_CALL(glUniform3f(loc.value(), val.x, val.y, val.z));
+}
+
 void Shader::set_uniform_4f(const std::string &name, const glm::vec4 &val) {
     assert(id != 0 && "Trying to set uniform of invalid shader object");
 
     std::optional<GLint> loc = get_uniform_location(name);
-    if(!loc.has_value()) {
+    if (!loc.has_value()) {
         fprintf(stderr, "Unable to get location of uniform '%s'\r\n",
                 name.c_str());
         return;
@@ -301,15 +321,36 @@ void Shader::set_uniform_4f(const std::string &name, const glm::vec4 &val) {
     GL_CALL(glUniform4f(loc.value(), val.x, val.y, val.z, val.w));
 }
 
+void Shader::try_set_uniform_4f(const std::string &name, const glm::vec4 &val) {
+    assert(id != 0 && "Trying to set uniform of invalid shader object");
+
+    std::optional<GLint> loc = get_uniform_location(name);
+    if (!loc.has_value())
+        return;
+
+    GL_CALL(glUniform4f(loc.value(), val.x, val.y, val.z, val.w));
+}
+
 void Shader::set_uniform_mat4(const std::string &name, const glm::mat4 &val) {
     assert(id != 0 && "Trying to set uniform of invalid shader object");
 
     std::optional<GLint> loc = get_uniform_location(name);
-    if(!loc.has_value()) {
+    if (!loc.has_value()) {
         fprintf(stderr, "Unable to get location of uniform '%s'\r\n",
                 name.c_str());
         return;
     }
+
+    GL_CALL(glUniformMatrix4fv(loc.value(), 1, GL_FALSE, &val[0][0]));
+}
+
+void Shader::try_set_uniform_mat4(const std::string &name,
+                                  const glm::mat4 &val) {
+    assert(id != 0 && "Trying to set uniform of invalid shader object");
+
+    std::optional<GLint> loc = get_uniform_location(name);
+    if (!loc.has_value())
+        return;
 
     GL_CALL(glUniformMatrix4fv(loc.value(), 1, GL_FALSE, &val[0][0]));
 }

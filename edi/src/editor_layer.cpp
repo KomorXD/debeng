@@ -667,7 +667,38 @@ static void render_entity_panel(EditorLayer &layer) {
 
         if (ImGui::CollapsingHeader("Material",
                                     ImGuiTreeNodeFlags_DefaultOpen)) {
+
             ImGui::Indent(8.0f);
+
+            if (ImGui::PrettyButton("New material")) {
+                eng::Material new_mat;
+                new_mat.name = "New material";
+                new_mat.shader_id = eng::AssetPack::DEFAULT_BASE_MATERIAL;
+
+                mat_comp.id = layer.asset_pack.add_material(new_mat);
+            }
+
+            /* TODO: move outline stuff to renderer. */
+            if (mat_comp.id > eng::AssetPack::DEFAULT_FLAT_MATERIAL &&
+                mat_comp.id != layer.outline_material) {
+                ImGui::SameLine();
+
+                if (ImGui::PrettyButton("Delete material")) {
+                    layer.asset_pack.materials.erase(mat_comp.id);
+
+                    eng::ecs::RegistryView rview =
+                        layer.scene.registry.view<eng::MaterialComp>();
+                    for (eng::ecs::RegistryView::Entry &entry :
+                         rview.entity_entries) {
+                        eng::MaterialComp &comp =
+                            rview.get<eng::MaterialComp>(entry);
+
+                        if (comp.id == mat_comp.id)
+                            comp.id = eng::AssetPack::DEFAULT_BASE_MATERIAL;
+                    }
+                }
+            }
+
             ImGui::BeginPrettyCombo(
                 "Material", mat.name.c_str(), [&layer, &mat_comp]() {
                     const std::map<eng::AssetID, eng::Material> &materials =

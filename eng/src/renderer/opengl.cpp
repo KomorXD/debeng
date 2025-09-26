@@ -209,8 +209,10 @@ std::optional<GLint> Shader::get_uniform_location(const std::string &name) {
         return uniform_cache[name];
 
     GL_CALL(GLint loc = glGetUniformLocation(id, name.c_str()));
-    if (loc == -1)
-        return {};
+    if (loc == -1) {
+        uniform_cache[name] = std::nullopt;
+        return std::nullopt;
+    }
 
     uniform_cache[name] = loc;
     return loc;

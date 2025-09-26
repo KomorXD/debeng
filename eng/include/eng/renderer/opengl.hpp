@@ -92,7 +92,7 @@ struct Shader {
 
     std::string name;
     GLuint id = 0;
-    std::unordered_map<std::string, GLint> uniform_cache;
+    std::unordered_map<std::string, std::optional<GLint>> uniform_cache;
 };
 
 struct VertexBufferElement {

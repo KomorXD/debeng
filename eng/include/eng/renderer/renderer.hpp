@@ -25,6 +25,11 @@ constexpr int32_t MAX_DRAW_PARAMS = 128;
 constexpr int32_t CASCADES_COUNT = 5;
 
 struct TextureSlots {
+    int32_t albedo{};
+    int32_t normal{};
+    int32_t roughness{};
+    int32_t metallic{};
+    int32_t ao{};
     int32_t dir_csm_shadowmaps{};
     int32_t point_lights_shadowmaps{};
     int32_t spot_lights_shadowmaps{};

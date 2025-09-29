@@ -161,20 +161,28 @@ AssetPack AssetPack::create(const std::string &pack_name) {
         assert(base_shader.build(spec) && "Default shaders not found");
 
         renderer::TextureSlots slots = eng::renderer::texture_slots();
-        base_shader.bind();
-        base_shader.set_uniform_1i("u_dir_lights_csm_shadowmaps",
-                                   slots.dir_csm_shadowmaps);
-        base_shader.set_uniform_1i("u_point_lights_shadowmaps",
-                                   slots.point_lights_shadowmaps);
-        base_shader.set_uniform_1i("u_spot_lights_shadowmaps",
-                                   slots.spot_lights_shadowmaps);
-        base_shader.set_uniform_1i("u_soft_shadow_offsets_texture",
-                                   slots.random_offsets_texture);
+        std::array<const char *, 9> unis = {"u_albedo",
+                                            "u_normal",
+                                            "u_roughness",
+                                            "u_metallic",
+                                            "u_ao",
+                                            "u_dir_lights_csm_shadowmaps",
+                                            "u_point_lights_shadowmaps",
+                                            "u_spot_lights_shadowmaps",
+                                            "u_soft_shadow_offsets_texture"};
+        std::array<int32_t, 9> tex_slots = {slots.albedo,
+                                            slots.normal,
+                                            slots.roughness,
+                                            slots.metallic,
+                                            slots.ao,
+                                            slots.dir_csm_shadowmaps,
+                                            slots.point_lights_shadowmaps,
+                                            slots.spot_lights_shadowmaps,
+                                            slots.random_offsets_texture};
 
-        std::array<const char *, 5> unis = {
-            "u_albedo", "u_normal", "u_roughness", "u_metallic", "u_ao"};
+        base_shader.bind();
         for (int32_t i = 0; i < unis.size(); i++)
-            base_shader.set_uniform_1i(unis[i], i);
+            base_shader.set_uniform_1i(unis[i], tex_slots[i]);
 
         (void)pack.add_shader(base_shader);
     }
@@ -210,7 +218,8 @@ AssetPack AssetPack::create(const std::string &pack_name) {
         assert(flat_shader.build(spec) && "Default shaders not found");
 
         flat_shader.bind();
-        flat_shader.set_uniform_1i("u_albedo", 0);
+        flat_shader.set_uniform_1i("u_albedo",
+                                   renderer::texture_slots().albedo);
 
         (void)pack.add_shader(flat_shader);
     }

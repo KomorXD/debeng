@@ -165,6 +165,11 @@ bool init() {
     printf("Max geometry shader invocations: %d\n",
            gpu_spec.max_geom_invocations);
 
+    s_renderer.slots.albedo = 0;
+    s_renderer.slots.normal = 1;
+    s_renderer.slots.roughness = 2;
+    s_renderer.slots.metallic = 3;
+    s_renderer.slots.ao = 4;
     s_renderer.slots.dir_csm_shadowmaps = gpu_spec.texture_units - 1;
     s_renderer.slots.point_lights_shadowmaps = gpu_spec.texture_units - 2;
     s_renderer.slots.spot_lights_shadowmaps = gpu_spec.texture_units - 3;
@@ -507,9 +512,13 @@ void scene_end() {
                 mat.albedo_texture_id, mat.normal_texture_id,
                 mat.roughness_texture_id, mat.metallic_texture_id,
                 mat.ao_texture_id};
+            std::array<int32_t, 5> tex_bindings = {
+                s_renderer.slots.albedo, s_renderer.slots.normal,
+                s_renderer.slots.roughness, s_renderer.slots.metallic,
+                s_renderer.slots.ao};
             for (int32_t i = 0; i < tex_ids.size(); i++) {
                 Texture &tex = s_asset_pack->textures.at(tex_ids[i]);
-                tex.bind(i);
+                tex.bind(tex_bindings[i]);
             }
 
             for (auto &[mesh_id, instances] : mesh_group) {

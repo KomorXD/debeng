@@ -368,7 +368,7 @@ size_t VertexBufferElement::get_size_of_type(GLenum type) {
         #define GL_FLOAT 0x1406
         #define GL_DOUBLE 0x140A
     */
-    static size_t sizes[] = {sizeof(GLfloat),  sizeof(GLubyte), sizeof(GLshort),
+    static size_t sizes[] = {sizeof(GLbyte),   sizeof(GLubyte), sizeof(GLshort),
                              sizeof(GLushort), sizeof(GLint),   sizeof(GLuint),
                              sizeof(GLfloat),  sizeof(GLdouble)};
 

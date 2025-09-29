@@ -100,6 +100,18 @@ struct DrawParams {
     glm::vec3 padding;
 };
 
+struct RenderStats {
+    int32_t shadow_pass_ms{};
+    int32_t base_pass_ms{};
+
+    int32_t dir_lights{};
+    int32_t point_lights{};
+    int32_t spot_lights{};
+
+    int32_t instances{};
+    int32_t draw_calls{};
+};
+
 void opengl_msg_cb(unsigned source, unsigned type, unsigned id,
                    unsigned severity, int length, const char *msg,
                    const void *user_param);
@@ -125,6 +137,9 @@ void submit_spot_light(const Transform &transform, const SpotLight &light);
 
 SoftShadowProps &soft_shadow_props();
 TextureSlots texture_slots();
+
+RenderStats stats();
+void reset_stats();
 
 void draw_to_screen_quad();
 

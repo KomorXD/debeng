@@ -290,6 +290,7 @@ void EditorLayer::on_render() {
     render_entity_panel(*this);
     ImGui::End();
 
+    eng::renderer::reset_stats();
     on_shadow_pass(*this);
 
     glm::ivec2 avail_region_iv2 = {(int32_t)content_reg.x,
@@ -592,6 +593,47 @@ static void render_control_panel(EditorLayer &layer) {
                              INT_MAX, horizontal_size);
         ImGui::PrettyDragFloat("Radius", &props.offset_radius, 0.05f, 0.0f,
                                FLT_MAX, "%.2f", horizontal_size);
+        ImGui::Unindent(8.0f);
+    }
+
+    if (ImGui::CollapsingHeader("Render stats")) {
+        eng::renderer::RenderStats stats = eng::renderer::stats();
+
+        float horizontal_size = ImGui::CalcTextSize("Shadow pass (ms)").x;
+        ImGui::Indent(8.0f);
+
+        if (ImGui::BeginTable("#Stats", 2)) {
+            ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed,
+                                    horizontal_size);
+            ImGui::TableSetupColumn("Data", ImGuiTableColumnFlags_WidthStretch);
+
+            std::array<const char *, 7> labels = {
+                "Shadow pass (ms)", "Base pass (ms)", "Dir lights",
+                "Point lights",     "Spot lights",    "Instances",
+                "Draw calls"};
+
+            /* Lights divided by 2 because they're submitted for shadow AND base
+             * pass. */
+            std::array<int32_t, 7> values = {
+                stats.shadow_pass_ms,  stats.base_pass_ms,
+                stats.dir_lights / 2,  stats.point_lights / 2,
+                stats.spot_lights / 2, stats.instances,
+                stats.draw_calls};
+
+            for (int32_t i = 0; i < labels.size(); i++) {
+                ImGui::TableNextColumn();
+                ImGui::AlignTextToFramePadding();
+                ImGui::Text("%s", labels[i]);
+                ImGui::TableNextColumn();
+                ImGui::AlignTextToFramePadding();
+                ImGui::Text("%d", values[i]);
+
+                ImGui::TableNextRow();
+            }
+
+            ImGui::EndTable();
+        }
+
         ImGui::Unindent(8.0f);
     }
 }

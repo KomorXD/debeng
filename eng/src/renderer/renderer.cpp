@@ -3,6 +3,7 @@
 #include "eng/scene/assets.hpp"
 #include "eng/scene/components.hpp"
 #include "GLFW/glfw3.h"
+#include "eng/timer.hpp"
 #include "glm/fwd.hpp"
 #include "glm/gtc/constants.hpp"
 
@@ -34,6 +35,7 @@ using ShaderGroup = std::unordered_map<AssetID, MaterialGroup>;
 struct Renderer {
     GPU gpu;
     TextureSlots slots;
+    RenderStats stats;
 
     VertexArray screen_quad_vao;
     Shader screen_quad_shader;
@@ -443,6 +445,9 @@ void scene_begin(const CameraData &camera, AssetPack &asset_pack) {
 }
 
 void scene_end() {
+    Timer t;
+    t.start();
+
     s_renderer.dir_lights_uni_buffer.bind();
     s_renderer.point_lights_uni_buffer.bind();
     s_renderer.spot_lights_uni_buffer.bind();
@@ -527,9 +532,14 @@ void scene_end() {
                     instances.data(), instances.size() * sizeof(MeshInstance));
                 draw_elements_instanced(curr_shader, mesh.vao,
                                         instances.size());
+                s_renderer.stats.draw_calls++;
             }
         }
     }
+
+    GL_CALL(glFinish());
+    t.stop();
+    s_renderer.stats.base_pass_ms += t.elapsed_time_ms();
 }
 
 void shadow_pass_begin(const CameraData &camera, AssetPack &asset_pack) {
@@ -558,6 +568,9 @@ void shadow_pass_begin(const CameraData &camera, AssetPack &asset_pack) {
 void shadow_pass_end() {
     if (s_renderer.shader_render_group.empty())
         return;
+
+    Timer t;
+    t.start();
 
     s_renderer.dir_lights_uni_buffer.bind();
     s_renderer.point_lights_uni_buffer.bind();
@@ -636,11 +649,17 @@ void shadow_pass_end() {
     }
 
     GL_CALL(glCullFace(GL_BACK));
+
+    GL_CALL(glFinish());
+    t.stop();
+    s_renderer.stats.shadow_pass_ms += t.elapsed_time_ms();
 }
 
 void submit_mesh(const glm::mat4 &transform, AssetID mesh_id,
                  AssetID material_id, int32_t ent_id,
                  const DrawParams &params) {
+    s_renderer.stats.instances++;
+
     Material &mat = s_asset_pack->materials.at(material_id);
     MaterialGroup &mat_grp = s_renderer.shader_render_group[mat.shader_id];
     MeshGroup &mesh_grp = mat_grp[material_id];
@@ -707,6 +726,8 @@ frustrum_corners_world_space(const glm::mat4 &proj_view) {
 void submit_dir_light(const glm::vec3 &rotation, const DirLight &light) {
     if (s_renderer.dir_lights.size() >= MAX_DIR_LIGHTS)
         return;
+
+    s_renderer.stats.dir_lights++;
 
     std::array<float, CASCADES_COUNT> near_planes = {
         s_active_camera->near_clip,
@@ -778,6 +799,8 @@ void submit_point_light(const glm::vec3 &position, const PointLight &light) {
     if (s_renderer.point_lights.size() >= MAX_POINT_LIGHTS)
         return;
 
+    s_renderer.stats.point_lights++;
+
     float radius = light_radius(1.0f, light.linear, light.quadratic,
                                 max_component(light.color));
     glm::mat4 proj = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, radius);
@@ -807,6 +830,8 @@ void submit_spot_light(const Transform &transform, const SpotLight &light) {
     if (s_renderer.spot_lights.size() >= MAX_SPOT_LIGHTS)
         return;
 
+    s_renderer.stats.spot_lights++;
+
     float radius = light_radius(1.0f, light.linear, light.quadratic,
                                 max_component(light.color));
     glm::vec3 dir = glm::toMat3(glm::quat(transform.rotation)) *
@@ -834,6 +859,14 @@ SoftShadowProps &soft_shadow_props() {
 
 TextureSlots texture_slots() {
     return s_renderer.slots;
+}
+
+RenderStats stats() {
+    return s_renderer.stats;
+}
+
+void reset_stats() {
+    memset(&s_renderer.stats, 0, sizeof(RenderStats));
 }
 
 void draw_to_screen_quad() {

@@ -176,6 +176,8 @@ struct Texture {
 
     std::string path;
     std::string name;
+
+    TextureFormat format;
 };
 
 enum class RenderbufferType {

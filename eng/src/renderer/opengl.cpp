@@ -528,6 +528,7 @@ TextureFormatDetails format_details(TextureFormat format) {
 
 Texture Texture::create(const std::string &path, TextureFormat format) {
     Texture tex;
+    tex.format = format;
 
     auto [internal, pixel_format, type, bpp] = format_details(format);
     void *buffer = nullptr;
@@ -573,6 +574,7 @@ Texture Texture::create(const std::string &path, TextureFormat format) {
 Texture Texture::create(const void *data, int32_t width, int32_t height,
                         TextureFormat format) {
     Texture tex;
+    tex.format = format;
 
     GL_CALL(glGenTextures(1, &tex.id));
     GL_CALL(glBindTexture(GL_TEXTURE_2D, tex.id));

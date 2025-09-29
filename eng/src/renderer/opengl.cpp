@@ -185,6 +185,37 @@ bool Shader::build(const ShaderSpec &spec) {
     return true;
 }
 
+bool Shader::build_compute(const ShaderDescriptor &desc) {
+    assert(id != 0 && "Trying to build shader on invalid shader object");
+
+    std::string comp_src = get_file_content(desc.path).value();
+    for (const StringReplacement &rep : desc.replacements)
+        replace_all(comp_src, rep.pattern, rep.target);
+
+    GLuint comp_id = compile(GL_COMPUTE_SHADER, comp_src);
+    GL_CALL(glAttachShader(id, comp_id));
+    GL_CALL(glLinkProgram(id));
+    GL_CALL(glDeleteShader(comp_id));
+
+    GLint success = 0;
+    GL_CALL(glGetProgramiv(id, GL_LINK_STATUS, &success));
+    if (success == GL_FALSE) {
+        int len = 0;
+        GL_CALL(glGetProgramiv(id, GL_INFO_LOG_LENGTH, &len));
+
+        char *msg = (char *)alloca(len * sizeof(char));
+        GL_CALL(glGetProgramInfoLog(id, len, &len, msg));
+
+        fprintf(stderr, "Failed to link shaders: %s", msg);
+        GL_CALL(glDeleteProgram(id));
+
+        return false;
+    }
+
+    GL_CALL(glValidateProgram(id));
+    return true;
+}
+
 void Shader::destroy() {
     assert(id != 0 && "Trying to destroy invalid shader object");
 
@@ -200,6 +231,14 @@ void Shader::bind() const {
 
 void Shader::unbind() const {
     GL_CALL(glUseProgram(0));
+}
+
+void Shader::dispatch_compute(const glm::ivec3 &group) {
+    assert(id != 0 && "Trying to dispatch invalid shader object");
+
+    GL_CALL(glUseProgram(id));
+    GL_CALL(glDispatchCompute(group.x, group.y, group.z));
+    GL_CALL(glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT));
 }
 
 std::optional<GLint> Shader::get_uniform_location(const std::string &name) {
@@ -612,6 +651,14 @@ void Texture::bind(uint32_t slot) const {
     GL_CALL(glBindTexture(GL_TEXTURE_2D, id));
 }
 
+void Texture::bind_image(uint32_t binding) const {
+    assert(id != 0 && "Trying to bind invalid texture object");
+
+    GLenum internal = format_details(format).internal_format;
+    GL_CALL(glBindImageTexture(binding, id, 0, GL_FALSE, 0, GL_WRITE_ONLY,
+                               internal));
+}
+
 void Texture::unbind() const {
     GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
 }
@@ -776,6 +823,21 @@ void Framebuffer::bind_color_attachment(uint32_t index, uint32_t slot) const {
     GLuint tex_type = opengl_texture_type(spec.type);
     GL_CALL(glActiveTexture(GL_TEXTURE0 + slot));
     GL_CALL(glBindTexture(tex_type, tex_id));
+}
+
+void Framebuffer::bind_color_attachment_image(uint32_t index,
+                                              uint32_t binding) const {
+    assert(id != 0 &&
+           "Trying to bind color attachment of invalid framebuffer object");
+    assert(index < color_attachments.size() &&
+           "Invalid color attachment index");
+
+    const auto &[tex_id, spec] = color_attachments[index];
+    assert(tex_id != 0 && "Trying to bind invalid color attachment as image");
+
+    GLenum internal = format_details(spec.format).internal_format;
+    GL_CALL(glBindImageTexture(binding, tex_id, 0, GL_FALSE, 0, GL_WRITE_ONLY,
+                               internal));
 }
 
 void Framebuffer::draw_to_depth_map(uint32_t index, int32_t mip) {

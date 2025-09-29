@@ -64,10 +64,13 @@ struct Shader {
     [[nodiscard]] static GLuint compile(GLenum type, const std::string &src);
 
     [[nodiscard]] bool build(const ShaderSpec &spec);
+    [[nodiscard]] bool build_compute(const ShaderDescriptor &desc);
     void destroy();
 
     void bind() const;
     void unbind() const;
+
+    void dispatch_compute(const glm::ivec3 &group);
 
     [[nodiscard]] std::optional<GLint>
     get_uniform_location(const std::string &name);
@@ -167,6 +170,7 @@ struct Texture {
     void destroy();
 
     void bind(uint32_t slot = 0) const;
+    void bind_image(uint32_t binding = 0) const;
     void unbind() const;
 
     GLuint id = 0;
@@ -251,6 +255,8 @@ struct Framebuffer {
 
     void bind_renderbuffer() const;
     void bind_color_attachment(uint32_t index, uint32_t slot = 0) const;
+    void bind_color_attachment_image(uint32_t index,
+                                     uint32_t binding = 0) const;
 
     void draw_to_depth_map(uint32_t index, int32_t mip = 0);
     void draw_to_color_attachment(uint32_t index, uint32_t target_attachment,

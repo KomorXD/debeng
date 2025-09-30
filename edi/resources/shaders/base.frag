@@ -102,9 +102,9 @@ layout (std140, binding = CAMERA_BINDING) uniform Camera {
     float far_clip;
     float fov;
 
-    float pad1;
-    float pad2;
-    float pad3;
+    float bloom_strength;
+    float bloom_threshold;
+    float bloom_radius;
 } u_camera;
 
 struct Material {

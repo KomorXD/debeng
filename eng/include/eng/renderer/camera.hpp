@@ -66,6 +66,10 @@ struct SpectatorCamera {
     float exposure = 1.0f;
     float gamma = 2.2f;
 
+    float bloom_strength = 1.0f;
+    float bloom_threshold = 1.0f;
+    float bloom_radius = 0.0005f;
+
     float moving_speed_ps = 10.0f;
     float rolling_angle_ps = 180.0f;
     float mouse_sens = 0.1f;

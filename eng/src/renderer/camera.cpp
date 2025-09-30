@@ -135,6 +135,10 @@ renderer::CameraData SpectatorCamera::render_data() const {
     cdata.far_clip = far_clip;
     cdata.fov = fov;
 
+    cdata.bloom_strength = bloom_strength;
+    cdata.bloom_threshold = bloom_threshold;
+    cdata.bloom_radius = bloom_radius;
+
     return cdata;
 }
 

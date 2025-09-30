@@ -1,5 +1,7 @@
 #include "eng/renderer/opengl.hpp"
 #include "eng/random_utils.hpp"
+#include "glm/common.hpp"
+#include "glm/gtc/integer.hpp"
 #include "stb/stb_image.hpp"
 #include <alloca.h>
 #include <cstdio>
@@ -607,6 +609,9 @@ Texture Texture::create(const std::string &path, TextureFormat format) {
     tex.path = path;
     tex.name = tex_path.filename().string();
 
+    tex.mips = 1 + glm::floor(glm::log2(glm::max(tex.width, tex.height)));
+    tex.mips = std::min(tex.mips, 7);
+
     return tex;
 }
 
@@ -624,15 +629,53 @@ Texture Texture::create(const void *data, int32_t width, int32_t height,
     GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT));
     GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT));
 
+    auto [internal, pixel_format, type, bpp] = format_details(format);
+    tex.width = width;
+    tex.height = height;
+    tex.bpp = bpp;
+    tex.mips = 1 + glm::floor(glm::log2(glm::max(width, height)));
+    tex.mips = std::min(tex.mips, 7);
+
+    GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, internal, tex.width, tex.height, 0,
+                         pixel_format, type, data));
+    GL_CALL(glGenerateMipmap(GL_TEXTURE_2D));
+    GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
+
+    return tex;
+}
+
+Texture Texture::create_storage(int32_t width, int32_t height,
+                                TextureFormat format,
+                                std::optional<int32_t> mips) {
+    Texture tex;
+    tex.format = format;
+
+    GL_CALL(glGenTextures(1, &tex.id));
+    GL_CALL(glBindTexture(GL_TEXTURE_2D, tex.id));
+
+    GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
+                            GL_LINEAR_MIPMAP_LINEAR));
+    GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
+    GL_CALL(
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
+    GL_CALL(
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+
+    int32_t mip_count{};
+    if (mips.has_value())
+        mip_count = mips.value();
+    else {
+        mip_count = 1 + glm::floor(glm::log2(glm::max(width, height)));
+        mip_count = std::min(mip_count, 7);
+    }
 
     auto [internal, pixel_format, type, bpp] = format_details(format);
     tex.width = width;
     tex.height = height;
     tex.bpp = bpp;
+    tex.mips = mip_count;
 
-    GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, internal, tex.width, tex.height, 0,
-                         pixel_format, type, data));
-    GL_CALL(glGenerateMipmap(GL_TEXTURE_2D));
+    GL_CALL(glTexStorage2D(GL_TEXTURE_2D, mip_count, internal, width, height));
     GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
 
     return tex;
@@ -651,16 +694,25 @@ void Texture::bind(uint32_t slot) const {
     GL_CALL(glBindTexture(GL_TEXTURE_2D, id));
 }
 
-void Texture::bind_image(uint32_t binding) const {
+void Texture::bind_image(int32_t mip, uint32_t binding) const {
     assert(id != 0 && "Trying to bind invalid texture object");
 
     GLenum internal = format_details(format).internal_format;
-    GL_CALL(glBindImageTexture(binding, id, 0, GL_FALSE, 0, GL_WRITE_ONLY,
+    GL_CALL(glBindImageTexture(binding, id, mip, GL_FALSE, 0, GL_READ_WRITE,
                                internal));
 }
 
 void Texture::unbind() const {
     GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
+}
+
+void Texture::clear_texture() {
+    assert(id != 0 && "Trying to clear invalid texture object");
+
+    auto [internal, pixel_format, type, bpp] = format_details(format);
+    for (int32_t mip = 0; mip < mips; mip++) {
+        GL_CALL(glClearTexImage(id, mip, pixel_format, type, 0));
+    }
 }
 
 RenderbufferDetails rbo_details(const RenderbufferSpec &spec) {
@@ -825,7 +877,7 @@ void Framebuffer::bind_color_attachment(uint32_t index, uint32_t slot) const {
     GL_CALL(glBindTexture(tex_type, tex_id));
 }
 
-void Framebuffer::bind_color_attachment_image(uint32_t index,
+void Framebuffer::bind_color_attachment_image(uint32_t index, uint32_t mip,
                                               uint32_t binding) const {
     assert(id != 0 &&
            "Trying to bind color attachment of invalid framebuffer object");
@@ -836,7 +888,7 @@ void Framebuffer::bind_color_attachment_image(uint32_t index,
     assert(tex_id != 0 && "Trying to bind invalid color attachment as image");
 
     GLenum internal = format_details(spec.format).internal_format;
-    GL_CALL(glBindImageTexture(binding, tex_id, 0, GL_FALSE, 0, GL_WRITE_ONLY,
+    GL_CALL(glBindImageTexture(binding, tex_id, mip, GL_FALSE, 0, GL_WRITE_ONLY,
                                internal));
 }
 

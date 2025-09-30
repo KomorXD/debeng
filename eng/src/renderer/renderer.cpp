@@ -40,6 +40,11 @@ struct Renderer {
     VertexArray screen_quad_vao;
     Shader screen_quad_shader;
 
+    Texture bloom_texture;
+    Shader bloom_filter;
+    Shader bloom_downsampler;
+    Shader bloom_upsampler;
+
     UniformBuffer camera_uni_buffer;
 
     UniformBuffer dir_lights_uni_buffer;
@@ -239,6 +244,7 @@ bool init() {
 
     s_renderer.screen_quad_shader.bind();
     s_renderer.screen_quad_shader.set_uniform_1i("u_screen_texture", 0);
+    s_renderer.screen_quad_shader.set_uniform_1i("u_bloom_texture", 1);
 
     uint32_t size = sizeof(CameraData);
     s_renderer.camera_uni_buffer = UniformBuffer::create(nullptr, size);
@@ -263,6 +269,26 @@ bool init() {
     s_renderer.soft_shadow_uni_buffer= UniformBuffer::create(nullptr, size);
     s_renderer.soft_shadow_uni_buffer.bind_buffer_range(
         SOFT_SHADOW_PROPS_BINDING, 0, size);
+
+    s_renderer.bloom_filter = Shader::create();
+    assert(s_renderer.bloom_filter.build_compute(
+               {"resources/shaders/bloom/filter.comp",
+                {{"${CAMERA_BINDING}", std::to_string(CAMERA_BINDING)}}}) &&
+           "Failed to build bloom filter shader");
+
+    s_renderer.bloom_downsampler = Shader::create();
+    assert(s_renderer.bloom_downsampler.build_compute(
+               {"resources/shaders/bloom/downsampler.comp", {}}) &&
+           "Failed to build bloom downsampler shader");
+
+    s_renderer.bloom_upsampler = Shader::create();
+    assert(s_renderer.bloom_upsampler.build_compute(
+               {"resources/shaders/bloom/upsampler.comp",
+                {{"${CAMERA_BINDING}", std::to_string(CAMERA_BINDING)}}}) &&
+           "Failed to build bloom upsampler shader");
+
+    s_renderer.bloom_texture =
+        Texture::create_storage(1920, 1080, TextureFormat::RGBA16F);
 
     {
         ColorAttachmentSpec spec;
@@ -402,6 +428,14 @@ void shutdown() {
     s_renderer.dirlight_shadow_shader.destroy();
     s_renderer.spotlight_shadow_shader.destroy();
     s_renderer.pointlight_shadow_shader.destroy();
+
+    s_renderer.screen_quad_vao.destroy();
+    s_renderer.screen_quad_shader.destroy();
+
+    s_renderer.bloom_texture.destroy();
+    s_renderer.bloom_filter.destroy();
+    s_renderer.bloom_downsampler.destroy();
+    s_renderer.bloom_upsampler.destroy();
 }
 
 void scene_begin(const CameraData &camera, AssetPack &asset_pack) {
@@ -870,9 +904,49 @@ void reset_stats() {
 }
 
 void draw_to_screen_quad() {
+    s_renderer.bloom_texture.bind(1);
+
     GL_CALL(glDisable(GL_DEPTH_TEST));
     draw_arrays(s_renderer.screen_quad_shader, s_renderer.screen_quad_vao, 6);
     GL_CALL(glEnable(GL_DEPTH_TEST));
+}
+
+void post_process() {
+    if (s_renderer.bloom_texture.width != s_active_camera->viewport.x ||
+        s_renderer.bloom_texture.height != s_active_camera->viewport.y) {
+        s_renderer.bloom_texture.destroy();
+        s_renderer.bloom_texture = Texture::create_storage(
+            s_active_camera->viewport.x, s_active_camera->viewport.y,
+            TextureFormat::RGBA16F);
+    }
+
+    s_renderer.bloom_texture.clear_texture();
+    s_renderer.bloom_texture.bind_image(0, 1);
+
+    glm::ivec3 groups;
+    groups.x = (s_active_camera->viewport.x + 8 - 1) / 8;
+    groups.y = (s_active_camera->viewport.y + 8 - 1) / 8;
+    groups.z = 1;
+
+    s_renderer.bloom_filter.dispatch_compute(groups);
+
+    s_renderer.bloom_texture.bind(1);
+
+    s_renderer.bloom_downsampler.bind();
+    for (int32_t i = 1; i < 5; i++) {
+        s_renderer.bloom_texture.bind_image(i, 2);
+
+        s_renderer.bloom_downsampler.set_uniform_1i("u_mip", i - 1);
+        s_renderer.bloom_downsampler.dispatch_compute(groups);
+    }
+
+    s_renderer.bloom_upsampler.bind();
+    for (int32_t i = 4; i > 0; i--) {
+        s_renderer.bloom_texture.bind_image(i - 1, 2);
+
+        s_renderer.bloom_upsampler.set_uniform_1i("u_mip", i);
+        s_renderer.bloom_upsampler.dispatch_compute(groups);
+    }
 }
 
 void draw_arrays(const Shader &shader, const VertexArray &vao,

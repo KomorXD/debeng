@@ -403,6 +403,8 @@ void EditorLayer::on_render() {
     eng::renderer::scene_end();
 
     main_fbo.bind_color_attachment(0);
+    eng::renderer::post_process();
+
     main_fbo.draw_to_color_attachment(2, 2);
     GL_CALL(glDrawBuffer(GL_COLOR_ATTACHMENT2));
     eng::renderer::draw_to_screen_quad();
@@ -565,20 +567,27 @@ static void render_control_panel(EditorLayer &layer) {
         ImGui::CalcTextSize("Gizmo mode").x);
 
     if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen)) {
-        float horizontal_size = ImGui::CalcTextSize("Near clip").x;
-        ImGui::Indent(16.0f);
-        ImGui::PrettyDragFloat3("Position", &layer.camera.position[0], 0.05f, 0.0f,
-                                0.0f, "%.3f", horizontal_size);
+        float horizontal_size = ImGui::CalcTextSize("Bloom threshold").x;
+        ImGui::Indent(8.0f);
+        ImGui::PrettyDragFloat3("Position", &layer.camera.position[0], 0.05f,
+                                0.0f, 0.0f, "%.3f", horizontal_size);
         ImGui::PrettyDragFloat("Exposure", &layer.camera.exposure, 0.01f, 0.0f,
                                FLT_MAX, "%.3f", horizontal_size);
-        ImGui::PrettyDragFloat("Gamma", &layer.camera.gamma, 0.01f, 0.0f, FLT_MAX,
-                               "%.3f", horizontal_size);
-        ImGui::PrettyDragFloat("Near clip", &layer.camera.near_clip, 0.01f, 0.0f,
-                               layer.camera.far_clip, "%.3f", horizontal_size);
+        ImGui::PrettyDragFloat("Gamma", &layer.camera.gamma, 0.01f, 0.0f,
+                               FLT_MAX, "%.3f", horizontal_size);
+        ImGui::PrettyDragFloat("Bloom strength", &layer.camera.bloom_strength,
+                               0.01f, 0.0f, FLT_MAX, "%.3f", horizontal_size);
+        ImGui::PrettyDragFloat("Bloom threshold", &layer.camera.bloom_threshold,
+                               0.01f, 0.0f, FLT_MAX, "%.3f", horizontal_size);
+        ImGui::PrettyDragFloat("Bloom radius", &layer.camera.bloom_radius,
+                               0.0001f, 0.0f, FLT_MAX, "%.5f", horizontal_size);
+        ImGui::PrettyDragFloat("Near clip", &layer.camera.near_clip, 0.01f,
+                               0.0f, layer.camera.far_clip, "%.3f",
+                               horizontal_size);
         ImGui::PrettyDragFloat("Far clip", &layer.camera.far_clip, 0.01f,
                                layer.camera.near_clip, FLT_MAX, "%.3f",
                                horizontal_size);
-        ImGui::Unindent(16.0f);
+        ImGui::Unindent(8.0f);
     }
 
     if (ImGui::CollapsingHeader("Soft shadows", ImGuiTreeNodeFlags_DefaultOpen)) {

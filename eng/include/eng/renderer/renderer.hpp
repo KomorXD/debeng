@@ -49,7 +49,9 @@ struct CameraData {
     float far_clip;
     float fov;
 
-    glm::vec3 padding;
+    float bloom_strength;
+    float bloom_threshold;
+    float bloom_radius;
 };
 
 struct DirLightData {
@@ -142,6 +144,7 @@ RenderStats stats();
 void reset_stats();
 
 void draw_to_screen_quad();
+void post_process();
 
 void draw_arrays(const Shader &shader, const VertexArray &vao,
                  uint32_t vertices_count);

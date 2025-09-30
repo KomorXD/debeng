@@ -166,17 +166,23 @@ struct Texture {
                                         TextureFormat format);
     [[nodiscard]] static Texture create(const void *data, int32_t width,
                                         int32_t height, TextureFormat format);
+    [[nodiscard]] static Texture
+    create_storage(int32_t width, int32_t height, TextureFormat format,
+                   std::optional<int32_t> mips = {});
 
     void destroy();
 
     void bind(uint32_t slot = 0) const;
-    void bind_image(uint32_t binding = 0) const;
+    void bind_image(int32_t mip, uint32_t binding = 0) const;
     void unbind() const;
+
+    void clear_texture();
 
     GLuint id = 0;
     int32_t width = 0;
     int32_t height = 0;
     int32_t bpp = 0;
+    int32_t mips = 0;
 
     std::string path;
     std::string name;
@@ -256,6 +262,7 @@ struct Framebuffer {
     void bind_renderbuffer() const;
     void bind_color_attachment(uint32_t index, uint32_t slot = 0) const;
     void bind_color_attachment_image(uint32_t index,
+                                     uint32_t mip,
                                      uint32_t binding = 0) const;
 
     void draw_to_depth_map(uint32_t index, int32_t mip = 0);

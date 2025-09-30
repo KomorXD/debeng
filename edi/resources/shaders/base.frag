@@ -326,14 +326,31 @@ void main() {
         vec3 kD = vec3(1.0) - kS;
         kD *= 1.0 - metallic;
 
-        float shadow = 0.0;
-        int local_layer = i * 6;
-        for (int face = 0; face < 6; face++) {
-            shadow += calc_shadow(u_point_lights_shadowmaps,
-                                  pl.light_space_mats[face], local_layer,
-                                  N, L);
-            local_layer++;
+        vec3 dir = fs_in.world_space_position - position;
+        vec3 dirs[] = {
+            vec3(1.0, 0.0, 0.0), vec3(-1.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0),
+            vec3(0.0, -1.0, 0.0), vec3(0.0, 0.0, 1.0), vec3(0.0, 0.0, -1.0)
+        };
+        int dir_idx = -1;
+        float max_dot = 0.0;
+        for (int i = 0; i < 6; i++) {
+            float d = dot(dirs[i], dir);
+            if (d > max_dot) {
+                dir_idx = i;
+                max_dot = d;
+            }
         }
+
+        float shadow = calc_shadow(u_point_lights_shadowmaps,
+                                   pl.light_space_mats[dir_idx],
+                                   i * 6 + dir_idx, N, L);
+        // int local_layer = i * 6;
+        // for (int face = 0; face < 6; face++) {
+        //     shadow += calc_shadow(u_point_lights_shadowmaps,
+        //                           pl.light_space_mats[face], local_layer,
+        //                           N, L);
+        //     local_layer++;
+        // }
 
         Lo += (kD * diffuse.rgb / PI + specular) * radiance
             * max(dot(N, L), 0.0) * shadow;

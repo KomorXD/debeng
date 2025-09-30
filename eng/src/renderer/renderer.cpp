@@ -837,7 +837,8 @@ void submit_point_light(const glm::vec3 &position, const PointLight &light) {
 
     float radius = light_radius(1.0f, light.linear, light.quadratic,
                                 max_component(light.color));
-    glm::mat4 proj = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, radius);
+    glm::mat4 proj =
+        glm::perspective(glm::radians(91.0f), 1.0f, 0.1f, radius);
 
     PointLightData &light_data = s_renderer.point_lights.emplace_back();
     light_data.light_space_matrices = {

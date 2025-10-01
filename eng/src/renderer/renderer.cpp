@@ -600,7 +600,9 @@ void shadow_pass_begin(const CameraData &camera, AssetPack &asset_pack) {
 }
 
 void shadow_pass_end() {
-    if (s_renderer.shader_render_group.empty())
+    if (s_renderer.shader_render_group.empty() ||
+        (s_renderer.dir_lights.empty() && s_renderer.point_lights.empty() &&
+         s_renderer.spot_lights.empty()))
         return;
 
     Timer t;
@@ -648,38 +650,47 @@ void shadow_pass_end() {
 
     s_renderer.shadow_fbo.draw_to_depth_map(0);
     GL_CALL(glClear(GL_DEPTH_BUFFER_BIT));
-    s_renderer.dirlight_shadow_shader.bind();
-    for (auto &[mesh_id, instances] : mesh_group) {
-        if (instances.empty())
-            continue;
 
-        Mesh &mesh = s_asset_pack->meshes.at(mesh_id);
-        draw_elements_instanced(s_renderer.dirlight_shadow_shader, mesh.vao,
-                                instances.size());
+    if (!s_renderer.dir_lights.empty()) {
+        s_renderer.dirlight_shadow_shader.bind();
+        for (auto &[mesh_id, instances] : mesh_group) {
+            if (instances.empty())
+                continue;
+
+            Mesh &mesh = s_asset_pack->meshes.at(mesh_id);
+            draw_elements_instanced(s_renderer.dirlight_shadow_shader, mesh.vao,
+                                    instances.size());
+        }
     }
 
     s_renderer.shadow_fbo.draw_to_depth_map(1);
     GL_CALL(glClear(GL_DEPTH_BUFFER_BIT));
-    s_renderer.pointlight_shadow_shader.bind();
-    for (auto &[mesh_id, instances] : mesh_group) {
-        if (instances.empty())
-            continue;
 
-        Mesh &mesh = s_asset_pack->meshes.at(mesh_id);
-        draw_elements_instanced(s_renderer.pointlight_shadow_shader, mesh.vao,
-                                instances.size());
+    if (!s_renderer.point_lights.empty()) {
+        s_renderer.pointlight_shadow_shader.bind();
+        for (auto &[mesh_id, instances] : mesh_group) {
+            if (instances.empty())
+                continue;
+
+            Mesh &mesh = s_asset_pack->meshes.at(mesh_id);
+            draw_elements_instanced(s_renderer.pointlight_shadow_shader,
+                                    mesh.vao, instances.size());
+        }
     }
 
     s_renderer.shadow_fbo.draw_to_depth_map(2);
     GL_CALL(glClear(GL_DEPTH_BUFFER_BIT));
-    s_renderer.spotlight_shadow_shader.bind();
-    for (auto &[mesh_id, instances] : mesh_group) {
-        if (instances.empty())
-            continue;
 
-        Mesh &mesh = s_asset_pack->meshes.at(mesh_id);
-        draw_elements_instanced(s_renderer.spotlight_shadow_shader, mesh.vao,
-                                instances.size());
+    if (!s_renderer.spot_lights.empty()) {
+        s_renderer.spotlight_shadow_shader.bind();
+        for (auto &[mesh_id, instances] : mesh_group) {
+            if (instances.empty())
+                continue;
+
+            Mesh &mesh = s_asset_pack->meshes.at(mesh_id);
+            draw_elements_instanced(s_renderer.spotlight_shadow_shader,
+                                    mesh.vao, instances.size());
+        }
     }
 
     GL_CALL(glCullFace(GL_BACK));

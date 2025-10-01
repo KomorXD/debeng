@@ -135,11 +135,9 @@ float calc_shadow(sampler2DArrayShadow shadowmaps, mat4 light_space_mat,
                   int layer, vec3 N, vec3 L) {
     vec4 frag_position_light_space
         = light_space_mat * vec4(fs_in.world_space_position, 1.0);
-    float bias = max(0.005 * (1.0 - dot(N, L)), 0.00005);
     vec3 proj_coords = frag_position_light_space.xyz
         / frag_position_light_space.w;
     proj_coords = proj_coords * 0.5 + 0.5;
-    proj_coords.z -= bias;
 
     float current_depth = proj_coords.z;
     if (current_depth > 1.0)

@@ -104,8 +104,8 @@ struct DrawParams {
 };
 
 struct RenderStats {
-    int32_t shadow_pass_ms{};
-    int32_t base_pass_ms{};
+    float shadow_pass_ms{};
+    float base_pass_ms{};
 
     int32_t dir_lights{};
     int32_t point_lights{};

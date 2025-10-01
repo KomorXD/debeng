@@ -11,7 +11,7 @@ struct Timer {
     [[nodiscard]] float elapsed_time_ms();
 
     std::chrono::steady_clock::time_point start_timepoint{};
-    uint32_t accumulated_time_ms = 0;
+    float accumulated_time_ms = 0;
     bool running = false;
 };
 

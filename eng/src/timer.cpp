@@ -2,7 +2,7 @@
 
 void Timer::start() {
     start_timepoint = std::chrono::steady_clock::now();
-    accumulated_time_ms = 0;
+    accumulated_time_ms = 0.0f;
     running = true;
 }
 
@@ -25,10 +25,11 @@ void Timer::resume() {
 }
 
 float Timer::elapsed_time_ms() {
-    if (running){
+    if (running) {
         uint32_t diff = std::chrono::duration<float>(
                             std::chrono::steady_clock::now() - start_timepoint)
-                            .count() * 1000.0f;
+                            .count() *
+                        1000.0f;
         return (accumulated_time_ms + diff);
     }
 

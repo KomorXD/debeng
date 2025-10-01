@@ -614,28 +614,44 @@ static void render_control_panel(EditorLayer &layer) {
                                     horizontal_size);
             ImGui::TableSetupColumn("Data", ImGuiTableColumnFlags_WidthStretch);
 
-            std::array<const char *, 7> labels = {
-                "Shadow pass (ms)", "Base pass (ms)", "Dir lights",
-                "Point lights",     "Spot lights",    "Instances",
-                "Draw calls"};
+            {
+                std::array<float, 2> values = {stats.base_pass_ms,
+                                               stats.shadow_pass_ms};
+                std::array<const char *, 2> labels = {"Color pass",
+                                                      "Shadow pass"};
 
-            /* Lights divided by 2 because they're submitted for shadow AND base
-             * pass. */
-            std::array<int32_t, 7> values = {
-                stats.shadow_pass_ms,  stats.base_pass_ms,
-                stats.dir_lights / 2,  stats.point_lights / 2,
-                stats.spot_lights / 2, stats.instances,
-                stats.draw_calls};
+                for (int32_t i = 0; i < labels.size(); i++) {
+                    ImGui::TableNextColumn();
+                    ImGui::AlignTextToFramePadding();
+                    ImGui::Text("%s", labels[i]);
+                    ImGui::TableNextColumn();
+                    ImGui::AlignTextToFramePadding();
+                    ImGui::Text("%.3fms", values[i]);
 
-            for (int32_t i = 0; i < labels.size(); i++) {
-                ImGui::TableNextColumn();
-                ImGui::AlignTextToFramePadding();
-                ImGui::Text("%s", labels[i]);
-                ImGui::TableNextColumn();
-                ImGui::AlignTextToFramePadding();
-                ImGui::Text("%d", values[i]);
+                    ImGui::TableNextRow();
+                }
+            }
 
-                ImGui::TableNextRow();
+            {
+                /* Lights divided by 2 because they're submitted for shadow AND
+                 * base pass. */
+                std::array<int32_t, 5> values = {
+                    stats.dir_lights / 2, stats.point_lights / 2,
+                    stats.spot_lights / 2, stats.instances, stats.draw_calls};
+                std::array<const char *, 5> labels = {
+                    "Dir lights", "Point lights", "Spot lights", "Instances",
+                    "Draw calls"};
+
+                for (int32_t i = 0; i < labels.size(); i++) {
+                    ImGui::TableNextColumn();
+                    ImGui::AlignTextToFramePadding();
+                    ImGui::Text("%s", labels[i]);
+                    ImGui::TableNextColumn();
+                    ImGui::AlignTextToFramePadding();
+                    ImGui::Text("%d", values[i]);
+
+                    ImGui::TableNextRow();
+                }
             }
 
             ImGui::EndTable();

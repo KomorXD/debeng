@@ -934,18 +934,18 @@ void post_process() {
     s_renderer.bloom_texture.bind(1);
 
     s_renderer.bloom_downsampler.bind();
-    for (int32_t i = 1; i < 5; i++) {
+    for (int32_t i = 1; i < s_renderer.bloom_texture.mips; i++) {
         s_renderer.bloom_texture.bind_image(i, 2);
 
-        s_renderer.bloom_downsampler.set_uniform_1i("u_mip", i - 1);
+        s_renderer.bloom_downsampler.set_uniform_1f("u_mip", i - 1);
         s_renderer.bloom_downsampler.dispatch_compute(groups);
     }
 
     s_renderer.bloom_upsampler.bind();
-    for (int32_t i = 4; i > 0; i--) {
+    for (int32_t i = s_renderer.bloom_texture.mips - 1; i > 0; i--) {
         s_renderer.bloom_texture.bind_image(i - 1, 2);
 
-        s_renderer.bloom_upsampler.set_uniform_1i("u_mip", i);
+        s_renderer.bloom_upsampler.set_uniform_1f("u_mip", i);
         s_renderer.bloom_upsampler.dispatch_compute(groups);
     }
 }

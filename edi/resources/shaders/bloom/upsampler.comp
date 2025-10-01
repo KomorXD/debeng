@@ -25,7 +25,7 @@ layout (std140, binding = CAMERA_BINDING) uniform Camera {
     float bloom_radius;
 } u_camera;
 
-uniform int u_mip;
+uniform float u_mip;
 
 void main() {
     ivec2 gid = ivec2(gl_GlobalInvocationID.xy);
@@ -34,8 +34,9 @@ void main() {
         return;
 
     vec2 uv = (vec2(gid) + 0.5) / vec2(target_size);
-    float x = u_camera.bloom_radius;
-    float y = u_camera.bloom_radius;
+    vec2 texel_size = 1.0 / vec2(textureSize(u_source_mip, int(u_mip)));
+    float x = u_camera.bloom_radius * texel_size.x;
+    float y = u_camera.bloom_radius * texel_size.y;
 
     vec3 a = textureLod(u_source_mip, vec2(uv.x - x, uv.y + y), u_mip).rgb;
     vec3 b = textureLod(u_source_mip, vec2(uv.x    , uv.y + y), u_mip).rgb;
@@ -55,5 +56,6 @@ void main() {
     acc *= 1.0 / 16.0f;
 
     vec3 curr = imageLoad(u_target_mip, gid).rgb;
-    imageStore(u_target_mip, gid, vec4(acc + curr, 1.0));
+    float mip_weight = pow(0.8, u_mip);
+    imageStore(u_target_mip, gid, vec4(acc * mip_weight + curr, 1.0));
 }

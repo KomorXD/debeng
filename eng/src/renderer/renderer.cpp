@@ -837,7 +837,7 @@ void submit_dir_light(const glm::vec3 &rotation, const DirLight &light) {
     light_data.cascade_mats = cascaded_mats;
     light_data.direction = glm::vec4(
         glm::toMat3(glm::quat(rotation)) * glm::vec3(0.0f, 0.0f, -1.0f), 1.0f);
-    light_data.color = glm::vec4(light.color, 1.0f);
+    light_data.color = glm::vec4(light.color * light.intensity, 1.0f);
 }
 
 void submit_point_light(const glm::vec3 &position, const PointLight &light) {

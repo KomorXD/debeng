@@ -948,6 +948,9 @@ static void render_entity_panel(EditorLayer &layer) {
             ImGui::Indent(8.0f);
             ImGui::ColorEdit3("Color", &dl.color[0],
                               ImGuiColorEditFlags_NoInputs);
+            ImGui::PrettyDragFloat("Intensity", &dl.intensity, 0.01f, 0.0f,
+                                   FLT_MAX, "%.2f",
+                                   ImGui::CalcTextSize("Intensity").x);
 
             if (ImGui::PrettyButton("Remove component"))
                 ent.remove_component<eng::DirLight>();

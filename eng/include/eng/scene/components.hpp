@@ -38,6 +38,7 @@ struct PointLight {
 
 struct DirLight {
     glm::vec3 color{1.0f};
+    float intensity = 1.0f;
 };
 
 struct SpotLight {

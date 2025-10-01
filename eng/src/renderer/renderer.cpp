@@ -306,7 +306,7 @@ bool init() {
         s_renderer.shadow_fbo.add_color_attachment(spec);
 
         spec.size = {512, 512};
-        spec.layers = MAX_DIR_LIGHTS * 6;
+        spec.layers = MAX_POINT_LIGHTS * 6;
         s_renderer.shadow_fbo.add_color_attachment(spec);
 
         spec.layers = MAX_SPOT_LIGHTS;

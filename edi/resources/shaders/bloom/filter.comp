@@ -23,7 +23,6 @@ layout (std140, binding = CAMERA_BINDING) uniform Camera {
 
     float bloom_strength;
     float bloom_threshold;
-    float bloom_radius;
 } u_camera;
 
 vec3 pow_v3(vec3 v, float p) {
@@ -57,9 +56,9 @@ void main() {
     if (gid.x >= size.x || gid.y >= size.y)
         return;
 
-    vec2 source_texel_size = 1.0 / imageSize(u_bloom_first_mip);
-    float x = source_texel_size.x;
-    float y = source_texel_size.y;
+    vec2 texel_size = 1.0 / imageSize(u_bloom_first_mip);
+    float x = texel_size.x;
+    float y = texel_size.y;
     vec2 uv = (vec2(gid) + 0.5) / vec2(size);
 
     vec3 a = texture(u_scene, vec2(uv.x - 2*x, uv.y + 2*y)).rgb;

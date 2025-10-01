@@ -664,8 +664,10 @@ Texture Texture::create_storage(int32_t width, int32_t height,
     int32_t mip_count{};
     if (mips.has_value())
         mip_count = mips.value();
-    else
+    else {
         mip_count = 1 + glm::floor(glm::log2(glm::max(width, height)));
+        mip_count = std::min(mip_count, 7);
+    }
 
     auto [internal, pixel_format, type, bpp] = format_details(format);
     tex.width = width;

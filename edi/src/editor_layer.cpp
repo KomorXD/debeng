@@ -69,7 +69,7 @@ std::unique_ptr<Layer> EditorLayer::create(const eng::WindowSpec &win_spec) {
 
     ent = layer->scene.spawn_entity("light");
     ent.get_component<eng::Transform>().position = glm::vec3(0.0f, 4.0f, 0.0f);
-    ent.add_component<eng::PointLight>().intensity = 3.0f;
+    ent.add_component<eng::PointLight>().intensity = 10.0f;
     ent.add_component<eng::MeshComp>().id = eng::AssetPack::CUBE_ID;
     ent.add_component<eng::MaterialComp>().id =
         eng::AssetPack::DEFAULT_FLAT_MATERIAL;
@@ -579,8 +579,6 @@ static void render_control_panel(EditorLayer &layer) {
                                0.01f, 0.0f, FLT_MAX, "%.3f", horizontal_size);
         ImGui::PrettyDragFloat("Bloom threshold", &layer.camera.bloom_threshold,
                                0.01f, 0.0f, FLT_MAX, "%.3f", horizontal_size);
-        ImGui::PrettyDragFloat("Bloom radius", &layer.camera.bloom_radius,
-                               0.0001f, 0.0f, FLT_MAX, "%.5f", horizontal_size);
         ImGui::PrettyDragFloat("Near clip", &layer.camera.near_clip, 0.01f,
                                0.0f, layer.camera.far_clip, "%.3f",
                                horizontal_size);

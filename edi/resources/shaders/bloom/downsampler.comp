@@ -16,8 +16,8 @@ void main() {
     vec2 uv = (vec2(gid) + 0.5) / vec2(target_size);
     vec2 source_size = textureSize(u_source_mip, int(u_mip));
     vec2 texel_size = 1.0 / source_size;
-    float x = texel_size.x;
-    float y = texel_size.y;
+    float x = texel_size.x * pow(1.2, u_mip);
+    float y = texel_size.y * pow(1.2, u_mip);
 
     vec3 a = textureLod(u_source_mip, vec2(uv.x - 2*x, uv.y + 2*y), u_mip).rgb;
     vec3 b = textureLod(u_source_mip, vec2(uv.x      , uv.y + 2*y), u_mip).rgb;
@@ -42,6 +42,5 @@ void main() {
     acc += vec3((j + k + l + m) * 0.125);
     acc = max(acc, 0.0001);
 
-    float mip_weight = pow(0.8, u_mip);
-    imageStore(u_target_mip, gid, vec4(acc * mip_weight, 1.0));
+    imageStore(u_target_mip, gid, vec4(acc, 1.0));
 }

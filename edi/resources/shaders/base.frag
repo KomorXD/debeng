@@ -104,7 +104,6 @@ layout (std140, binding = CAMERA_BINDING) uniform Camera {
 
     float bloom_strength;
     float bloom_threshold;
-    float bloom_radius;
 } u_camera;
 
 struct Material {

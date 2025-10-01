@@ -298,7 +298,7 @@ void main() {
 
         float shadow = calc_csm_shadow(i, N, L);
         Lo += (kD * diffuse.rgb / PI + specular) * radiance
-            * max(dot(N, L), 0.0) * shadow;
+            * max(dot(N, L), 0.0) * shadow * ao;
     }
 
     for (int i = 0; i < u_point_lights.count; i++) {
@@ -350,7 +350,7 @@ void main() {
                                    pl.light_space_mats[dir_idx],
                                    i * 6 + dir_idx, N, L);
         Lo += (kD * diffuse.rgb / PI + specular) * radiance
-            * max(dot(N, L), 0.0) * shadow;
+            * max(dot(N, L), 0.0) * shadow * ao;
     }
 
     for (int i = 0; i < u_spot_lights.count; i++) {
@@ -397,11 +397,11 @@ void main() {
                               N, L);
 
             Lo += (kD * diffuse.rgb / PI + specular) * radiance
-                * max(dot(N, L), 0.0) * intensity * shadow_factor;
+                * max(dot(N, L), 0.0) * intensity * shadow_factor * ao;
         }
     }
 
-    final_color.rgb = (0.1 + Lo) * u_material.color.rgb * ao;
+    final_color.rgb = (0.1 + Lo) * u_material.color.rgb;
 
     DrawParams params = u_draw_params.params[int(fs_in.draw_params_idx)];
     final_color.rgb *= max(1.0, params.color_intensity);

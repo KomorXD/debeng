@@ -971,10 +971,10 @@ static void render_entity_panel(EditorLayer &layer) {
             float width = ImGui::CalcTextSize("Quadratic").x;
             ImGui::PrettyDragFloat("Intensity", &pl.intensity, 0.01f, 0.0f,
                                    FLT_MAX, "%.2f", width);
-            ImGui::PrettyDragFloat("Linear", &pl.linear, 0.01f, 0.0f,
-                                   FLT_MAX, "%.2f", width);
-            ImGui::PrettyDragFloat("Quadratic", &pl.quadratic, 0.01f, 0.0f,
-                                   FLT_MAX, "%.2f", width);
+            ImGui::PrettyDragFloat("Linear", &pl.linear, 0.0001f, 0.0f,
+                                   FLT_MAX, "%.5f", width);
+            ImGui::PrettyDragFloat("Quadratic", &pl.quadratic, 0.0001f, 0.0f,
+                                   FLT_MAX, "%.5f", width);
 
             if (ImGui::PrettyButton("Remove component"))
                 ent.remove_component<eng::PointLight>();
@@ -1002,7 +1002,7 @@ static void render_entity_panel(EditorLayer &layer) {
                                    0.0f, sl.cutoff, "%.3f");
             ImGui::PrettyDragFloat("Linear", &sl.linear, 0.0001f, 0.0f, FLT_MAX,
                                    "%.5f");
-            ImGui::PrettyDragFloat("Quadratic", &sl.quadratic, 0.00001f, 0.0f,
+            ImGui::PrettyDragFloat("Quadratic", &sl.quadratic, 0.0001f, 0.0f,
                                    FLT_MAX, "%.5f");
 
             if (ImGui::PrettyButton("Remove component"))

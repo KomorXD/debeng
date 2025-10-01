@@ -44,10 +44,11 @@ float karis_avg(vec3 color) {
 
 vec3 prefilter(vec3 color) {
     float brightness = max(color.r, max(color.g, color.b));
-    float contrib = max(0, brightness - u_camera.bloom_threshold);
-    contrib /= brightness + 0.00001;
+    float knee = 0.8 * u_camera.bloom_threshold;
+    float t = max(brightness - u_camera.bloom_threshold, 0.0);
+    float soft = t / (t + knee);
 
-    return color * contrib;
+    return color * soft;
 }
 
 void main() {

@@ -247,8 +247,8 @@ float geo_smith(vec3 N, vec3 V, vec3 L, float roughness) {
     return ggx1 * ggx2;
 }
 
-vec3 fresnel_schlick(float cos_theta, vec3 F0) {
-    return F0 + (1.0 - F0) * pow(clamp(1.0 - cos_theta, 0.0, 1.0), 5.0);
+vec3 fresnel_schlick(float cos_theta, vec3 F0, float roughness) {
+    return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(clamp(1.0 - cos_theta, 0.0, 1.0), 5.0);
 }
 
 void main() {
@@ -285,10 +285,13 @@ void main() {
 
         float NDF   = dist_ggx(N, H, roughness);
         float G     = geo_smith(N, V, L, roughness);
-        vec3 F      = fresnel_schlick(clamp(dot(H, V), 0.0, 1.0), F0);
+        vec3 F      = fresnel_schlick(clamp(dot(H, V), 0.0, 1.0), F0, roughness);
 
         float denom = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
         vec3 specular = NDF * G * F / denom;
+        float clamp_scale = mix(0.0, 1.0, clamp(1.0 - roughness, 0.0, 1.0));
+        specular = specular / (1.0 + specular * clamp_scale);
+
         vec3 kS = F;
         vec3 kD = vec3(1.0) - kS;
         kD *= 1.0 - metallic;
@@ -317,10 +320,13 @@ void main() {
 
         float NDF   = dist_ggx(N, H, roughness);
         float G     = geo_smith(N, V, L, roughness);
-        vec3 F      = fresnel_schlick(clamp(dot(H, V), 0.0, 1.0), F0);
+        vec3 F      = fresnel_schlick(clamp(dot(H, V), 0.0, 1.0), F0, roughness);
 
         float denom = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
         vec3 specular = NDF * G * F / denom;
+        float clamp_scale = mix(0.0, 1.0, clamp(1.0 - roughness, 0.0, 1.0));
+        specular = specular / (1.0 + specular * clamp_scale);
+
         vec3 kS = F;
         vec3 kD = vec3(1.0) - kS;
         kD *= 1.0 - metallic;
@@ -343,14 +349,6 @@ void main() {
         float shadow = calc_shadow(u_point_lights_shadowmaps,
                                    pl.light_space_mats[dir_idx],
                                    i * 6 + dir_idx, N, L);
-        // int local_layer = i * 6;
-        // for (int face = 0; face < 6; face++) {
-        //     shadow += calc_shadow(u_point_lights_shadowmaps,
-        //                           pl.light_space_mats[face], local_layer,
-        //                           N, L);
-        //     local_layer++;
-        // }
-
         Lo += (kD * diffuse.rgb / PI + specular) * radiance
             * max(dot(N, L), 0.0) * shadow;
     }
@@ -383,10 +381,13 @@ void main() {
 
             float NDF   = dist_ggx(N, H, roughness);
             float G     = geo_smith(N, V, L, roughness);
-            vec3 F      = fresnel_schlick(clamp(dot(H, V), 0.0, 1.0), F0);
+            vec3 F      = fresnel_schlick(clamp(dot(H, V), 0.0, 1.0), F0, roughness);
 
             float denom = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
             vec3 specular = NDF * G * F / denom;
+            float clamp_scale = mix(0.0, 1.0, clamp(1.0 - roughness, 0.0, 1.0));
+            specular = specular / (1.0 + specular * clamp_scale);
+
             vec3 kS = F;
             vec3 kD = vec3(1.0) - kS;
             kD *= 1.0 - metallic;

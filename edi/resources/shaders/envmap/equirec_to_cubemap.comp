@@ -1,0 +1,42 @@
+#version 460 core
+
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
+layout(binding = 0) uniform sampler2D u_equirect;
+layout(binding = 1, rgba16f) writeonly uniform image2D u_face;
+
+uniform int u_face_idx;
+
+const float PI = 3.14159265358979323846;
+
+vec3 face_coord_to_dir(vec2 uv) {
+    float u = uv.x;
+    float v = uv.y;
+
+    vec3 dirs[6] = {
+        vec3(1.0,   v,  -u), vec3(-1.0,    v,    u),
+        vec3(  u, 1.0,  -v), vec3(   u, -1.0,    v),
+        vec3(  u,   v, 1.0), vec3(  -u,    v, -1.0)
+    };
+    return normalize(dirs[u_face_idx]);
+}
+
+void main() {
+    ivec2 size = imageSize(u_face);
+    ivec2 gid = ivec2(gl_GlobalInvocationID.xy);
+    if (gid.x >= size.x || gid.y >= size.y)
+        return;
+
+    vec2 uv = (vec2(gid) + 0.5) / vec2(size) * 2.0 - 1.0;
+    uv.y = -uv.y;
+
+    vec3 dir = face_coord_to_dir(uv);
+
+    float lon = atan(dir.z, dir.x);
+    float lat = asin(clamp(dir.y, -1.0, 1.0));
+
+    vec2 st = vec2(lon / (2.0 * PI) + 0.5, lat / PI + 0.5);
+    vec3 color = texture(u_equirect, st).rgb;
+
+    imageStore(u_face, gid, vec4(color, 1.0));
+}

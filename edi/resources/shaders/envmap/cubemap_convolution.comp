@@ -1,0 +1,60 @@
+#version 460 core
+
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
+layout(binding = 0) uniform samplerCube u_cubemap;
+layout(binding = 1, rgba16f) writeonly uniform image2D u_convmap_face;
+
+uniform int u_face_idx;
+
+const float PI = 3.14159265358979323846;
+
+vec3 face_coord_to_dir(vec2 uv) {
+    float u = uv.x;
+    float v = uv.y;
+
+    vec3 dirs[6] = {
+        vec3(1.0,   v,  -u), vec3(-1.0,    v,    u),
+        vec3(  u, 1.0,  -v), vec3(   u, -1.0,    v),
+        vec3(  u,   v, 1.0), vec3(  -u,    v, -1.0)
+    };
+    return normalize(dirs[u_face_idx]);
+}
+
+void main() {
+    ivec2 size = imageSize(u_convmap_face);
+    ivec2 gid = ivec2(gl_GlobalInvocationID.xy);
+    if (gid.x >= size.x || gid.y >= size.y)
+        return;
+
+    vec2 uv = (vec2(gid) + 0.5) / vec2(size) * 2.0 - 1.0;
+    uv.y = -uv.y;
+
+    vec3 irradiance = vec3(0.0);
+
+    vec3 dir = face_coord_to_dir(uv);
+    vec3 up = vec3(0.0, 1.0, 0.0);
+    vec3 right = normalize(cross(up, dir));
+    up = normalize(cross(dir, right));
+
+    float d_phi = 0.25;
+    float d_theta = 0.25;
+    float samples = (2.0 * PI / d_phi) * (0.5 * PI / d_theta);
+    for (float phi = 0.0; phi < 2.0 * PI; phi += d_phi) {
+        for (float theta = 0.0; theta < 0.5 * PI; theta += d_theta) {
+            vec3 tangent_sample = vec3(sin(theta) * cos(phi),
+                                       sin(theta) * sin(phi),
+                                       cos(theta));
+            vec3 sample_vec = tangent_sample.x * right
+                + tangent_sample.y * up
+                + tangent_sample.z * dir;
+            sample_vec = normalize(sample_vec);
+
+            vec3 color = min(texture(u_cubemap, sample_vec).rgb * cos(theta)
+                             * sin(theta), 4.0);
+            irradiance += color / samples;
+        }
+    }
+
+    imageStore(u_convmap_face, gid, vec4(irradiance, 1.0));
+}

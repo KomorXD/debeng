@@ -42,6 +42,8 @@ struct EditorLayer : public Layer {
     eng::Scene scene;
     eng::AssetPack asset_pack;
 
+    eng::AssetID envmap_id;
+
     Framebuffer main_fbo;
 
     eng::SpectatorCamera camera;

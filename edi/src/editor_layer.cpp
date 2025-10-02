@@ -80,6 +80,12 @@ std::unique_ptr<Layer> EditorLayer::create(const eng::WindowSpec &win_spec) {
     mat.shader_id = eng::AssetPack::DEFAULT_FLAT_MATERIAL;
     layer->outline_material = layer->asset_pack.add_material(mat);
 
+    eng::EnvMap env_map;
+    env_map.thumbnail = Texture::create("resources/textures/envmaps/xdd.hdr",
+                                        TextureFormat::RGBA16F);
+    env_map.cube_map = eng::renderer::create_envmap(env_map.thumbnail);
+    layer->envmap_id = layer->asset_pack.add_env_map(env_map);
+
     return layer;
 }
 
@@ -401,6 +407,7 @@ void EditorLayer::on_render() {
     }
 
     eng::renderer::scene_end();
+    eng::renderer::skybox(envmap_id);
 
     main_fbo.bind_color_attachment(0);
     eng::renderer::post_process();
@@ -553,6 +560,78 @@ static void render_control_panel(EditorLayer &layer) {
         }
 
         ImGui::EndPopup();
+    }
+
+    if (ImGui::CollapsingHeader("Environment"),
+        ImGuiTreeNodeFlags_DefaultOpen) {
+        eng::EnvMap &envmap = layer.asset_pack.env_maps.at(layer.envmap_id);
+
+        ImGui::Indent(8.0f);
+        if (ImGui::TextureFrame(
+                "##Envmap", (ImTextureID)envmap.thumbnail.id,
+                [&envmap]() {
+                    ImGui::Text("Env map");
+                    ImGui::Text("%s", envmap.thumbnail.name.c_str());
+                },
+                96.0f)) {
+            ImGui::OpenPopup("avail_envmaps_group");
+        }
+
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {10.0f, 10.0f});
+        if (ImGui::BeginPopup("avail_envmaps_group")) {
+            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, {15.0f, 0.0f});
+
+            int32_t count = 0;
+            for (const auto &[id, envmap] : layer.asset_pack.env_maps) {
+                ImGui::PushID(count);
+
+                if (ImGui::ImageButton(
+                        "#Envmap", (ImTextureID)envmap.thumbnail.id,
+                        {64.0f, 64.0f}, {0.0f, 1.0f}, {1.0f, 0.0f})) {
+                    layer.envmap_id = id;
+                }
+
+                if ((++count) % 3 == 0)
+                    ImGui::NewLine();
+                else
+                    ImGui::SameLine();
+
+                ImGui::PopID();
+            }
+
+            if (count % 3 != 0)
+                ImGui::NewLine();
+
+            ImGui::NewLine();
+
+            if (ImGui::Button("New envmap")) {
+                IGFD::FileDialogConfig config;
+                config.path = ".";
+                config.flags = ImGuiFileDialogFlags_Modal;
+
+                ImGuiFileDialog::Instance()->OpenDialog(
+                    "file_dial_envmap", "Choose file", ".hdr", config);
+            }
+
+            ImGui::PopStyleVar();
+            ImGui::EndPopup();
+        }
+
+        ImGui::PopStyleVar();
+    }
+
+    ImGui::SetNextWindowSize({600.0f, 400.0f}, ImGuiCond_FirstUseEver);
+    if (ImGuiFileDialog::Instance()->Display("file_dial_envmap")) {
+        if (ImGuiFileDialog::Instance()->IsOk()) {
+            std::string path = ImGuiFileDialog::Instance()->GetFilePathName();
+
+            eng::EnvMap env_map;
+            env_map.thumbnail = Texture::create(path, TextureFormat::RGBA16F);
+            env_map.cube_map = eng::renderer::create_envmap(env_map.thumbnail);
+            layer.envmap_id = layer.asset_pack.add_env_map(env_map);
+        }
+
+        ImGuiFileDialog::Instance()->Close();
     }
 
     ImGui::BeginPrettyCombo(

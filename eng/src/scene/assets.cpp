@@ -161,24 +161,26 @@ AssetPack AssetPack::create(const std::string &pack_name) {
         assert(base_shader.build(spec) && "Default shaders not found");
 
         renderer::TextureSlots slots = eng::renderer::texture_slots();
-        std::array<const char *, 9> unis = {"u_albedo",
-                                            "u_normal",
-                                            "u_roughness",
-                                            "u_metallic",
-                                            "u_ao",
-                                            "u_dir_lights_csm_shadowmaps",
-                                            "u_point_lights_shadowmaps",
-                                            "u_spot_lights_shadowmaps",
-                                            "u_soft_shadow_offsets_texture"};
-        std::array<int32_t, 9> tex_slots = {slots.albedo,
-                                            slots.normal,
-                                            slots.roughness,
-                                            slots.metallic,
-                                            slots.ao,
-                                            slots.dir_csm_shadowmaps,
-                                            slots.point_lights_shadowmaps,
-                                            slots.spot_lights_shadowmaps,
-                                            slots.random_offsets_texture};
+        std::array<const char *, 10> unis = {"u_albedo",
+                                             "u_normal",
+                                             "u_roughness",
+                                             "u_metallic",
+                                             "u_ao",
+                                             "u_irradiance_map",
+                                             "u_dir_lights_csm_shadowmaps",
+                                             "u_point_lights_shadowmaps",
+                                             "u_spot_lights_shadowmaps",
+                                             "u_soft_shadow_offsets_texture"};
+        std::array<int32_t, 10> tex_slots = {slots.albedo,
+                                             slots.normal,
+                                             slots.roughness,
+                                             slots.metallic,
+                                             slots.ao,
+                                             slots.irradiance_map,
+                                             slots.dir_csm_shadowmaps,
+                                             slots.point_lights_shadowmaps,
+                                             slots.spot_lights_shadowmaps,
+                                             slots.random_offsets_texture};
 
         base_shader.bind();
         for (int32_t i = 0; i < unis.size(); i++)
@@ -279,6 +281,8 @@ AssetID AssetPack::add_env_map(EnvMap &env_map) {
     EnvMap &new_env_map = env_maps[id];
     new_env_map.thumbnail = env_map.thumbnail;
     new_env_map.cube_map = env_map.cube_map;
+    new_env_map.irradiance_map = env_map.irradiance_map;
+
     return id;
 }
 

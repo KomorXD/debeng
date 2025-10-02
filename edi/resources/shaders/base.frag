@@ -245,8 +245,41 @@ float geo_smith(vec3 N, vec3 V, vec3 L, float roughness) {
     return ggx1 * ggx2;
 }
 
-vec3 fresnel_schlick(float cos_theta, vec3 F0, float roughness) {
+vec3 fresnelSchlickRoughness(float cos_theta, vec3 F0, float roughness) {
     return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(clamp(1.0 - cos_theta, 0.0, 1.0), 5.0);
+}
+
+vec3 berley_brdf(vec3 N, vec3 V, vec3 L, vec3 albedo, float metallic, float roughness) {
+    vec3 H = normalize(V + L);
+    float NdotL = max(dot(N, L), 0.0);
+    float NdotV = max(dot(N, V), 0.0);
+    float LdotH = max(dot(L, H), 0.0);
+
+    vec3 F0 = mix(vec3(0.04), albedo, metallic);
+    vec3 F = F0 + (1.0 - F0) * pow(1.0 - NdotV, 5.0);
+
+    float energy_bias = roughness;
+    float energy_factor = mix(1.0, 1.0 / (4.0 * NdotV + 2.0), energy_bias);
+    F *= energy_factor;
+
+    float D = dist_ggx(N, H, roughness);
+    float G = geo_smith(N, V, L, roughness);
+
+    float denom = 4.0 * NdotV * NdotL + 0.0001;
+    vec3 specular = D * G * F / denom;
+    float clamp_scale = mix(0.0, 1.0, clamp(1.0 - roughness, 0.0, 1.0));
+    specular = specular / (1.0 + specular * clamp_scale);
+
+    vec3 kS = F;
+    vec3 kD = vec3(1.0) - kS;
+    kD *= 1.0 - metallic;
+
+    float FD90 = 0.5 + 2.0 * LdotH * LdotH * roughness;
+    float light_scatter = 1.0 + (FD90 - 1.0) * pow(1.0 - NdotL, 5.0);
+    float view_scatter = 1.0 + (FD90 - 1.0) * pow(1.0 - NdotV, 5.0);
+    vec3 diffuse_term = albedo * (light_scatter * view_scatter) * (1.0 / PI) * NdotL;
+
+    return kD * diffuse_term + specular;
 }
 
 void main() {
@@ -279,24 +312,10 @@ void main() {
 
         vec3 radiance = dl.color.rgb;
         vec3 L = fs_in.TBN * dl.direction.xyz;
-        vec3 H = normalize(V + L);
-
-        float NDF   = dist_ggx(N, H, roughness);
-        float G     = geo_smith(N, V, L, roughness);
-        vec3 F      = fresnel_schlick(clamp(dot(H, V), 0.0, 1.0), F0, roughness);
-
-        float denom = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
-        vec3 specular = NDF * G * F / denom;
-        float clamp_scale = mix(0.0, 1.0, clamp(1.0 - roughness, 0.0, 1.0));
-        specular = specular / (1.0 + specular * clamp_scale);
-
-        vec3 kS = F;
-        vec3 kD = vec3(1.0) - kS;
-        kD *= 1.0 - metallic;
+        vec3 brdf = berley_brdf(N, V, L, diffuse.rgb, metallic, roughness);
 
         float shadow = calc_csm_shadow(i, N, L);
-        Lo += (kD * diffuse.rgb / PI + specular) * radiance
-            * max(dot(N, L), 0.0) * shadow * ao;
+        Lo += brdf * radiance * shadow * ao;
     }
 
     for (int i = 0; i < u_point_lights.count; i++) {
@@ -307,27 +326,13 @@ void main() {
         float linear            = pl.position_and_linear.w;
         float quadratic         = pl.color_and_quadratic.w;
 
-        vec3 L = normalize(tangent_position - fs_in.tangent_world_position);
-        vec3 H = normalize(V + L);
-
         float dist = length(position - fs_in.world_space_position);
         float attentuation
             = 1.0 / (1.0 + linear * dist + quadratic * dist * dist);
 
         vec3 radiance = color * attentuation;
-
-        float NDF   = dist_ggx(N, H, roughness);
-        float G     = geo_smith(N, V, L, roughness);
-        vec3 F      = fresnel_schlick(clamp(dot(H, V), 0.0, 1.0), F0, roughness);
-
-        float denom = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
-        vec3 specular = NDF * G * F / denom;
-        float clamp_scale = mix(0.0, 1.0, clamp(1.0 - roughness, 0.0, 1.0));
-        specular = specular / (1.0 + specular * clamp_scale);
-
-        vec3 kS = F;
-        vec3 kD = vec3(1.0) - kS;
-        kD *= 1.0 - metallic;
+        vec3 L = normalize(tangent_position - fs_in.tangent_world_position);
+        vec3 brdf = berley_brdf(N, V, L, diffuse.rgb, metallic, roughness);
 
         vec3 dir = fs_in.world_space_position - position;
         vec3 dirs[] = {
@@ -347,8 +352,7 @@ void main() {
         float shadow = calc_shadow(u_point_lights_shadowmaps,
                                    pl.light_space_mats[dir_idx],
                                    i * 6 + dir_idx, N, L);
-        Lo += (kD * diffuse.rgb / PI + specular) * radiance
-            * max(dot(N, L), 0.0) * shadow * ao;
+        Lo += brdf * radiance * shadow * ao;
     }
 
     for (int i = 0; i < u_spot_lights.count; i++) {
@@ -371,31 +375,17 @@ void main() {
             float epsilon = abs(cutoff - outer_cutoff) + 0.0001;
             float intensity = clamp((theta - outer_cutoff) / epsilon, 0.0, 1.0);
 
-            vec3 H = normalize(V + L);
             float dist = length(position - fs_in.world_space_position);
             float attentuation
                 = 1.0 / (1.0 + linear * dist + quadratic * dist * dist);
+
             vec3 radiance = color * attentuation;
+            vec3 brdf = berley_brdf(N, V, L, diffuse.rgb, metallic, roughness);
 
-            float NDF   = dist_ggx(N, H, roughness);
-            float G     = geo_smith(N, V, L, roughness);
-            vec3 F      = fresnel_schlick(clamp(dot(H, V), 0.0, 1.0), F0, roughness);
-
-            float denom = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
-            vec3 specular = NDF * G * F / denom;
-            float clamp_scale = mix(0.0, 1.0, clamp(1.0 - roughness, 0.0, 1.0));
-            specular = specular / (1.0 + specular * clamp_scale);
-
-            vec3 kS = F;
-            vec3 kD = vec3(1.0) - kS;
-            kD *= 1.0 - metallic;
-
-            float shadow_factor
+            float shadow
                 = calc_shadow(u_spot_lights_shadowmaps, sl.light_space_mat, i,
                               N, L);
-
-            Lo += (kD * diffuse.rgb / PI + specular) * radiance
-                * max(dot(N, L), 0.0) * intensity * shadow_factor * ao;
+            Lo += brdf * radiance * shadow * ao;
         }
     }
 

@@ -92,6 +92,7 @@ void main() {
 
     acc = prefilter(acc);
     acc = max(acc, 0.0001);
+    acc = min(acc, 16.0);
 
     imageStore(u_bloom_first_mip, gid, vec4(acc, 1.0));
 }

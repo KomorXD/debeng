@@ -973,6 +973,10 @@ EnvMap create_envmap(const Texture &equirect) {
         s_renderer.equirec_to_cubemap_shader.dispatch_compute(groups);
     }
 
+    groups.x = (emap.irradiance_map.face_width + 15) / 16;
+    groups.y = (emap.irradiance_map.face_height + 15) / 16;
+    groups.z = 1;
+
     emap.cube_map.bind();
     s_renderer.cubemap_convolution_shader.bind();
     for (int32_t face = 0; face < 6; face++) {

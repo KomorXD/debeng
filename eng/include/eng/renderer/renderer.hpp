@@ -138,12 +138,15 @@ void submit_dir_light(const glm::vec3 &rotation, const DirLight &light);
 void submit_point_light(const glm::vec3 &position, const PointLight &light);
 void submit_spot_light(const Transform &transform, const SpotLight &light);
 
+CubeTexture create_envmap(const Texture &equirect);
+
 SoftShadowProps &soft_shadow_props();
 TextureSlots texture_slots();
 
 RenderStats stats();
 void reset_stats();
 
+void skybox(AssetID envmap_id);
 void draw_to_screen_quad();
 void post_process();
 

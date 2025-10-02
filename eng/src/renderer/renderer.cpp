@@ -1,5 +1,6 @@
 #include "eng/renderer/renderer.hpp"
 #include "eng/renderer/opengl.hpp"
+#include "eng/renderer/primitives.hpp"
 #include "eng/scene/assets.hpp"
 #include "eng/scene/components.hpp"
 #include "GLFW/glfw3.h"
@@ -39,6 +40,11 @@ struct Renderer {
 
     VertexArray screen_quad_vao;
     Shader screen_quad_shader;
+
+    VertexArray cubemap_vao;
+    Shader cubemap_shader;
+
+    Shader equirec_to_cubemap_shader;
 
     Texture bloom_texture;
     Shader bloom_filter;
@@ -246,6 +252,38 @@ bool init() {
     s_renderer.screen_quad_shader.set_uniform_1i("u_screen_texture", 0);
     s_renderer.screen_quad_shader.set_uniform_1i("u_bloom_texture", 1);
 
+    {
+        std::vector<float> vertices = skybox_vertex_data();
+        s_renderer.cubemap_vao = VertexArray::create();
+
+        VertexBuffer vbo = VertexBuffer::create();
+        vbo.allocate(vertices.data(), vertices.size() * sizeof(float));
+
+        VertexBufferLayout layout;
+        layout.push_float(3); // 0 - position
+
+        s_renderer.cubemap_vao.add_vertex_buffer(vbo, layout);
+
+        ShaderSpec spec;
+        spec.vertex_shader.path = "resources/shaders/skybox.vert";
+        spec.vertex_shader.replacements.push_back(
+            {.pattern = "${CAMERA_BINDING}",
+             .target = std::to_string(CAMERA_BINDING)});
+        spec.fragment_shader.path = "resources/shaders/skybox.frag";
+
+        s_renderer.cubemap_shader = Shader::create();
+        assert(s_renderer.cubemap_shader.build(spec) &&
+               "Failed to build skybox shader");
+
+        s_renderer.cubemap_shader.bind();
+        s_renderer.cubemap_shader.set_uniform_1i("u_cubemap", 0);
+    }
+
+    s_renderer.equirec_to_cubemap_shader = Shader::create();
+    assert(s_renderer.equirec_to_cubemap_shader.build_compute(
+               {.path = "resources/shaders/envmap/equirec_to_cubemap.comp"}) &&
+           "Failed to build equirec to cubemap shader");
+
     uint32_t size = sizeof(CameraData);
     s_renderer.camera_uni_buffer = UniformBuffer::create(nullptr, size);
     s_renderer.camera_uni_buffer.bind_buffer_range(CAMERA_BINDING, 0, size);
@@ -431,6 +469,11 @@ void shutdown() {
 
     s_renderer.screen_quad_vao.destroy();
     s_renderer.screen_quad_shader.destroy();
+
+    s_renderer.cubemap_vao.destroy();
+    s_renderer.cubemap_shader.destroy();
+
+    s_renderer.equirec_to_cubemap_shader.destroy();
 
     s_renderer.bloom_texture.destroy();
     s_renderer.bloom_filter.destroy();
@@ -899,6 +942,29 @@ void submit_spot_light(const Transform &transform, const SpotLight &light) {
     light_data.quadratic = light.quadratic;
 }
 
+CubeTexture create_envmap(const Texture &equirect) {
+    s_renderer.equirec_to_cubemap_shader.bind();
+    equirect.bind();
+
+    CubeTexture ct = CubeTexture::create(equirect.width, equirect.width,
+                                         TextureFormat::RGBA16F);
+    glm::ivec3 groups;
+    groups.x = (ct.face_width  + 15) / 16;
+    groups.y = (ct.face_height + 15) / 16;
+    groups.z = 1;
+
+    for (int32_t face = 0; face < 6; face++) {
+        ct.bind_face_image(face, 0, 1);
+        s_renderer.equirec_to_cubemap_shader.set_uniform_1i("u_face_idx", face);
+        s_renderer.equirec_to_cubemap_shader.dispatch_compute(groups);
+    }
+
+    ct.bind();
+    GL_CALL(glGenerateMipmap(GL_TEXTURE_CUBE_MAP));
+
+    return ct;
+}
+
 SoftShadowProps &soft_shadow_props() {
     return s_renderer.soft_shadow_props;
 }
@@ -913,6 +979,15 @@ RenderStats stats() {
 
 void reset_stats() {
     memset(&s_renderer.stats, 0, sizeof(RenderStats));
+}
+
+void skybox(AssetID envmap_id) {
+    CubeTexture &ct = s_asset_pack->env_maps.at(envmap_id).cube_map;
+    ct.bind();
+
+    GL_CALL(glDepthFunc(GL_LEQUAL));
+    draw_arrays(s_renderer.cubemap_shader, s_renderer.cubemap_vao, 36);
+    GL_CALL(glDepthFunc(GL_LESS));
 }
 
 void draw_to_screen_quad() {

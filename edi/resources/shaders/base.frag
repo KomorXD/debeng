@@ -124,6 +124,7 @@ uniform sampler2D u_normal;
 uniform sampler2D u_roughness;
 uniform sampler2D u_metallic;
 uniform sampler2D u_ao;
+uniform samplerCube u_irradiance_map;
 
 uniform float u_cascade_distances[CASCADES_COUNT];
 uniform sampler2DArrayShadow u_dir_lights_csm_shadowmaps;
@@ -389,7 +390,11 @@ void main() {
         }
     }
 
-    final_color.rgb = (0.1 + Lo) * u_material.color.rgb;
+    vec3 kS = fresnelSchlickRoughness(max(dot(N, V), 0.0), F0, roughness);
+    vec3 kD = 1.0 - kS;
+    vec3 irradiance = texture(u_irradiance_map, N).rgb;
+    vec3 ambient = kD * irradiance * diffuse.rgb * ao;
+    final_color.rgb = (ambient + Lo) * u_material.color.rgb;
 
     DrawParams params = u_draw_params.params[int(fs_in.draw_params_idx)];
     final_color.rgb *= max(1.0, params.color_intensity);

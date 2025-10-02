@@ -80,11 +80,11 @@ std::unique_ptr<Layer> EditorLayer::create(const eng::WindowSpec &win_spec) {
     mat.shader_id = eng::AssetPack::DEFAULT_FLAT_MATERIAL;
     layer->outline_material = layer->asset_pack.add_material(mat);
 
-    eng::EnvMap env_map;
-    env_map.thumbnail = Texture::create("resources/textures/envmaps/xdd.hdr",
+    Texture thumbnail = Texture::create("resources/textures/envmaps/xdd.hdr",
                                         TextureFormat::RGBA16F);
-    env_map.cube_map = eng::renderer::create_envmap(env_map.thumbnail);
+    eng::EnvMap env_map = eng::renderer::create_envmap(thumbnail);
     layer->envmap_id = layer->asset_pack.add_env_map(env_map);
+    eng::renderer::use_envmap(layer->asset_pack.env_maps.at(layer->envmap_id));
 
     return layer;
 }
@@ -589,6 +589,7 @@ static void render_control_panel(EditorLayer &layer) {
                         "#Envmap", (ImTextureID)envmap.thumbnail.id,
                         {64.0f, 64.0f}, {0.0f, 1.0f}, {1.0f, 0.0f})) {
                     layer.envmap_id = id;
+                    eng::renderer::use_envmap(layer.asset_pack.env_maps.at(id));
                 }
 
                 if ((++count) % 3 == 0)
@@ -625,10 +626,11 @@ static void render_control_panel(EditorLayer &layer) {
         if (ImGuiFileDialog::Instance()->IsOk()) {
             std::string path = ImGuiFileDialog::Instance()->GetFilePathName();
 
-            eng::EnvMap env_map;
-            env_map.thumbnail = Texture::create(path, TextureFormat::RGBA16F);
-            env_map.cube_map = eng::renderer::create_envmap(env_map.thumbnail);
+            Texture equirect = Texture::create(path, TextureFormat::RGBA16F);
+            eng::EnvMap env_map = eng::renderer::create_envmap(equirect);
             layer.envmap_id = layer.asset_pack.add_env_map(env_map);
+            eng::renderer::use_envmap(
+                layer.asset_pack.env_maps.at(layer.envmap_id));
         }
 
         ImGuiFileDialog::Instance()->Close();

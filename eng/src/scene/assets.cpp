@@ -234,6 +234,11 @@ void AssetPack::destroy() {
     for (auto &[tex_id, texture] : textures)
         texture.destroy();
 
+    for (auto &[env_map_id, env_map] : env_maps) {
+        env_map.thumbnail.destroy();
+        env_map.cube_map.destroy();
+    }
+
     for (auto &[shader_id, shader] : shaders)
         shader.destroy();
 
@@ -261,6 +266,19 @@ AssetID AssetPack::add_texture(Texture &texture) {
 
     Texture &new_texture = textures[id];
     new_texture = texture;
+    return id;
+}
+
+AssetID AssetPack::add_env_map(EnvMap &env_map) {
+    AssetID id = 0;
+    if (env_maps.empty())
+        id = 1;
+    else
+        id = env_maps.rbegin()->first + 1;
+
+    EnvMap &new_env_map = env_maps[id];
+    new_env_map.thumbnail = env_map.thumbnail;
+    new_env_map.cube_map = env_map.cube_map;
     return id;
 }
 

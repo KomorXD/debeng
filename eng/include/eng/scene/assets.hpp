@@ -41,6 +41,11 @@ struct Material {
     float ao = 1.0f;
 };
 
+struct EnvMap {
+    Texture thumbnail;
+    CubeTexture cube_map;
+};
+
 struct AssetPack {
     [[nodiscard]] static AssetPack create(const std::string &pack_name);
 
@@ -62,12 +67,14 @@ struct AssetPack {
 
     [[nodiscard]] AssetID add_mesh(Mesh mesh);
     [[nodiscard]] AssetID add_texture(Texture &texture);
+    [[nodiscard]] AssetID add_env_map(EnvMap &env_map);
     [[nodiscard]] AssetID add_material(Material &material);
     [[nodiscard]] AssetID add_shader(Shader &shader);
 
     std::string name;
     std::map<AssetID, Mesh> meshes;
     std::map<AssetID, Texture> textures;
+    std::map<AssetID, EnvMap> env_maps;
     std::map<AssetID, Material> materials;
     std::map<AssetID, Shader> shaders;
 };

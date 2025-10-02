@@ -715,6 +715,80 @@ void Texture::clear_texture() {
     }
 }
 
+CubeTexture
+CubeTexture::create(int32_t face_width, int32_t face_height,
+                    TextureFormat format,
+                    std::optional<const std::vector<void *>> faces_data) {
+    CubeTexture tex;
+    tex.format = format;
+
+    TextureFormatDetails tex_details = format_details(format);
+    tex.face_width = face_width;
+    tex.face_height = face_height;
+    tex.bpp = tex_details.bpp;
+    tex.mips = 1 + glm::floor(glm::log2(glm::max(face_width, face_height)));
+
+    GL_CALL(glGenTextures(1, &tex.id));
+    GL_CALL(glBindTexture(GL_TEXTURE_CUBE_MAP, tex.id));
+    GL_CALL(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER,
+                            GL_LINEAR_MIPMAP_LINEAR));
+    GL_CALL(
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
+    GL_CALL(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_REPEAT));
+    GL_CALL(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_REPEAT));
+    GL_CALL(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_REPEAT));
+
+    if (faces_data.has_value()) {
+        assert(faces_data.value().size() == 6 &&
+               "Incorrect number of faces data");
+
+        for (int32_t i = 0; i < 6; i++) {
+            GL_CALL(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0,
+                                 tex_details.internal_format, face_width,
+                                 face_height, 0, tex_details.format,
+                                 tex_details.type, faces_data.value()[i]));
+        }
+    } else {
+        for (int32_t i = 0; i < 6; i++) {
+            GL_CALL(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0,
+                                 tex_details.internal_format, face_width,
+                                 face_height, 0, tex_details.format,
+                                 tex_details.type, nullptr));
+        }
+    }
+
+    GL_CALL(glGenerateMipmap(GL_TEXTURE_CUBE_MAP));
+    GL_CALL(glBindTexture(GL_TEXTURE_CUBE_MAP, 0));
+
+    return tex;
+}
+
+void CubeTexture::destroy() {
+    assert(id != 0 && "Trying to destroy invalid cube texture object");
+
+    GL_CALL(glDeleteTextures(1, &id));
+}
+
+void CubeTexture::bind(int32_t slot) const {
+    assert(id != 0 && "Trying to bind invalid cube texture object");
+
+    GL_CALL(glActiveTexture(GL_TEXTURE0 + slot));
+    GL_CALL(glBindTexture(GL_TEXTURE_CUBE_MAP, id));
+}
+
+void CubeTexture::bind_face_image(int32_t face, int32_t mip,
+                                  uint32_t binding) const {
+    assert(id != 0 && "Trying to bind invalid cube texture object");
+
+    GLenum internal = format_details(format).internal_format;
+    GL_CALL(glBindImageTexture(binding, id, mip, GL_FALSE, face, GL_READ_WRITE,
+                               internal));
+}
+
+void CubeTexture::unbind() const {
+    GL_CALL(glBindTexture(GL_TEXTURE_CUBE_MAP, 0));
+}
+
 RenderbufferDetails rbo_details(const RenderbufferSpec &spec) {
     static GLint type[] = {GL_DEPTH_COMPONENT, GL_STENCIL_COMPONENTS,
                            GL_DEPTH24_STENCIL8};

@@ -190,6 +190,26 @@ struct Texture {
     TextureFormat format;
 };
 
+struct CubeTexture {
+    [[nodiscard]] static CubeTexture
+    create(int32_t face_width, int32_t face_height, TextureFormat format,
+           std::optional<const std::vector<void *>> faces_data = {});
+
+    void destroy();
+
+    void bind(int32_t slot = 0) const;
+    void bind_face_image(int32_t face, int32_t mip, uint32_t binding = 0) const;
+    void unbind() const;
+
+    GLuint id = 0;
+    int32_t face_width = 0;
+    int32_t face_height = 0;
+    int32_t bpp = 0;
+    int32_t mips = 0;
+
+    TextureFormat format;
+};
+
 enum class RenderbufferType {
     DEPTH,
     STENICL,

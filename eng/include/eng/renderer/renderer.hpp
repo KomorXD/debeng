@@ -30,6 +30,7 @@ struct TextureSlots {
     int32_t roughness{};
     int32_t metallic{};
     int32_t ao{};
+    int32_t irradiance_map{};
     int32_t dir_csm_shadowmaps{};
     int32_t point_lights_shadowmaps{};
     int32_t spot_lights_shadowmaps{};
@@ -138,7 +139,8 @@ void submit_dir_light(const glm::vec3 &rotation, const DirLight &light);
 void submit_point_light(const glm::vec3 &position, const PointLight &light);
 void submit_spot_light(const Transform &transform, const SpotLight &light);
 
-CubeTexture create_envmap(const Texture &equirect);
+EnvMap create_envmap(const Texture &equirect);
+void use_envmap(EnvMap &envmap);
 
 SoftShadowProps &soft_shadow_props();
 TextureSlots texture_slots();

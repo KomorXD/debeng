@@ -45,6 +45,7 @@ struct Renderer {
     Shader cubemap_shader;
 
     Shader equirec_to_cubemap_shader;
+    Shader cubemap_convolution_shader;
 
     Texture bloom_texture;
     Shader bloom_filter;
@@ -81,6 +82,7 @@ struct Renderer {
 static Renderer s_renderer{};
 static AssetPack *s_asset_pack{};
 static const CameraData *s_active_camera{};
+static EnvMap *s_envmap{};
 
 void opengl_msg_cb(unsigned source, unsigned type, unsigned id,
                    unsigned severity, int length, const char *msg,
@@ -183,6 +185,7 @@ bool init() {
     s_renderer.slots.roughness = 2;
     s_renderer.slots.metallic = 3;
     s_renderer.slots.ao = 4;
+    s_renderer.slots.irradiance_map = 5;
     s_renderer.slots.dir_csm_shadowmaps = gpu_spec.texture_units - 1;
     s_renderer.slots.point_lights_shadowmaps = gpu_spec.texture_units - 2;
     s_renderer.slots.spot_lights_shadowmaps = gpu_spec.texture_units - 3;
@@ -283,6 +286,11 @@ bool init() {
     assert(s_renderer.equirec_to_cubemap_shader.build_compute(
                {.path = "resources/shaders/envmap/equirec_to_cubemap.comp"}) &&
            "Failed to build equirec to cubemap shader");
+
+    s_renderer.cubemap_convolution_shader = Shader::create();
+    assert(s_renderer.cubemap_convolution_shader.build_compute(
+               {.path = "resources/shaders/envmap/cubemap_convolution.comp"}) &&
+           "Failed to build cubemap convolution shader");
 
     uint32_t size = sizeof(CameraData);
     s_renderer.camera_uni_buffer = UniformBuffer::create(nullptr, size);
@@ -474,6 +482,7 @@ void shutdown() {
     s_renderer.cubemap_shader.destroy();
 
     s_renderer.equirec_to_cubemap_shader.destroy();
+    s_renderer.cubemap_convolution_shader.destroy();
 
     s_renderer.bloom_texture.destroy();
     s_renderer.bloom_filter.destroy();
@@ -568,6 +577,8 @@ void scene_end() {
         s_active_camera->far_clip / 50.0f, s_active_camera->far_clip / 25.0f,
         s_active_camera->far_clip / 10.0f, s_active_camera->far_clip / 2.0f,
         s_active_camera->far_clip};
+
+    s_envmap->irradiance_map.bind(s_renderer.slots.irradiance_map);
 
     for (auto &[shader_id, material_group] : s_renderer.shader_render_group) {
         Shader &curr_shader = s_asset_pack->shaders.at(shader_id);
@@ -942,27 +953,44 @@ void submit_spot_light(const Transform &transform, const SpotLight &light) {
     light_data.quadratic = light.quadratic;
 }
 
-CubeTexture create_envmap(const Texture &equirect) {
-    s_renderer.equirec_to_cubemap_shader.bind();
-    equirect.bind();
+EnvMap create_envmap(const Texture &equirect) {
+    EnvMap emap;
+    emap.thumbnail = equirect;
+    emap.cube_map = CubeTexture::create(equirect.width, equirect.width,
+                                        TextureFormat::RGBA16F);
+    emap.irradiance_map = CubeTexture::create(32, 32, emap.cube_map.format);
 
-    CubeTexture ct = CubeTexture::create(equirect.width, equirect.width,
-                                         TextureFormat::RGBA16F);
     glm::ivec3 groups;
-    groups.x = (ct.face_width  + 15) / 16;
-    groups.y = (ct.face_height + 15) / 16;
+    groups.x = (emap.cube_map.face_width + 15) / 16;
+    groups.y = (emap.cube_map.face_height + 15) / 16;
     groups.z = 1;
 
+    equirect.bind();
+    s_renderer.equirec_to_cubemap_shader.bind();
     for (int32_t face = 0; face < 6; face++) {
-        ct.bind_face_image(face, 0, 1);
+        emap.cube_map.bind_face_image(face, 0, 1);
         s_renderer.equirec_to_cubemap_shader.set_uniform_1i("u_face_idx", face);
         s_renderer.equirec_to_cubemap_shader.dispatch_compute(groups);
     }
 
-    ct.bind();
+    emap.cube_map.bind();
+    s_renderer.cubemap_convolution_shader.bind();
+    for (int32_t face = 0; face < 6; face++) {
+        emap.irradiance_map.bind_face_image(face, 0, 1);
+        s_renderer.cubemap_convolution_shader.set_uniform_1i("u_face_idx",
+                                                             face);
+        s_renderer.cubemap_convolution_shader.dispatch_compute(groups);
+    }
     GL_CALL(glGenerateMipmap(GL_TEXTURE_CUBE_MAP));
 
-    return ct;
+    emap.irradiance_map.bind();
+    GL_CALL(glGenerateMipmap(GL_TEXTURE_CUBE_MAP));
+
+    return emap;
+}
+
+void use_envmap(EnvMap &envmap) {
+    s_envmap = &envmap;
 }
 
 SoftShadowProps &soft_shadow_props() {

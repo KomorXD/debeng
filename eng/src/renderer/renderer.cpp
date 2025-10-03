@@ -283,7 +283,7 @@ bool init() {
         groups.y = (s_renderer.brdf_map.width + 15) / 16;
         groups.z = 1;
 
-        s_renderer.brdf_map.bind_image(0);
+        s_renderer.brdf_map.bind_image(0, 0, ImageAccess::WRITE);
         brdf_shader.dispatch_compute(groups);
         brdf_shader.destroy();
 
@@ -970,7 +970,7 @@ EnvMap create_envmap(const Texture &equirect) {
     equirect.bind();
     s_renderer.equirec_to_cubemap_shader.bind();
     for (int32_t face = 0; face < 6; face++) {
-        emap.cube_map.bind_face_image(face, 0, 1);
+        emap.cube_map.bind_face_image(face, 0, 1, ImageAccess::WRITE);
         s_renderer.equirec_to_cubemap_shader.set_uniform_1i("u_face_idx", face);
         s_renderer.equirec_to_cubemap_shader.dispatch_compute(groups);
     }
@@ -984,7 +984,7 @@ EnvMap create_envmap(const Texture &equirect) {
 
     s_renderer.cubemap_convolution_shader.bind();
     for (int32_t face = 0; face < 6; face++) {
-        emap.irradiance_map.bind_face_image(face, 0, 1);
+        emap.irradiance_map.bind_face_image(face, 0, 1, ImageAccess::WRITE);
         s_renderer.cubemap_convolution_shader.set_uniform_1i("u_face_idx",
                                                              face);
         s_renderer.cubemap_convolution_shader.dispatch_compute(groups);
@@ -1005,7 +1005,8 @@ EnvMap create_envmap(const Texture &equirect) {
                                                            roughness);
 
         for (int32_t face = 0; face < 6; face++) {
-            emap.prefilter_map.bind_face_image(face, mip, 1);
+            emap.prefilter_map.bind_face_image(face, mip, 1,
+                                               ImageAccess::WRITE);
             s_renderer.cubemap_prefilter_shader.set_uniform_1i("u_face_idx",
                                                                face);
             s_renderer.cubemap_prefilter_shader.dispatch_compute(groups);
@@ -1065,7 +1066,7 @@ void post_process() {
     }
 
     s_renderer.bloom_texture.clear_texture();
-    s_renderer.bloom_texture.bind_image(0, 1);
+    s_renderer.bloom_texture.bind_image(0, 1, ImageAccess::WRITE);
 
     glm::ivec3 groups;
     groups.x = (s_active_camera->viewport.x + 8 - 1) / 8;
@@ -1078,7 +1079,7 @@ void post_process() {
 
     s_renderer.bloom_downsampler.bind();
     for (int32_t i = 1; i < s_renderer.bloom_texture.mips; i++) {
-        s_renderer.bloom_texture.bind_image(i, 2);
+        s_renderer.bloom_texture.bind_image(i, 2, ImageAccess::WRITE);
 
         s_renderer.bloom_downsampler.set_uniform_1f("u_mip", i - 1);
         s_renderer.bloom_downsampler.dispatch_compute(groups);
@@ -1086,7 +1087,7 @@ void post_process() {
 
     s_renderer.bloom_upsampler.bind();
     for (int32_t i = s_renderer.bloom_texture.mips - 1; i > 0; i--) {
-        s_renderer.bloom_texture.bind_image(i - 1, 2);
+        s_renderer.bloom_texture.bind_image(i - 1, 2, ImageAccess::READ_WRITE);
 
         s_renderer.bloom_upsampler.set_uniform_1f("u_mip", i);
         s_renderer.bloom_upsampler.dispatch_compute(groups);

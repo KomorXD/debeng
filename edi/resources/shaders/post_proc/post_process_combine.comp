@@ -6,7 +6,7 @@ layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
 
 layout(binding = 0) uniform sampler2D u_scene;
 layout(binding = 1) uniform sampler2D u_bloom;
-layout(binding = 2, rgba8) uniform image2D u_target;
+layout(binding = 2, rgba8) writeonly uniform image2D u_target;
 
 layout (std140, binding = CAMERA_BINDING) uniform Camera {
     mat4 view_projection;

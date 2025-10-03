@@ -161,6 +161,12 @@ struct TextureFormatDetails {
 
 [[nodiscard]] TextureFormatDetails format_details(TextureFormat format);
 
+enum class ImageAccess {
+    READ,
+    WRITE,
+    READ_WRITE
+};
+
 struct Texture {
     [[nodiscard]] static Texture create(const std::string &path,
                                         TextureFormat format);
@@ -173,7 +179,7 @@ struct Texture {
     void destroy();
 
     void bind(uint32_t slot = 0) const;
-    void bind_image(int32_t mip, uint32_t binding = 0) const;
+    void bind_image(int32_t mip, uint32_t binding, ImageAccess access) const;
     void unbind() const;
 
     void clear_texture();
@@ -198,7 +204,8 @@ struct CubeTexture {
     void destroy();
 
     void bind(int32_t slot = 0) const;
-    void bind_face_image(int32_t face, int32_t mip, uint32_t binding = 0) const;
+    void bind_face_image(int32_t face, int32_t mip, uint32_t binding,
+                         ImageAccess access) const;
     void unbind() const;
 
     GLuint id = 0;
@@ -283,7 +290,8 @@ struct Framebuffer {
     void bind_color_attachment(uint32_t index, uint32_t slot = 0) const;
     void bind_color_attachment_image(uint32_t index,
                                      uint32_t mip,
-                                     uint32_t binding = 0) const;
+                                     uint32_t binding,
+                                     ImageAccess access) const;
 
     void draw_to_depth_map(uint32_t index, int32_t mip = 0);
     void draw_to_color_attachment(uint32_t index, uint32_t target_attachment,

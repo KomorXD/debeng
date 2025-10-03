@@ -412,7 +412,7 @@ void EditorLayer::on_render() {
     main_fbo.bind_color_attachment(0);
     eng::renderer::post_process();
 
-    main_fbo.bind_color_attachment_image(2, 0, 2);
+    main_fbo.bind_color_attachment_image(2, 0, 2, ImageAccess::WRITE);
     GL_CALL(glDrawBuffer(GL_COLOR_ATTACHMENT2));
     eng::renderer::post_proc_combine();
 

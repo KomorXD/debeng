@@ -694,12 +694,17 @@ void Texture::bind(uint32_t slot) const {
     GL_CALL(glBindTexture(GL_TEXTURE_2D, id));
 }
 
-void Texture::bind_image(int32_t mip, uint32_t binding) const {
+void Texture::bind_image(int32_t mip, uint32_t binding,
+                         ImageAccess access) const {
     assert(id != 0 && "Trying to bind invalid texture object");
 
+    assert((int32_t)access <= (int32_t)ImageAccess::READ_WRITE &&
+           "Invalid access");
+
+    GLenum acc[] = {GL_READ_ONLY, GL_WRITE_ONLY, GL_READ_WRITE};
     GLenum internal = format_details(format).internal_format;
-    GL_CALL(glBindImageTexture(binding, id, mip, GL_FALSE, 0, GL_READ_WRITE,
-                               internal));
+    GL_CALL(glBindImageTexture(binding, id, mip, GL_FALSE, 0,
+                               acc[(int32_t)access], internal));
 }
 
 void Texture::unbind() const {
@@ -776,13 +781,17 @@ void CubeTexture::bind(int32_t slot) const {
     GL_CALL(glBindTexture(GL_TEXTURE_CUBE_MAP, id));
 }
 
-void CubeTexture::bind_face_image(int32_t face, int32_t mip,
-                                  uint32_t binding) const {
+void CubeTexture::bind_face_image(int32_t face, int32_t mip, uint32_t binding,
+                                  ImageAccess access) const {
     assert(id != 0 && "Trying to bind invalid cube texture object");
 
+    assert((int32_t)access <= (int32_t)ImageAccess::READ_WRITE &&
+           "Invalid access");
+
+    GLenum acc[] = {GL_READ_ONLY, GL_WRITE_ONLY, GL_READ_WRITE};
     GLenum internal = format_details(format).internal_format;
-    GL_CALL(glBindImageTexture(binding, id, mip, GL_FALSE, face, GL_READ_WRITE,
-                               internal));
+    GL_CALL(glBindImageTexture(binding, id, mip, GL_FALSE, face,
+                               acc[(int32_t)access], internal));
 }
 
 void CubeTexture::unbind() const {
@@ -952,7 +961,8 @@ void Framebuffer::bind_color_attachment(uint32_t index, uint32_t slot) const {
 }
 
 void Framebuffer::bind_color_attachment_image(uint32_t index, uint32_t mip,
-                                              uint32_t binding) const {
+                                              uint32_t binding,
+                                              ImageAccess access) const {
     assert(id != 0 &&
            "Trying to bind color attachment of invalid framebuffer object");
     assert(index < color_attachments.size() &&
@@ -961,9 +971,13 @@ void Framebuffer::bind_color_attachment_image(uint32_t index, uint32_t mip,
     const auto &[tex_id, spec] = color_attachments[index];
     assert(tex_id != 0 && "Trying to bind invalid color attachment as image");
 
+    assert((int32_t)access <= (int32_t)ImageAccess::READ_WRITE &&
+           "Invalid access");
+
+    GLenum acc[] = {GL_READ_ONLY, GL_WRITE_ONLY, GL_READ_WRITE};
     GLenum internal = format_details(spec.format).internal_format;
-    GL_CALL(glBindImageTexture(binding, tex_id, mip, GL_FALSE, 0, GL_WRITE_ONLY,
-                               internal));
+    GL_CALL(glBindImageTexture(binding, tex_id, mip, GL_FALSE, 0,
+                               acc[(int32_t)access], internal));
 }
 
 void Framebuffer::draw_to_depth_map(uint32_t index, int32_t mip) {

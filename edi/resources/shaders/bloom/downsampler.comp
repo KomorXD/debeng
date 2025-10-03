@@ -3,7 +3,7 @@
 layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 
 layout (binding = 1) uniform sampler2D u_source_mip;
-layout (binding = 2, rgba16f) uniform image2D u_target_mip;
+layout (binding = 2, rgba16f) writeonly uniform image2D u_target_mip;
 
 uniform float u_mip;
 

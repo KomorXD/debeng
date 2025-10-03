@@ -50,7 +50,7 @@ std::unique_ptr<Layer> EditorLayer::create(const eng::WindowSpec &win_spec) {
                                           .size = window_size,
                                           .gen_minmaps = false});
     layer->main_fbo.add_color_attachment({.type = ColorAttachmentType::TEX_2D,
-                                          .format = TextureFormat::RGBA16F,
+                                          .format = TextureFormat::RGBA8,
                                           .wrap = GL_CLAMP_TO_EDGE,
                                           .min_filter = GL_NEAREST,
                                           .mag_filter = GL_NEAREST,

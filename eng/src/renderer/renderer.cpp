@@ -46,6 +46,9 @@ struct Renderer {
 
     Shader equirec_to_cubemap_shader;
     Shader cubemap_convolution_shader;
+    Shader cubemap_prefilter_shader;
+
+    Texture brdf_map;
 
     Texture bloom_texture;
     Shader bloom_filter;
@@ -186,6 +189,8 @@ bool init() {
     s_renderer.slots.metallic = 3;
     s_renderer.slots.ao = 4;
     s_renderer.slots.irradiance_map = 5;
+    s_renderer.slots.prefilter_map = 6;
+    s_renderer.slots.brdf_lut = 7;
     s_renderer.slots.dir_csm_shadowmaps = gpu_spec.texture_units - 1;
     s_renderer.slots.point_lights_shadowmaps = gpu_spec.texture_units - 2;
     s_renderer.slots.spot_lights_shadowmaps = gpu_spec.texture_units - 3;
@@ -291,6 +296,35 @@ bool init() {
     assert(s_renderer.cubemap_convolution_shader.build_compute(
                {.path = "resources/shaders/envmap/cubemap_convolution.comp"}) &&
            "Failed to build cubemap convolution shader");
+
+    s_renderer.cubemap_prefilter_shader = Shader::create();
+    assert(
+        s_renderer.cubemap_prefilter_shader.build_compute(
+            {.path = "resources/shaders/envmap/prefilter_convolution.comp"}) &&
+        "Failed to build cubemap prefilter shader");
+
+    s_renderer.brdf_map =
+        Texture::create(nullptr, 512, 512, TextureFormat::RG16F);
+    s_renderer.slots.prefilter_mips = s_renderer.brdf_map.mips;
+
+    {
+        Shader brdf_shader = Shader::create();
+        assert(brdf_shader.build_compute(
+                   {.path = "resources/shaders/envmap/brdf.comp"}) &&
+               "Failed to build BRDF shader");
+
+        glm::ivec3 groups;
+        groups.x = (s_renderer.brdf_map.width + 15) / 16;
+        groups.y = (s_renderer.brdf_map.width + 15) / 16;
+        groups.z = 1;
+
+        s_renderer.brdf_map.bind_image(0);
+        brdf_shader.dispatch_compute(groups);
+        brdf_shader.destroy();
+
+        s_renderer.brdf_map.bind();
+        GL_CALL(glGenerateMipmap(GL_TEXTURE_2D));
+    }
 
     uint32_t size = sizeof(CameraData);
     s_renderer.camera_uni_buffer = UniformBuffer::create(nullptr, size);
@@ -483,6 +517,7 @@ void shutdown() {
 
     s_renderer.equirec_to_cubemap_shader.destroy();
     s_renderer.cubemap_convolution_shader.destroy();
+    s_renderer.cubemap_prefilter_shader.destroy();
 
     s_renderer.bloom_texture.destroy();
     s_renderer.bloom_filter.destroy();
@@ -579,6 +614,8 @@ void scene_end() {
         s_active_camera->far_clip};
 
     s_envmap->irradiance_map.bind(s_renderer.slots.irradiance_map);
+    s_envmap->prefilter_map.bind(s_renderer.slots.prefilter_map);
+    s_renderer.brdf_map.bind(s_renderer.slots.brdf_lut);
 
     for (auto &[shader_id, material_group] : s_renderer.shader_render_group) {
         Shader &curr_shader = s_asset_pack->shaders.at(shader_id);
@@ -959,6 +996,7 @@ EnvMap create_envmap(const Texture &equirect) {
     emap.cube_map = CubeTexture::create(equirect.width, equirect.width,
                                         TextureFormat::RGBA16F);
     emap.irradiance_map = CubeTexture::create(32, 32, emap.cube_map.format);
+    emap.prefilter_map = CubeTexture::create(128, 128, emap.cube_map.format);
 
     glm::ivec3 groups;
     groups.x = (emap.cube_map.face_width + 15) / 16;
@@ -973,11 +1011,13 @@ EnvMap create_envmap(const Texture &equirect) {
         s_renderer.equirec_to_cubemap_shader.dispatch_compute(groups);
     }
 
+    emap.cube_map.bind();
+    GL_CALL(glGenerateMipmap(GL_TEXTURE_CUBE_MAP));
+
     groups.x = (emap.irradiance_map.face_width + 15) / 16;
     groups.y = (emap.irradiance_map.face_height + 15) / 16;
     groups.z = 1;
 
-    emap.cube_map.bind();
     s_renderer.cubemap_convolution_shader.bind();
     for (int32_t face = 0; face < 6; face++) {
         emap.irradiance_map.bind_face_image(face, 0, 1);
@@ -985,10 +1025,28 @@ EnvMap create_envmap(const Texture &equirect) {
                                                              face);
         s_renderer.cubemap_convolution_shader.dispatch_compute(groups);
     }
-    GL_CALL(glGenerateMipmap(GL_TEXTURE_CUBE_MAP));
 
     emap.irradiance_map.bind();
     GL_CALL(glGenerateMipmap(GL_TEXTURE_CUBE_MAP));
+
+    groups.x = (emap.prefilter_map.face_width + 15) / 16;
+    groups.y = (emap.prefilter_map.face_height + 15) / 16;
+    groups.z = 1;
+
+    emap.cube_map.bind();
+    s_renderer.cubemap_prefilter_shader.bind();
+    for (int32_t mip = 0; mip < emap.prefilter_map.mips; mip++) {
+        float roughness = (float)mip / (float)(emap.prefilter_map.mips - 1);
+        s_renderer.cubemap_prefilter_shader.set_uniform_1f("u_roughness",
+                                                           roughness);
+
+        for (int32_t face = 0; face < 6; face++) {
+            emap.prefilter_map.bind_face_image(face, mip, 1);
+            s_renderer.cubemap_prefilter_shader.set_uniform_1i("u_face_idx",
+                                                               face);
+            s_renderer.cubemap_prefilter_shader.dispatch_compute(groups);
+        }
+    }
 
     return emap;
 }

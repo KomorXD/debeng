@@ -1,0 +1,110 @@
+#version 460 core
+
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
+layout(binding = 0) uniform samplerCube u_cubemap;
+layout(binding = 1, rgba16f) writeonly uniform image2D u_prefilter_face;
+
+uniform int u_face_idx;
+uniform float u_roughness;
+
+const float PI = 3.14159265358979323846;
+
+float dist_ggx(vec3 N, vec3 H, float roughness) {
+    float a     = roughness * roughness;
+    float a2    = a * a;
+    float NH    = max(dot(N, H), 0.0);
+    float NH2   = NH * NH;
+    float denom = (NH2 * (a2 - 1.0) + 1.0);
+    denom       = PI * denom * denom;
+
+    return a2 / denom;
+}
+
+float radical_inverse_VDC(uint bits) {
+    bits = (bits << 16u) | (bits >> 16u);
+    bits = ((bits & 0x55555555u) << 1u) | ((bits & 0xAAAAAAAAu) >> 1u);
+    bits = ((bits & 0x33333333u) << 2u) | ((bits & 0xCCCCCCCCu) >> 2u);
+    bits = ((bits & 0x0F0F0F0Fu) << 4u) | ((bits & 0xF0F0F0F0u) >> 4u);
+    bits = ((bits & 0x00FF00FFu) << 8u) | ((bits & 0xFF00FF00u) >> 8u);
+    return float(bits) * 2.3283064365386963e-10; // / 0x100000000
+}
+
+vec2 hammersley(uint i, uint N) {
+    return vec2(float(i) / float(N), radical_inverse_VDC(i));
+}
+
+vec3 importance_sample_ggx(vec2 Xi, vec3 N, float roughness) {
+    float a = roughness * roughness;
+
+    float phi = 2.0 * PI * Xi.x;
+    float cos_theta = sqrt((1.0 - Xi.y) / (1.0 + (a * a - 1.0) * Xi.y));
+    float sin_theta = sqrt(1.0 - cos_theta * cos_theta);
+
+    vec3 H;
+    H.x = cos(phi) * sin_theta;
+    H.y = sin(phi) * sin_theta;
+    H.z = cos_theta;
+
+    vec3 up = vec3(0.0, 1.0, 0.0);
+    vec3 tangent = normalize(cross(up, N));
+    vec3 bitangent = cross(N, tangent);
+
+    vec3 sample_vec = tangent * H.x + bitangent * H.y + N * H.z;
+    return normalize(sample_vec);
+}
+
+vec3 face_coord_to_dir(vec2 uv) {
+    float u = uv.x;
+    float v = uv.y;
+
+    vec3 dirs[6] = {
+        vec3(1.0,   v,  -u), vec3(-1.0,    v,    u),
+        vec3(  u, 1.0,  -v), vec3(   u, -1.0,    v),
+        vec3(  u,   v, 1.0), vec3(  -u,    v, -1.0)
+    };
+    return normalize(dirs[u_face_idx]);
+}
+
+void main() {
+    ivec2 size = imageSize(u_prefilter_face);
+    ivec2 gid = ivec2(gl_GlobalInvocationID.xy);
+    if (gid.x >= size.x || gid.y >= size.y)
+        return;
+
+    vec2 uv = (vec2(gid) + 0.5) / vec2(size) * 2.0 - 1.0;
+    uv.y = -uv.y;
+
+    vec3 dir = face_coord_to_dir(uv);
+    vec3 V = dir;
+
+    vec3 prefiltered = vec3(0.0);
+    float total_weight = 0.0;
+
+    float face_size = textureSize(u_cubemap, 0).x;
+
+    const uint SAMPLE_COUNT = 1024u;
+    for (uint i = 0; i < SAMPLE_COUNT; i++) {
+        vec2 Xi = hammersley(i, SAMPLE_COUNT);
+        vec3 H = importance_sample_ggx(Xi, dir, u_roughness);
+        vec3 L = normalize(2.0 * dot(V, H) * H - V);
+
+        float NdotL = max(dot(dir, L), 0.0);
+        if (NdotL > 0.0) {
+            float D = dist_ggx(dir, H, u_roughness);
+            float NdotH = max(dot(dir, H), 0.0);
+            float HdotV = max(dot(H, V), 0.0);
+            float PDF = D * NdotH / (4.0 * HdotV) + 0.0001;
+
+            float sa_texel = 4.0 * PI / (6.0 * face_size * face_size);
+            float sa_sample = 1.0 / (float(SAMPLE_COUNT) * PDF + 0.0001);
+
+            float mip = (u_roughness == 0.0 ? 0.0 : 0.5 * log2(sa_sample / sa_texel));
+            prefiltered += textureLod(u_cubemap, dir, mip).rgb * NdotL;
+            total_weight += NdotL;
+        }
+    }
+
+    prefiltered = prefiltered / total_weight;
+    imageStore(u_prefilter_face, gid, vec4(prefiltered, 1.0));
+}

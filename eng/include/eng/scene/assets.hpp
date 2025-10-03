@@ -45,6 +45,7 @@ struct EnvMap {
     Texture thumbnail;
     CubeTexture cube_map;
     CubeTexture irradiance_map;
+    CubeTexture prefilter_map;
 };
 
 struct AssetPack {

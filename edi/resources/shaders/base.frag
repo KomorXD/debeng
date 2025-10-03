@@ -124,7 +124,11 @@ uniform sampler2D u_normal;
 uniform sampler2D u_roughness;
 uniform sampler2D u_metallic;
 uniform sampler2D u_ao;
+
 uniform samplerCube u_irradiance_map;
+uniform samplerCube u_prefilter_map;
+uniform int u_max_prefilter_mip;
+uniform sampler2D u_BRDF_LUT;
 
 uniform float u_cascade_distances[CASCADES_COUNT];
 uniform sampler2DArrayShadow u_dir_lights_csm_shadowmaps;
@@ -390,10 +394,23 @@ void main() {
         }
     }
 
-    vec3 kS = fresnelSchlickRoughness(max(dot(N, V), 0.0), F0, roughness);
+    N = transpose(fs_in.TBN) * N;
+    V = normalize(fs_in.eye_position - fs_in.world_space_position);
+
+    vec3 R = reflect(-V, N);
+    vec3 prefilter = textureLod(u_prefilter_map, R, roughness * u_max_prefilter_mip).rgb;
+    vec3 F = fresnelSchlickRoughness(max(dot(N, V), 0.0), F0, roughness);
+    vec2 env_brdf = texture(u_BRDF_LUT, vec2(max(dot(N, V), 0.0), roughness)).rg;
+    vec3 specular = prefilter * (F * env_brdf.x + env_brdf.y);
+    float clamp_scale = mix(0.0, 1.0, clamp(1.0 - roughness, 0.0, 1.0));
+    specular = specular / (1.0 + specular * clamp_scale);
+
+    vec3 kS = F;
     vec3 kD = 1.0 - kS;
+    kD *= 1.0 - metallic;
+
     vec3 irradiance = texture(u_irradiance_map, N).rgb;
-    vec3 ambient = kD * irradiance * diffuse.rgb * ao;
+    vec3 ambient = (kD * irradiance * diffuse.rgb + specular) * ao;
     final_color.rgb = (ambient + Lo) * u_material.color.rgb;
 
     DrawParams params = u_draw_params.params[int(fs_in.draw_params_idx)];

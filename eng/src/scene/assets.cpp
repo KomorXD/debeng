@@ -161,22 +161,28 @@ AssetPack AssetPack::create(const std::string &pack_name) {
         assert(base_shader.build(spec) && "Default shaders not found");
 
         renderer::TextureSlots slots = eng::renderer::texture_slots();
-        std::array<const char *, 10> unis = {"u_albedo",
+        std::array<const char *, 13> unis = {"u_albedo",
                                              "u_normal",
                                              "u_roughness",
                                              "u_metallic",
                                              "u_ao",
                                              "u_irradiance_map",
+                                             "u_prefilter_map",
+                                             "u_max_prefilter_mips",
+                                             "u_BRDF_LUT",
                                              "u_dir_lights_csm_shadowmaps",
                                              "u_point_lights_shadowmaps",
                                              "u_spot_lights_shadowmaps",
                                              "u_soft_shadow_offsets_texture"};
-        std::array<int32_t, 10> tex_slots = {slots.albedo,
+        std::array<int32_t, 13> tex_slots = {slots.albedo,
                                              slots.normal,
                                              slots.roughness,
                                              slots.metallic,
                                              slots.ao,
                                              slots.irradiance_map,
+                                             slots.prefilter_map,
+                                             slots.prefilter_mips,
+                                             slots.brdf_lut,
                                              slots.dir_csm_shadowmaps,
                                              slots.point_lights_shadowmaps,
                                              slots.spot_lights_shadowmaps,
@@ -239,6 +245,8 @@ void AssetPack::destroy() {
     for (auto &[env_map_id, env_map] : env_maps) {
         env_map.thumbnail.destroy();
         env_map.cube_map.destroy();
+        env_map.irradiance_map.destroy();
+        env_map.prefilter_map.destroy();
     }
 
     for (auto &[shader_id, shader] : shaders)
@@ -282,6 +290,7 @@ AssetID AssetPack::add_env_map(EnvMap &env_map) {
     new_env_map.thumbnail = env_map.thumbnail;
     new_env_map.cube_map = env_map.cube_map;
     new_env_map.irradiance_map = env_map.irradiance_map;
+    new_env_map.prefilter_map = env_map.prefilter_map;
 
     return id;
 }

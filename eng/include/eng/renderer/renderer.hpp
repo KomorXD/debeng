@@ -31,6 +31,9 @@ struct TextureSlots {
     int32_t metallic{};
     int32_t ao{};
     int32_t irradiance_map{};
+    int32_t prefilter_map{};
+    int32_t prefilter_mips{};
+    int32_t brdf_lut{};
     int32_t dir_csm_shadowmaps{};
     int32_t point_lights_shadowmaps{};
     int32_t spot_lights_shadowmaps{};

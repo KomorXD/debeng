@@ -127,7 +127,7 @@ uniform sampler2D u_ao;
 
 uniform samplerCube u_irradiance_map;
 uniform samplerCube u_prefilter_map;
-uniform int u_max_prefilter_mip;
+uniform int u_max_prefilter_mips;
 uniform sampler2D u_BRDF_LUT;
 
 uniform float u_cascade_distances[CASCADES_COUNT];
@@ -264,27 +264,35 @@ vec3 berley_brdf(vec3 N, vec3 V, vec3 L, vec3 albedo, float metallic, float roug
     vec3 F = F0 + (1.0 - F0) * pow(1.0 - NdotV, 5.0);
 
     float energy_bias = roughness;
-    float energy_factor = mix(1.0, 1.0 / (4.0 * NdotV + 2.0), energy_bias);
+    float energy_factor = mix(1.0, 1.0 / (4.0 * NdotV + 2.0), roughness);
     F *= energy_factor;
 
     float D = dist_ggx(N, H, roughness);
     float G = geo_smith(N, V, L, roughness);
 
     float denom = 4.0 * NdotV * NdotL + 0.0001;
-    vec3 specular = D * G * F / denom;
+    vec3 single_specular = D * G * F / denom;
     float clamp_scale = mix(0.0, 1.0, clamp(1.0 - roughness, 0.0, 1.0));
-    specular = specular / (1.0 + specular * clamp_scale);
+    single_specular = single_specular / (1.0 + single_specular * clamp_scale);
 
-    vec3 kS = F;
+    vec3 F_avg = F0 + (1.0 - F0) * 0.047619;
+
+    vec3 E_ss = F;
+    vec3 E_ms = (F_avg * (1.0 * E_ss)) / (1.0 - F_avg * (1.0 * E_ss));
+
+    vec3 specular = E_ms * (1.0 - E_ss);
+    specular = single_specular + specular * (1.0 / PI);
+
+    vec3 kS = E_ss + E_ms * (1.0 - E_ss);
     vec3 kD = vec3(1.0) - kS;
     kD *= 1.0 - metallic;
 
     float FD90 = 0.5 + 2.0 * LdotH * LdotH * roughness;
     float light_scatter = 1.0 + (FD90 - 1.0) * pow(1.0 - NdotL, 5.0);
     float view_scatter = 1.0 + (FD90 - 1.0) * pow(1.0 - NdotV, 5.0);
-    vec3 diffuse_term = albedo * (light_scatter * view_scatter) * (1.0 / PI) * NdotL;
+    vec3 diffuse_term = albedo * (light_scatter * view_scatter) * (1.0 / PI);
 
-    return kD * diffuse_term + specular;
+    return (kD * diffuse_term + specular) * NdotL;
 }
 
 void main() {
@@ -306,6 +314,9 @@ void main() {
 
     float roughness = texture(u_roughness, tex_coords).r * u_material.roughness;
     float metallic = texture(u_metallic, tex_coords).r * u_material.metallic;
+    roughness = clamp(roughness, 0.045, 1.0 - 0.045);
+    metallic = clamp(metallic, 0.045, 1.0 - 0.045);
+
     float ao = texture(u_ao, tex_coords).r * u_material.ao;
 
     vec3 V = normalize(fs_in.tangent_view_position - fs_in.tangent_world_position);
@@ -398,7 +409,7 @@ void main() {
     V = normalize(fs_in.eye_position - fs_in.world_space_position);
 
     vec3 R = reflect(-V, N);
-    vec3 prefilter = textureLod(u_prefilter_map, R, roughness * u_max_prefilter_mip).rgb;
+    vec3 prefilter = textureLod(u_prefilter_map, R, roughness * (u_max_prefilter_mips - 1)).rgb;
     vec3 F = fresnelSchlickRoughness(max(dot(N, V), 0.0), F0, roughness);
     vec2 env_brdf = texture(u_BRDF_LUT, vec2(max(dot(N, V), 0.0), roughness)).rg;
     vec3 specular = prefilter * (F * env_brdf.x + env_brdf.y);

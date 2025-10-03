@@ -37,6 +37,7 @@ void main() {
 
     vec2 st = vec2(lon / (2.0 * PI) + 0.5, lat / PI + 0.5);
     vec3 color = texture(u_equirect, st).rgb;
+    color = min(color, 10.0);
 
     imageStore(u_face, gid, vec4(color, 1.0));
 }

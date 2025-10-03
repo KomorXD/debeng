@@ -36,7 +36,7 @@ std::unique_ptr<Layer> EditorLayer::create(const eng::WindowSpec &win_spec) {
     layer->main_fbo.add_renderbuffer(
         {RenderbufferType::DEPTH_STENCIL, window_size});
     layer->main_fbo.add_color_attachment({.type = ColorAttachmentType::TEX_2D,
-                                          .format = TextureFormat::RGB16F,
+                                          .format = TextureFormat::RGBA16F,
                                           .wrap = GL_CLAMP_TO_EDGE,
                                           .min_filter = GL_NEAREST,
                                           .mag_filter = GL_NEAREST,
@@ -50,7 +50,7 @@ std::unique_ptr<Layer> EditorLayer::create(const eng::WindowSpec &win_spec) {
                                           .size = window_size,
                                           .gen_minmaps = false});
     layer->main_fbo.add_color_attachment({.type = ColorAttachmentType::TEX_2D,
-                                          .format = TextureFormat::RGB16F,
+                                          .format = TextureFormat::RGBA16F,
                                           .wrap = GL_CLAMP_TO_EDGE,
                                           .min_filter = GL_NEAREST,
                                           .mag_filter = GL_NEAREST,
@@ -412,9 +412,9 @@ void EditorLayer::on_render() {
     main_fbo.bind_color_attachment(0);
     eng::renderer::post_process();
 
-    main_fbo.draw_to_color_attachment(2, 2);
+    main_fbo.bind_color_attachment_image(2, 0, 2);
     GL_CALL(glDrawBuffer(GL_COLOR_ATTACHMENT2));
-    eng::renderer::draw_to_screen_quad();
+    eng::renderer::post_proc_combine();
 
     if (selected_entity.has_value() &&
         selected_entity.value().has_component<eng::MeshComp>()) {

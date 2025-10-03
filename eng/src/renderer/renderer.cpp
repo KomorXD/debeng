@@ -38,8 +38,7 @@ struct Renderer {
     TextureSlots slots;
     RenderStats stats;
 
-    VertexArray screen_quad_vao;
-    Shader screen_quad_shader;
+    Shader post_proc_combine_shader;
 
     VertexArray cubemap_vao;
     Shader cubemap_shader;
@@ -217,48 +216,14 @@ bool init() {
     GL_CALL(glStencilMask(0x00));
     GL_CALL(glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS));
 
-    float screen_quad_vertices[] = {
-    //    position      texture_uv
-        -1.0f, -1.0f,   0.0f, 0.0f,
-         1.0f, -1.0f,   1.0f, 0.0f,
-         1.0f,  1.0f,   1.0f, 1.0f,
+    s_renderer.post_proc_combine_shader = Shader::create();
+    assert(s_renderer.post_proc_combine_shader.build_compute(
+               {.path = "resources/shaders/post_proc/post_process_combine.comp",
+                .replacements = {{"${CAMERA_BINDING}",
+                                  std::to_string(CAMERA_BINDING)}}}) &&
+           "Failed to build post-process combine shader");
 
-         1.0f,  1.0f,   1.0f, 1.0f,
-        -1.0f,  1.0f,   0.0f, 1.0f,
-        -1.0f, -1.0f,   0.0f, 0.0f
-    };
-
-    s_renderer.screen_quad_vao = VertexArray::create();
-    s_renderer.screen_quad_vao.bind();
-
-    VertexBuffer vbo = VertexBuffer::create();
-    vbo.allocate(screen_quad_vertices, sizeof(screen_quad_vertices));
-
-    VertexBufferLayout layout;
-    layout.push_float(2); // 0 - position
-    layout.push_float(2); // 1 - texture UV
-    s_renderer.screen_quad_vao.add_vertex_buffer(vbo, layout);
-
-    s_renderer.screen_quad_shader = Shader::create();
-
-    {
-        ShaderSpec spec;
-        spec.vertex_shader.path = "resources/shaders/screen_quad.vert";
-        spec.fragment_shader.path = "resources/shaders/screen_quad.frag";
-        spec.fragment_shader.replacements = {
-            {
-                "${CAMERA_BINDING}",
-                std::to_string(CAMERA_BINDING)
-            }
-        };
-
-        assert(s_renderer.screen_quad_shader.build(spec) &&
-               "Screen quad shader not found");
-    }
-
-    s_renderer.screen_quad_shader.bind();
-    s_renderer.screen_quad_shader.set_uniform_1i("u_screen_texture", 0);
-    s_renderer.screen_quad_shader.set_uniform_1i("u_bloom_texture", 1);
+    s_renderer.post_proc_combine_shader.bind();
 
     {
         std::vector<float> vertices = skybox_vertex_data();
@@ -509,8 +474,7 @@ void shutdown() {
     s_renderer.spotlight_shadow_shader.destroy();
     s_renderer.pointlight_shadow_shader.destroy();
 
-    s_renderer.screen_quad_vao.destroy();
-    s_renderer.screen_quad_shader.destroy();
+    s_renderer.post_proc_combine_shader.destroy();
 
     s_renderer.cubemap_vao.destroy();
     s_renderer.cubemap_shader.destroy();
@@ -1080,12 +1044,15 @@ void skybox(AssetID envmap_id) {
     GL_CALL(glDepthFunc(GL_LESS));
 }
 
-void draw_to_screen_quad() {
+void post_proc_combine() {
     s_renderer.bloom_texture.bind(1);
 
-    GL_CALL(glDisable(GL_DEPTH_TEST));
-    draw_arrays(s_renderer.screen_quad_shader, s_renderer.screen_quad_vao, 6);
-    GL_CALL(glEnable(GL_DEPTH_TEST));
+    glm::ivec3 groups;
+    groups.x = (s_active_camera->viewport.x + 15) / 16;
+    groups.y = (s_active_camera->viewport.y + 15) / 16;
+    groups.z = 1;
+
+    s_renderer.post_proc_combine_shader.dispatch_compute(groups);
 }
 
 void post_process() {

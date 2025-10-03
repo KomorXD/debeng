@@ -152,7 +152,7 @@ RenderStats stats();
 void reset_stats();
 
 void skybox(AssetID envmap_id);
-void draw_to_screen_quad();
+void post_proc_combine();
 void post_process();
 
 void draw_arrays(const Shader &shader, const VertexArray &vao,

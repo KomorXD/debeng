@@ -311,26 +311,6 @@ void EditorLayer::on_render() {
     main_fbo.fill_draw_buffers();
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     glClearColor(0.33f, 0.33f, 0.33f, 1.0f);
-
-    if (selected_entity.has_value() &&
-        selected_entity.value().has_component<eng::MeshComp>()) {
-
-        eng::Entity ent = selected_entity.value();
-        eng::Transform &transform = ent.get_component<eng::Transform>();
-        eng::MeshComp &mesh_comp = ent.get_component<eng::MeshComp>();
-
-        glStencilFunc(GL_ALWAYS, 1, 0xFF);
-        glStencilMask(0xFF);
-        glDisable(GL_DEPTH_TEST);
-        eng::renderer::scene_begin(camera.render_data(), asset_pack);
-        eng::renderer::submit_mesh(transform.to_mat4(), mesh_comp.id,
-                                   eng::AssetPack::DEFAULT_BASE_MATERIAL,
-                                   ent.handle);
-        eng::renderer::scene_end();
-        glEnable(GL_DEPTH_TEST);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    }
-
     main_fbo.clear_color_attachment(1);
 
     glStencilFunc(GL_ALWAYS, 0, 0xFF);
@@ -415,26 +395,6 @@ void EditorLayer::on_render() {
     main_fbo.bind_color_attachment_image(2, 0, 2, ImageAccess::WRITE);
     GL_CALL(glDrawBuffer(GL_COLOR_ATTACHMENT2));
     eng::renderer::post_proc_combine();
-
-    if (selected_entity.has_value() &&
-        selected_entity.value().has_component<eng::MeshComp>()) {
-
-        eng::Entity ent = selected_entity.value();
-        eng::Transform transform = ent.get_component<eng::Transform>();
-        transform.scale += 0.1f;
-
-        eng::MeshComp &mesh_comp = ent.get_component<eng::MeshComp>();
-
-        glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
-        glStencilMask(0x00);
-        glDisable(GL_DEPTH_TEST);
-        eng::renderer::scene_begin(camera.render_data(), asset_pack);
-        eng::renderer::submit_mesh(transform.to_mat4(), mesh_comp.id,
-                                   outline_material,
-                                   ent.handle);
-        eng::renderer::scene_end();
-        glEnable(GL_DEPTH_TEST);
-    }
 
     glStencilFunc(GL_ALWAYS, 1, 0xFF);
     glStencilMask(0xFF);

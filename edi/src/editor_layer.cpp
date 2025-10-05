@@ -826,9 +826,9 @@ static void render_entity_panel(EditorLayer &layer) {
     strncpy(buf, name.name.data(), 128);
 
     float horizontal_size = ImGui::CalcTextSize("Name").x;
-    ImGui::Indent(16.0f);
+    ImGui::Indent(8.0f);
     ImGui::PrettyInputText("Name", buf, horizontal_size);
-    ImGui::Unindent(16.0f);
+    ImGui::Unindent(8.0f);
 
     name.name = buf;
 
@@ -836,7 +836,7 @@ static void render_entity_panel(EditorLayer &layer) {
     ImGui::PushID(1);
     if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
         horizontal_size = ImGui::CalcTextSize("Position").x;
-        ImGui::Indent(16.0f);
+        ImGui::Indent(8.0f);
         ImGui::PrettyDragFloat3("Position", &transform.position[0], 0.05f, 0.0f,
                                 0.0f, "%.3f", horizontal_size);
 
@@ -847,7 +847,7 @@ static void render_entity_panel(EditorLayer &layer) {
 
         ImGui::PrettyDragFloat3("Scale", &transform.scale[0], 0.05f, 0.0f, 0.0f,
                                 "%.3f", horizontal_size);
-        ImGui::Unindent(16.0f);
+        ImGui::Unindent(8.0f);
     }
     ImGui::PopID();
 

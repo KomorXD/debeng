@@ -715,6 +715,106 @@ static void render_control_panel(EditorLayer &layer) {
     }
 }
 
+bool material_texture_widget(const char *label, Texture &texture,
+                             float label_width) {
+    bool pressed = false;
+
+    if (ImGui::BeginTable("#Texture", 2)) {
+        ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed,
+                                label_width);
+        ImGui::TableSetupColumn("Data", ImGuiTableColumnFlags_WidthStretch);
+
+        ImGui::TableNextColumn();
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text("%s", label);
+
+        ImGui::TableNextColumn();
+        ImGui::AlignTextToFramePadding();
+
+        ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.1f, 0.1f, 0.1f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_HeaderHovered,
+                              ImVec4(0.2f, 0.2f, 0.2f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_HeaderActive,
+                              ImVec4(0.1f, 0.1f, 0.1f, 1.0f));
+
+        if (ImGui::Selectable(texture.name.c_str(), true))
+            pressed = true;
+
+        ImGui::PopStyleColor(3);
+
+        ImDrawList *dlist = ImGui::GetWindowDrawList();
+        ImVec2 min = ImGui::GetItemRectMin();
+        ImVec2 max = ImGui::GetItemRectMax();
+        dlist->AddRect(min, max, IM_COL32(32, 32, 32, 255));
+
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort)) {
+            ImGui::BeginTooltip();
+            ImGui::Image((ImTextureID)texture.id, {96.0f, 96.0f}, {0.0f, 1.0f},
+                         {1.0f, 0.0f});
+            ImGui::EndTooltip();
+        }
+
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::AlignTextToFramePadding();
+        ImGui::TableNextColumn();
+        ImGui::AlignTextToFramePadding();
+
+        {
+            TextureSpec spec = texture.spec;
+
+            ImGui::BeginPrettyCombo(
+                "Filtering", texture.filter_str(), [&texture, &spec]() {
+                    if (ImGui::Selectable("Point", texture.spec.mag_filter ==
+                                                       GL_NEAREST)) {
+                        spec.mag_filter = GL_NEAREST;
+                        spec.min_filter =
+                            (texture.has_mips() ? GL_NEAREST_MIPMAP_NEAREST
+                                                : GL_NEAREST);
+                    }
+
+                    if (ImGui::Selectable(
+                            "Bilinear", texture.spec.min_filter == GL_LINEAR ||
+                                            texture.spec.min_filter ==
+                                                GL_LINEAR_MIPMAP_NEAREST)) {
+                        spec.mag_filter = GL_LINEAR;
+                        spec.min_filter =
+                            (texture.has_mips() ? GL_LINEAR_MIPMAP_NEAREST
+                                                : GL_LINEAR);
+                    }
+
+                    if (ImGui::Selectable("Trilinear",
+                                          texture.spec.min_filter ==
+                                              GL_LINEAR_MIPMAP_LINEAR)) {
+                        spec.mag_filter = GL_LINEAR;
+                        spec.min_filter =
+                            (texture.has_mips() ? GL_LINEAR_MIPMAP_LINEAR
+                                                : GL_LINEAR);
+                    }
+                });
+
+            ImGui::BeginPrettyCombo(
+                "Wrap", texture.wrap_str(), [&texture, &spec]() {
+                    GLint modes[] = {GL_REPEAT, GL_MIRRORED_REPEAT,
+                                     GL_CLAMP_TO_EDGE, GL_MIRROR_CLAMP_TO_EDGE,
+                                     GL_CLAMP_TO_BORDER};
+                    constexpr int32_t MODES_SIZE = IM_ARRAYSIZE(modes);
+                    for (int32_t i = 0; i < MODES_SIZE; i++) {
+                        if (ImGui::Selectable(Texture::wrap_str(modes[i]),
+                                              texture.spec.wrap == modes[i]))
+                            spec.wrap = modes[i];
+                    }
+                });
+
+            texture.change_params(spec);
+        }
+
+        ImGui::EndTable();
+    }
+
+    return pressed;
+}
+
 static void render_entity_panel(EditorLayer &layer) {
     if (!layer.selected_entity.has_value())
         return;
@@ -797,7 +897,6 @@ static void render_entity_panel(EditorLayer &layer) {
                 mat_comp.id = layer.asset_pack.add_material(new_mat);
             }
 
-            /* TODO: move outline stuff to renderer. */
             if (mat_comp.id > eng::AssetPack::DEFAULT_FLAT_MATERIAL &&
                 mat_comp.id != layer.outline_material) {
                 ImGui::SameLine();
@@ -818,6 +917,8 @@ static void render_entity_panel(EditorLayer &layer) {
                 }
             }
 
+            float horizontal_size = ImGui::CalcTextSize("Roughness").x;
+
             ImGui::BeginPrettyCombo(
                 "Material", mat.name.c_str(), [&layer, &mat_comp]() {
                     const std::map<eng::AssetID, eng::Material> &materials =
@@ -828,7 +929,7 @@ static void render_entity_panel(EditorLayer &layer) {
                                               id == mat_comp.id))
                             mat_comp.id = id;
                     }
-                });
+                }, horizontal_size);
 
             Shader &shader = layer.asset_pack.shaders.at(mat.shader_id);
             ImGui::BeginPrettyCombo(
@@ -841,154 +942,118 @@ static void render_entity_panel(EditorLayer &layer) {
                                               id == mat.shader_id))
                             mat.shader_id = id;
                     }
-                });
+                }, horizontal_size);
 
-            float horizontal_size = ImGui::CalcTextSize("Factor").x;
             ImGui::PrettyDragFloat2("Factor", &mat.tiling_factor[0], 0.01f,
                                     0.0f, FLT_MAX, "%.2f", horizontal_size);
             ImGui::PrettyDragFloat2("Offset", &mat.texture_offset[0], 0.01f,
                                     0.0f, 0.0f, "%.2f", horizontal_size);
 
-            const char *avail_tex_group = "available_textures_group";
-            static eng::AssetID *selected_id = nullptr;
-            static TextureFormat desired_format{};
+            ImGui::PrettyDragFloat("Roughness", &mat.roughness, 0.005f, 0.0f,
+                                   1.0f, "%.3f", horizontal_size);
+            ImGui::PrettyDragFloat("Metallic", &mat.metallic, 0.005f, 0.0f,
+                                   1.0f, "%.3f", horizontal_size);
+            ImGui::PrettyDragFloat("AO", &mat.ao, 0.005f, 0.0f, 1.0f, "%.3f",
+                                   horizontal_size);
 
-            Texture *tex = &layer.asset_pack.textures.at(mat.albedo_texture_id);
-            if (ImGui::TextureFrame(
-                    "##Albedo", (ImTextureID)tex->id,
-                    [&tex, &mat]() {
-                        ImGui::Text("Diffuse texture");
-                        ImGui::Text("%s", tex->name.c_str());
-                        ImGui::ColorEdit4("Color", &mat.color[0],
-                                          ImGuiColorEditFlags_NoInputs);
-                    },
-                    96.0f)) {
-                selected_id = &mat.albedo_texture_id;
-                desired_format = TextureFormat::RGBA8;
-                ImGui::OpenPopup(avail_tex_group);
-            }
+            if (ImGui::CollapsingHeader("Textures",
+                                        ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::Indent(8.0f);
 
-            tex = &layer.asset_pack.textures.at(mat.normal_texture_id);
-            if (ImGui::TextureFrame(
-                    "##Normal", (ImTextureID)tex->id,
-                    [&tex]() {
-                        ImGui::Text("Normal texture");
-                        ImGui::Text("%s", tex->name.c_str());
-                    },
-                    96.0f)) {
-                selected_id = &mat.normal_texture_id;
-                desired_format = TextureFormat::RGB8;
-                ImGui::OpenPopup(avail_tex_group);
-            }
+                const char *avail_tex_group = "available_textures_group";
+                static eng::AssetID *selected_id = nullptr;
+                static TextureFormat desired_format{};
 
-            tex = &layer.asset_pack.textures.at(mat.roughness_texture_id);
-            if (ImGui::TextureFrame(
-                    "##Roughness", (ImTextureID)tex->id,
-                    [&tex, &mat]() {
-                        ImGui::Text("Roughness texture");
-                        ImGui::Text("%s", tex->name.c_str());
-                        ImGui::PrettyDragFloat(
-                            "Roughness", &mat.roughness, 0.01f, 0.0f, 1.0f,
-                            "%0.2f", ImGui::CalcTextSize("Roughness").x);
-                    },
-                    96.0f)) {
-                selected_id = &mat.roughness_texture_id;
-                desired_format = TextureFormat::R8;
-                ImGui::OpenPopup(avail_tex_group);
-            }
+                eng::AssetID *tex_ids[] = {
+                    &mat.albedo_texture_id, &mat.normal_texture_id,
+                    &mat.roughness_texture_id, &mat.metallic_texture_id,
+                    &mat.ao_texture_id};
+                TextureFormat formats[] = {
+                    TextureFormat::RGBA8, TextureFormat::RGB8,
+                    TextureFormat::R8, TextureFormat::R8, TextureFormat::R8};
+                const char *labels[] = {"Albedo", "Normal", "Roughness",
+                                        "Metallic", "AO"};
 
-            tex = &layer.asset_pack.textures.at(mat.metallic_texture_id);
-            if (ImGui::TextureFrame(
-                    "##Metallic", (ImTextureID)tex->id,
-                    [&tex, &mat]() {
-                        ImGui::Text("Metallic texture");
-                        ImGui::Text("%s", tex->name.c_str());
-                        ImGui::PrettyDragFloat(
-                            "Metallic", &mat.metallic, 0.01f, 0.0f, 1.0f,
-                            "%0.2f", ImGui::CalcTextSize("Roughness").x);
-                    },
-                    96.0f)) {
-                selected_id = &mat.metallic_texture_id;
-                desired_format = TextureFormat::R8;
-                ImGui::OpenPopup(avail_tex_group);
-            }
+                constexpr int32_t TEXTURES = IM_ARRAYSIZE(tex_ids);
+                horizontal_size = ImGui::CalcTextSize("Roughness").x + 1.0f;
 
-            tex = &layer.asset_pack.textures.at(mat.ao_texture_id);
-            if (ImGui::TextureFrame(
-                    "##AO", (ImTextureID)tex->id,
-                    [&tex, &mat]() {
-                        ImGui::Text("AO texture");
-                        ImGui::Text("%s", tex->name.c_str());
-                        ImGui::PrettyDragFloat(
-                            "AO", &mat.ao, 0.01f, 0.0f, 1.0f,
-                            "%0.2f", ImGui::CalcTextSize("Roughness").x);
-                    },
-                    96.0f)) {
-                selected_id = &mat.ao_texture_id;
-                desired_format = TextureFormat::R8;
-                ImGui::OpenPopup(avail_tex_group);
-            }
+                for (int32_t i = 0; i < TEXTURES; i++) {
+                    Texture &tex = layer.asset_pack.textures.at(*tex_ids[i]);
+                    if (material_texture_widget(labels[i], tex,
+                                                horizontal_size)) {
+                        selected_id = tex_ids[i];
+                        desired_format = formats[i];
+                        ImGui::OpenPopup(avail_tex_group);
+                    }
+                }
 
-            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {10.0f, 10.0f});
-            if (ImGui::BeginPopup(avail_tex_group)) {
-                ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, {15.0f, 0.0f});
+                ImGui::Unindent(8.0f);
 
-                uint32_t count = 0;
-                for (const auto &[id, texture] : layer.asset_pack.textures) {
-                    ImGui::PushID(count);
+                ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,
+                                    {10.0f, 10.0f});
+                if (ImGui::BeginPopup(avail_tex_group)) {
+                    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
+                                        {15.0f, 0.0f});
 
-                    if (ImGui::ImageButton(
-                            "#Texture", (ImTextureID)(texture.id),
-                            {64.0f, 64.0f}, {0.0f, 1.0f}, {1.0f, 0.0f})) {
-                        *selected_id = id;
+                    uint32_t count = 0;
+                    for (const auto &[id, texture] :
+                         layer.asset_pack.textures) {
+                        ImGui::PushID(count);
+
+                        if (ImGui::ImageButton(
+                                "#Texture", (ImTextureID)(texture.id),
+                                {64.0f, 64.0f}, {0.0f, 1.0f}, {1.0f, 0.0f})) {
+                            *selected_id = id;
+                        }
+
+                        if ((++count) % 3 == 0)
+                            ImGui::NewLine();
+                        else
+                            ImGui::SameLine();
+
+                        ImGui::PopID();
                     }
 
-                    if ((++count) % 3 == 0)
+                    if (count % 3 != 0)
                         ImGui::NewLine();
-                    else
-                        ImGui::SameLine();
 
-                    ImGui::PopID();
-                }
-
-                if (count % 3 != 0)
                     ImGui::NewLine();
 
-                ImGui::NewLine();
+                    if (ImGui::Button("New texture")) {
+                        IGFD::FileDialogConfig config;
+                        config.path = ".";
+                        config.flags = ImGuiFileDialogFlags_Modal;
 
-                if (ImGui::Button("New texture")) {
-                    IGFD::FileDialogConfig config;
-                    config.path = ".";
-                    config.flags = ImGuiFileDialogFlags_Modal;
+                        ImGuiFileDialog::Instance()->OpenDialog(
+                            "file_dial_texture", "Choose file",
+                            ".jpg,.jpeg,.png", config);
+                    }
 
-                    ImGuiFileDialog::Instance()->OpenDialog(
-                        "file_dial_texture", "Choose file", ".jpg,.jpeg,.png",
-                        config);
+                    ImGui::PopStyleVar();
+                    ImGui::EndPopup();
                 }
-
                 ImGui::PopStyleVar();
-                ImGui::EndPopup();
-            }
-            ImGui::PopStyleVar();
 
-            ImGui::SetNextWindowSize({600.0f, 400.0f}, ImGuiCond_FirstUseEver);
-            if (ImGuiFileDialog::Instance()->Display("file_dial_texture")) {
-                if (ImGuiFileDialog::Instance()->IsOk()) {
-                    std::string path =
-                        ImGuiFileDialog::Instance()->GetFilePathName();
+                ImGui::SetNextWindowSize({600.0f, 400.0f},
+                                         ImGuiCond_FirstUseEver);
+                if (ImGuiFileDialog::Instance()->Display("file_dial_texture")) {
+                    if (ImGuiFileDialog::Instance()->IsOk()) {
+                        std::string path =
+                            ImGuiFileDialog::Instance()->GetFilePathName();
 
-                    TextureSpec spec;
-                    spec.format = desired_format;
-                    spec.min_filter = GL_LINEAR_MIPMAP_LINEAR;
-                    spec.mag_filter = GL_LINEAR;
-                    spec.wrap = GL_REPEAT;
-                    spec.gen_mipmaps = true;
+                        TextureSpec spec;
+                        spec.format = desired_format;
+                        spec.min_filter = GL_LINEAR_MIPMAP_LINEAR;
+                        spec.mag_filter = GL_LINEAR;
+                        spec.wrap = GL_REPEAT;
+                        spec.gen_mipmaps = true;
 
-                    Texture new_tex = Texture::create(path, spec);
-                    *selected_id = layer.asset_pack.add_texture(new_tex);
+                        Texture new_tex = Texture::create(path, spec);
+                        *selected_id = layer.asset_pack.add_texture(new_tex);
+                    }
+
+                    ImGuiFileDialog::Instance()->Close();
                 }
-
-                ImGuiFileDialog::Instance()->Close();
             }
 
             if (ImGui::PrettyButton("Remove component"))

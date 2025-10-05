@@ -193,6 +193,14 @@ struct Texture {
 
     void clear_texture();
 
+    void change_params(TextureSpec spec);
+    bool has_mips() const;
+
+    const char *filter_str();
+
+    const char *wrap_str();
+    static const char *wrap_str(GLint wrap);
+
     GLuint id = 0;
     TextureSpec spec;
 

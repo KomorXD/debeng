@@ -735,6 +735,95 @@ void Texture::clear_texture() {
     }
 }
 
+void Texture::change_params(TextureSpec spec) {
+    bind();
+
+    if (spec.min_filter != this->spec.min_filter) {
+        GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
+                                spec.min_filter));
+        this->spec.min_filter = spec.min_filter;
+    }
+
+    if (spec.mag_filter != this->spec.mag_filter) {
+        GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
+                                spec.mag_filter));
+        this->spec.mag_filter = spec.mag_filter;
+    }
+
+    if (spec.wrap != this->spec.wrap) {
+        GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, spec.wrap));
+        GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, spec.wrap));
+
+        this->spec.wrap = spec.wrap;
+    }
+}
+
+bool Texture::has_mips() const {
+    return spec.gen_mipmaps || spec.mips > 1;
+}
+
+const char *Texture::filter_str() {
+    if (spec.mag_filter == GL_NEAREST)
+        return "Point";
+
+    if (spec.min_filter == GL_LINEAR ||
+        spec.min_filter == GL_LINEAR_MIPMAP_NEAREST)
+        return "Bilinear";
+
+    if (spec.min_filter == GL_LINEAR_MIPMAP_LINEAR)
+        return "Trilinear";
+
+    __builtin_unreachable();
+}
+
+const char *Texture::wrap_str() {
+    switch (spec.wrap) {
+    case GL_REPEAT:
+        return "Repeat";
+
+    case GL_MIRRORED_REPEAT:
+        return "Mirrored repeat";
+
+    case GL_CLAMP_TO_EDGE:
+        return "Clamp to edge";
+
+    case GL_MIRROR_CLAMP_TO_EDGE:
+        return "Mirror clamp to edge";
+
+    case GL_CLAMP_TO_BORDER:
+        return "Clamp to border";
+
+    default:
+        assert("Invalid wrap mode");
+    }
+
+    __builtin_unreachable();
+}
+
+const char *Texture::wrap_str(GLint wrap) {
+    switch (wrap) {
+    case GL_REPEAT:
+        return "Repeat";
+
+    case GL_MIRRORED_REPEAT:
+        return "Mirrored repeat";
+
+    case GL_CLAMP_TO_EDGE:
+        return "Clamp to edge";
+
+    case GL_MIRROR_CLAMP_TO_EDGE:
+        return "Mirror clamp to edge";
+
+    case GL_CLAMP_TO_BORDER:
+        return "Clamp to border";
+
+    default:
+        assert("Invalid wrap mode");
+    }
+
+    __builtin_unreachable();
+}
+
 CubeTexture
 CubeTexture::create(CubeTextureSpec spec) {
     CubeTexture tex;

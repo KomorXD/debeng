@@ -635,6 +635,7 @@ namespace ImGui
                           float min = 0.0f, float max = 0.0f,
                           const char *format = "%.3f",
                           float label_width = 64.0f);
+    void PrettyColorEdit4(const char *label, float col[4], float label_width);
     void PrettyInputText(const char *label, char *buf,
                          float label_width = 64.0f);
     void BeginPrettyCombo(const char *label, const char *preview,

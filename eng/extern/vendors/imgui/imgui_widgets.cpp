@@ -3075,6 +3075,98 @@ void ImGui::PrettyDragFloat4(const char *label, float v[4], float speed,
     ImGui::PopID();
 }
 
+void ImGui::PrettyColorEdit4(const char *label, float col[4],
+                             float label_width) {
+    ImGui::PushID(label);
+
+    if (ImGui::BeginTable("#Float3", 3)) {
+        int col_int[4] = {
+            (int)(col[0] * 255.0f),
+            (int)(col[1] * 255.0f),
+            (int)(col[2] * 255.0f),
+            (int)(col[3] * 255.0f)
+        };
+
+        ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed,
+                                label_width);
+        ImGui::TableSetupColumn("Data", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("Data2", ImGuiTableColumnFlags_WidthFixed,
+                                24.0f);
+
+        ImGui::TableNextColumn();
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text(label);
+
+        ImGui::TableNextColumn();
+        ImGui::AlignTextToFramePadding();
+        ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x / 4.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 10.0f));
+        ImGui::PushStyleColor(ImGuiCol_FrameBg,
+                              ImVec4(0.8f, 0.1f, 0.15f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_FrameBgHovered,
+                              ImVec4(0.9f, 0.2f, 0.25f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_FrameBgActive,
+                              ImVec4(0.8f, 0.1f, 0.15f, 1.0f));
+
+        ImGui::SameLine();
+        ImGui::DragInt("##R", &col_int[0], 1.0f, 0, 255);
+        ImGui::SameLine();
+
+        ImGui::PopStyleColor(3);
+
+        ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.2f, 0.7f, 0.2f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_FrameBgHovered,
+                              ImVec4(0.3f, 0.8f, 0.3f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_FrameBgActive,
+                              ImVec4(0.2f, 0.7f, 0.2f, 1.0f));
+
+        ImGui::SameLine();
+        ImGui::DragInt("##G", &col_int[1], 1.0f, 0, 255);
+        ImGui::SameLine();
+
+        ImGui::PopStyleColor(3);
+
+        ImGui::PushStyleColor(ImGuiCol_FrameBg,
+                              ImVec4(0.1f, 0.25f, 0.8f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_FrameBgHovered,
+                              ImVec4(0.2f, 0.35f, 0.9f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_FrameBgActive,
+                              ImVec4(0.1f, 0.25f, 0.8f, 1.0f));
+
+        ImGui::SameLine();
+        ImGui::DragInt("##B", &col_int[2], 1.0f, 0, 255);
+        ImGui::SameLine();
+
+        ImGui::PopStyleColor(3);
+
+        ImGui::PushStyleColor(ImGuiCol_FrameBg,
+                              ImVec4(0.6f, 0.6f, 0.8f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_FrameBgHovered,
+                              ImVec4(0.7f, 0.7f, 0.9f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_FrameBgActive,
+                              ImVec4(0.6f, 0.6f, 0.8f, 1.0f));
+
+        ImGui::SameLine();
+        ImGui::DragInt("##A", &col_int[3], 1.0f, 0, 255);
+
+        col[0] = (float)(col_int[0] / 255.0f);
+        col[1] = (float)(col_int[1] / 255.0f);
+        col[2] = (float)(col_int[2] / 255.0f);
+        col[3] = (float)(col_int[3] / 255.0f);
+
+        ImGui::PopStyleColor(3);
+        ImGui::PopStyleVar();
+        ImGui::PopItemWidth();
+
+        ImGui::TableNextColumn();
+        ImGui::AlignTextToFramePadding();
+        ImGui::ColorEdit4("##Color", col, ImGuiColorEditFlags_NoInputs);
+
+        ImGui::EndTable();
+    }
+
+    ImGui::PopID();
+}
 
 void ImGui::PrettyInputText(const char *label, char *buf, float label_width) {
     ImGui::PushID(label);

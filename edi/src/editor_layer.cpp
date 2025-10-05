@@ -828,9 +828,9 @@ static void render_entity_panel(EditorLayer &layer) {
     float horizontal_size = ImGui::CalcTextSize("Name").x;
     ImGui::Indent(8.0f);
     ImGui::PrettyInputText("Name", buf, horizontal_size);
-    ImGui::Unindent(8.0f);
-
     name.name = buf;
+
+    ImGui::Unindent(8.0f);
 
     eng::Transform &transform = ent.get_component<eng::Transform>();
     ImGui::PushID(1);
@@ -931,6 +931,14 @@ static void render_entity_panel(EditorLayer &layer) {
                     }
                 }, horizontal_size);
 
+            if (mat_comp.id > eng::AssetPack::DEFAULT_FLAT_MATERIAL &&
+                mat_comp.id != layer.outline_material) {
+                char buf[128] = {0};
+                strncpy(buf, mat.name.c_str(), 128);
+                ImGui::PrettyInputText("Name", buf, horizontal_size);
+                mat.name = buf;
+            }
+
             Shader &shader = layer.asset_pack.shaders.at(mat.shader_id);
             ImGui::BeginPrettyCombo(
                 "Shader", shader.name.c_str(), [&layer, &mat]() {
@@ -949,6 +957,7 @@ static void render_entity_panel(EditorLayer &layer) {
             ImGui::PrettyDragFloat2("Offset", &mat.texture_offset[0], 0.01f,
                                     0.0f, 0.0f, "%.2f", horizontal_size);
 
+            ImGui::PrettyColorEdit4("Color", &mat.color[0], horizontal_size);
             ImGui::PrettyDragFloat("Roughness", &mat.roughness, 0.005f, 0.0f,
                                    1.0f, "%.3f", horizontal_size);
             ImGui::PrettyDragFloat("Metallic", &mat.metallic, 0.005f, 0.0f,

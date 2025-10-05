@@ -972,14 +972,26 @@ void submit_spot_light(const Transform &transform, const SpotLight &light) {
 EnvMap create_envmap(const Texture &equirect) {
     EnvMap emap;
     emap.thumbnail = equirect;
-    emap.cube_map =
-        CubeTexture::create(equirect.spec.size.y, TextureFormat::RGBA16F);
-    emap.irradiance_map = CubeTexture::create(32, emap.cube_map.format);
-    emap.prefilter_map = CubeTexture::create(128, emap.cube_map.format);
+
+    CubeTextureSpec spec;
+    spec.format = TextureFormat::RGBA16F;
+    spec.face_dim = equirect.spec.size.y / 2;
+    spec.min_filter = GL_LINEAR_MIPMAP_LINEAR;
+    spec.mag_filter = GL_LINEAR;
+    spec.wrap = GL_CLAMP_TO_EDGE;
+    spec.gen_mipmaps = true;
+
+    emap.cube_map = CubeTexture::create(spec);
+
+    spec.face_dim = 32;
+    emap.irradiance_map = CubeTexture::create(spec);
+
+    spec.face_dim = 128;
+    emap.prefilter_map = CubeTexture::create(spec);
 
     glm::ivec3 groups;
-    groups.x = (emap.cube_map.face_width + 15) / 16;
-    groups.y = (emap.cube_map.face_height + 15) / 16;
+    groups.x = (emap.cube_map.spec.face_dim + 15) / 16;
+    groups.y = groups.x;
     groups.z = 1;
 
     equirect.bind();
@@ -993,8 +1005,8 @@ EnvMap create_envmap(const Texture &equirect) {
     emap.cube_map.bind();
     GL_CALL(glGenerateMipmap(GL_TEXTURE_CUBE_MAP));
 
-    groups.x = (emap.irradiance_map.face_width + 15) / 16;
-    groups.y = (emap.irradiance_map.face_height + 15) / 16;
+    groups.x = (emap.irradiance_map.spec.face_dim + 15) / 16;
+    groups.y = groups.x;
     groups.z = 1;
 
     s_renderer.cubemap_convolution_shader.bind();
@@ -1008,14 +1020,15 @@ EnvMap create_envmap(const Texture &equirect) {
     emap.irradiance_map.bind();
     GL_CALL(glGenerateMipmap(GL_TEXTURE_CUBE_MAP));
 
-    groups.x = (emap.prefilter_map.face_width + 15) / 16;
-    groups.y = (emap.prefilter_map.face_height + 15) / 16;
+    groups.x = (emap.prefilter_map.spec.face_dim + 15) / 16;
+    groups.y = groups.x;
     groups.z = 1;
 
     emap.cube_map.bind();
     s_renderer.cubemap_prefilter_shader.bind();
-    for (int32_t mip = 0; mip < emap.prefilter_map.mips; mip++) {
-        float roughness = (float)mip / (float)(emap.prefilter_map.mips - 1);
+    for (int32_t mip = 0; mip < emap.prefilter_map.spec.mips; mip++) {
+        float roughness =
+            (float)mip / (float)(emap.prefilter_map.spec.mips - 1);
         s_renderer.cubemap_prefilter_shader.set_uniform_1f("u_roughness",
                                                            roughness);
 

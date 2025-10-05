@@ -736,47 +736,47 @@ void Texture::clear_texture() {
 }
 
 CubeTexture
-CubeTexture::create(int32_t face_dim, TextureFormat format,
-                    std::optional<const std::vector<void *>> faces_data) {
+CubeTexture::create(CubeTextureSpec spec) {
     CubeTexture tex;
-    tex.format = format;
+    tex.spec = spec;
 
-    TextureFormatDetails tex_details = format_details(format);
-    tex.face_width = face_dim;
-    tex.face_height = face_dim;
-    tex.bpp = tex_details.bpp;
-    tex.mips = 1 + glm::floor(glm::log2(face_dim));
+    TextureFormatDetails tex_details = format_details(spec.format);
 
     GL_CALL(glGenTextures(1, &tex.id));
     GL_CALL(glBindTexture(GL_TEXTURE_CUBE_MAP, tex.id));
+
     GL_CALL(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER,
-                            GL_LINEAR_MIPMAP_LINEAR));
-    GL_CALL(
-        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
-    GL_CALL(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_REPEAT));
-    GL_CALL(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_REPEAT));
-    GL_CALL(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_REPEAT));
+                            spec.min_filter));
+    GL_CALL(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER,
+                            spec.mag_filter));
+    GL_CALL(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, spec.wrap));
+    GL_CALL(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, spec.wrap));
+    GL_CALL(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, spec.wrap));
 
-    if (faces_data.has_value()) {
-        assert(faces_data.value().size() == 6 &&
-               "Incorrect number of faces data");
+    for (int32_t i = 0; i < 6; i++) {
+        GL_CALL(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0,
+                             tex_details.internal_format, spec.face_dim,
+                             spec.face_dim, 0, tex_details.format,
+                             tex_details.type, nullptr));
+    }
 
-        for (int32_t i = 0; i < 6; i++) {
-            GL_CALL(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0,
-                                 tex_details.internal_format, face_dim,
-                                 face_dim, 0, tex_details.format,
-                                 tex_details.type, faces_data.value()[i]));
-        }
+    if (spec.gen_mipmaps) {
+        GL_CALL(glGenerateMipmap(GL_TEXTURE_CUBE_MAP));
+
+        tex.spec.mips = 1 + glm::floor(glm::log2(spec.face_dim));
     } else {
-        for (int32_t i = 0; i < 6; i++) {
-            GL_CALL(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0,
-                                 tex_details.internal_format, face_dim,
-                                 face_dim, 0, tex_details.format,
-                                 tex_details.type, nullptr));
+        for (int32_t mip = 1; mip < spec.mips; mip++) {
+            int32_t dim = spec.face_dim >> mip;
+
+            for (int32_t i = 0; i < 6; i++) {
+                GL_CALL(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0,
+                                     tex_details.internal_format, dim, dim, 0,
+                                     tex_details.format, tex_details.type,
+                                     nullptr));
+            }
         }
     }
 
-    GL_CALL(glGenerateMipmap(GL_TEXTURE_CUBE_MAP));
     GL_CALL(glBindTexture(GL_TEXTURE_CUBE_MAP, 0));
 
     return tex;
@@ -803,7 +803,7 @@ void CubeTexture::bind_face_image(int32_t face, int32_t mip, uint32_t binding,
            "Invalid access");
 
     GLenum acc[] = {GL_READ_ONLY, GL_WRITE_ONLY, GL_READ_WRITE};
-    GLenum internal = format_details(format).internal_format;
+    GLenum internal = format_details(spec.format).internal_format;
     GL_CALL(glBindImageTexture(binding, id, mip, GL_FALSE, face,
                                acc[(int32_t)access], internal));
 }

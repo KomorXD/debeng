@@ -200,10 +200,20 @@ struct Texture {
     std::string name;
 };
 
+struct CubeTextureSpec {
+    TextureFormat format;
+    int32_t face_dim;
+
+    GLint min_filter;
+    GLint mag_filter;
+    GLint wrap;
+
+    int32_t mips = 1;
+    bool gen_mipmaps = false;
+};
+
 struct CubeTexture {
-    [[nodiscard]] static CubeTexture
-    create(int32_t face_dim, TextureFormat format,
-           std::optional<const std::vector<void *>> faces_data = {});
+    [[nodiscard]] static CubeTexture create(CubeTextureSpec spec);
 
     void destroy();
 
@@ -213,12 +223,7 @@ struct CubeTexture {
     void unbind() const;
 
     GLuint id = 0;
-    int32_t face_width = 0;
-    int32_t face_height = 0;
-    int32_t bpp = 0;
-    int32_t mips = 0;
-
-    TextureFormat format;
+    CubeTextureSpec spec;
 };
 
 enum class RenderbufferType {

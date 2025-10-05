@@ -80,8 +80,13 @@ std::unique_ptr<Layer> EditorLayer::create(const eng::WindowSpec &win_spec) {
     mat.shader_id = eng::AssetPack::DEFAULT_FLAT_MATERIAL;
     layer->outline_material = layer->asset_pack.add_material(mat);
 
-    Texture thumbnail = Texture::create("resources/textures/envmaps/xdd.hdr",
-                                        TextureFormat::RGBA16F);
+    TextureSpec spec;
+    spec.format = TextureFormat::RGBA16F;
+    spec.min_filter = spec.mag_filter = GL_LINEAR;
+    spec.wrap = GL_REPEAT;
+    spec.gen_mipmaps = false;
+    Texture thumbnail = Texture::create(
+        std::string("resources/textures/envmaps/xdd.hdr"), spec);
     eng::EnvMap env_map = eng::renderer::create_envmap(thumbnail);
     layer->envmap_id = layer->asset_pack.add_env_map(env_map);
     eng::renderer::use_envmap(layer->asset_pack.env_maps.at(layer->envmap_id));
@@ -586,7 +591,13 @@ static void render_control_panel(EditorLayer &layer) {
         if (ImGuiFileDialog::Instance()->IsOk()) {
             std::string path = ImGuiFileDialog::Instance()->GetFilePathName();
 
-            Texture equirect = Texture::create(path, TextureFormat::RGBA16F);
+            TextureSpec spec;
+            spec.format = TextureFormat::RGBA16F;
+            spec.min_filter = spec.mag_filter = GL_LINEAR;
+            spec.wrap = GL_REPEAT;
+            spec.gen_mipmaps = false;
+
+            Texture equirect = Texture::create(path, spec);
             eng::EnvMap env_map = eng::renderer::create_envmap(equirect);
             layer.envmap_id = layer.asset_pack.add_env_map(env_map);
             eng::renderer::use_envmap(
@@ -964,8 +975,14 @@ static void render_entity_panel(EditorLayer &layer) {
                     std::string path =
                         ImGuiFileDialog::Instance()->GetFilePathName();
 
-                    Texture new_tex =
-                        Texture::create(path, desired_format);
+                    TextureSpec spec;
+                    spec.format = desired_format;
+                    spec.min_filter = GL_LINEAR_MIPMAP_LINEAR;
+                    spec.mag_filter = GL_LINEAR;
+                    spec.wrap = GL_REPEAT;
+                    spec.gen_mipmaps = true;
+
+                    Texture new_tex = Texture::create(path, spec);
                     *selected_id = layer.asset_pack.add_texture(new_tex);
                 }
 

@@ -567,29 +567,30 @@ TextureFormatDetails format_details(TextureFormat format) {
     };
 }
 
-Texture Texture::create(const std::string &path, TextureFormat format) {
+Texture Texture::create(const std::string &path, TextureSpec spec) {
     Texture tex;
-    tex.format = format;
+    tex.spec = spec;
 
-    auto [internal, pixel_format, type, bpp] = format_details(format);
+    auto [internal, pixel_format, type, bpp] = format_details(spec.format);
     void *buffer = nullptr;
     stbi_set_flip_vertically_on_load(1);
 
     if (type == GL_FLOAT)
-        buffer =
-            stbi_loadf(path.c_str(), &tex.width, &tex.height, &tex.bpp, bpp);
+        buffer = stbi_loadf(path.c_str(), &tex.spec.size.x, &tex.spec.size.y,
+                            nullptr, bpp);
     else
-        buffer =
-            stbi_load(path.c_str(), &tex.width, &tex.height, &tex.bpp, bpp);
+        buffer = buffer = stbi_load(path.c_str(), &tex.spec.size.x,
+                                    &tex.spec.size.y, nullptr, bpp);
 
     GL_CALL(glGenTextures(1, &tex.id));
     GL_CALL(glBindTexture(GL_TEXTURE_2D, tex.id));
 
-    GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
-                            GL_LINEAR_MIPMAP_LINEAR));
-    GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
-    GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT));
-    GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT));
+    GL_CALL(
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, spec.min_filter));
+    GL_CALL(
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, spec.mag_filter));
+    GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, spec.wrap));
+    GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, spec.wrap));
 
     if (pixel_format == GL_RED) {
         GLint swizzle_mask[4] = {GL_RED, GL_RED, GL_RED, GL_ONE};
@@ -597,9 +598,25 @@ Texture Texture::create(const std::string &path, TextureFormat format) {
                                  swizzle_mask));
     }
 
-    GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, internal, tex.width, tex.height, 0,
-                         pixel_format, type, buffer));
-    GL_CALL(glGenerateMipmap(GL_TEXTURE_2D));
+    GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, internal, tex.spec.size.x,
+                         tex.spec.size.y, 0, pixel_format, type, buffer));
+
+    if (spec.gen_mipmaps) {
+        GL_CALL(glGenerateMipmap(GL_TEXTURE_2D));
+
+        tex.spec.mips =
+            1 +
+            glm::floor(glm::log2(glm::max(tex.spec.size.x, tex.spec.size.y)));
+    } else {
+        for (int32_t mip = 1; mip < spec.mips; mip++) {
+            int32_t w = tex.spec.size.x >> mip;
+            int32_t h = tex.spec.size.y >> mip;
+
+            GL_CALL(glTexImage2D(GL_TEXTURE_2D, mip, internal, w, h, 0,
+                                 pixel_format, type, nullptr));
+        }
+    }
+
     GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
 
     if (buffer)
@@ -609,73 +626,71 @@ Texture Texture::create(const std::string &path, TextureFormat format) {
     tex.path = path;
     tex.name = tex_path.filename().string();
 
-    tex.mips = 1 + glm::floor(glm::log2(glm::max(tex.width, tex.height)));
-    tex.mips = std::min(tex.mips, 7);
-
     return tex;
 }
 
-Texture Texture::create(const void *data, int32_t width, int32_t height,
-                        TextureFormat format) {
+Texture Texture::create(const void *data, TextureSpec spec) {
     Texture tex;
-    tex.format = format;
+    tex.spec = spec;
 
     GL_CALL(glGenTextures(1, &tex.id));
     GL_CALL(glBindTexture(GL_TEXTURE_2D, tex.id));
 
-    GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
-                            GL_LINEAR_MIPMAP_LINEAR));
-    GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
-    GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT));
-    GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT));
+    GL_CALL(
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, spec.min_filter));
+    GL_CALL(
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, spec.mag_filter));
+    GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, spec.wrap));
+    GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, spec.wrap));
 
-    auto [internal, pixel_format, type, bpp] = format_details(format);
-    tex.width = width;
-    tex.height = height;
-    tex.bpp = bpp;
-    tex.mips = 1 + glm::floor(glm::log2(glm::max(width, height)));
-    tex.mips = std::min(tex.mips, 7);
+    auto [internal, pixel_format, type, bpp] = format_details(spec.format);
+    GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, internal, tex.spec.size.x,
+                         tex.spec.size.y, 0, pixel_format, type, data));
 
-    GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, internal, tex.width, tex.height, 0,
-                         pixel_format, type, data));
-    GL_CALL(glGenerateMipmap(GL_TEXTURE_2D));
+    if (spec.gen_mipmaps) {
+        GL_CALL(glGenerateMipmap(GL_TEXTURE_2D));
+
+        tex.spec.mips =
+            1 +
+            glm::floor(glm::log2(glm::max(tex.spec.size.x, tex.spec.size.y)));
+    } else {
+        for (int32_t mip = 1; mip < spec.mips; mip++) {
+            int32_t w = tex.spec.size.x >> mip;
+            int32_t h = tex.spec.size.y >> mip;
+
+            GL_CALL(glTexImage2D(GL_TEXTURE_2D, mip, internal, w, h, 0,
+                                 pixel_format, type, nullptr));
+        }
+    }
+
     GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
 
     return tex;
 }
 
-Texture Texture::create_storage(int32_t width, int32_t height,
-                                TextureFormat format,
-                                std::optional<int32_t> mips) {
+Texture Texture::create_storage(TextureSpec spec) {
     Texture tex;
-    tex.format = format;
+    tex.spec = spec;
 
     GL_CALL(glGenTextures(1, &tex.id));
     GL_CALL(glBindTexture(GL_TEXTURE_2D, tex.id));
 
-    GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
-                            GL_LINEAR_MIPMAP_LINEAR));
-    GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
     GL_CALL(
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, spec.min_filter));
     GL_CALL(
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, spec.mag_filter));
+    GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, spec.wrap));
+    GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, spec.wrap));
 
-    int32_t mip_count{};
-    if (mips.has_value())
-        mip_count = mips.value();
-    else {
-        mip_count = 1 + glm::floor(glm::log2(glm::max(width, height)));
-        mip_count = std::min(mip_count, 7);
-    }
+    auto [internal, pixel_format, type, bpp] = format_details(spec.format);
 
-    auto [internal, pixel_format, type, bpp] = format_details(format);
-    tex.width = width;
-    tex.height = height;
-    tex.bpp = bpp;
-    tex.mips = mip_count;
+    if (spec.gen_mipmaps)
+        tex.spec.mips =
+            1 +
+            glm::floor(glm::log2(glm::max(tex.spec.size.x, tex.spec.size.y)));
 
-    GL_CALL(glTexStorage2D(GL_TEXTURE_2D, mip_count, internal, width, height));
+    GL_CALL(glTexStorage2D(GL_TEXTURE_2D, tex.spec.mips, internal,
+                           tex.spec.size.x, tex.spec.size.y));
     GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
 
     return tex;
@@ -702,7 +717,7 @@ void Texture::bind_image(int32_t mip, uint32_t binding,
            "Invalid access");
 
     GLenum acc[] = {GL_READ_ONLY, GL_WRITE_ONLY, GL_READ_WRITE};
-    GLenum internal = format_details(format).internal_format;
+    GLenum internal = format_details(spec.format).internal_format;
     GL_CALL(glBindImageTexture(binding, id, mip, GL_FALSE, 0,
                                acc[(int32_t)access], internal));
 }
@@ -714,24 +729,23 @@ void Texture::unbind() const {
 void Texture::clear_texture() {
     assert(id != 0 && "Trying to clear invalid texture object");
 
-    auto [internal, pixel_format, type, bpp] = format_details(format);
-    for (int32_t mip = 0; mip < mips; mip++) {
+    auto [internal, pixel_format, type, bpp] = format_details(spec.format);
+    for (int32_t mip = 0; mip < spec.mips; mip++) {
         GL_CALL(glClearTexImage(id, mip, pixel_format, type, 0));
     }
 }
 
 CubeTexture
-CubeTexture::create(int32_t face_width, int32_t face_height,
-                    TextureFormat format,
+CubeTexture::create(int32_t face_dim, TextureFormat format,
                     std::optional<const std::vector<void *>> faces_data) {
     CubeTexture tex;
     tex.format = format;
 
     TextureFormatDetails tex_details = format_details(format);
-    tex.face_width = face_width;
-    tex.face_height = face_height;
+    tex.face_width = face_dim;
+    tex.face_height = face_dim;
     tex.bpp = tex_details.bpp;
-    tex.mips = 1 + glm::floor(glm::log2(glm::max(face_width, face_height)));
+    tex.mips = 1 + glm::floor(glm::log2(face_dim));
 
     GL_CALL(glGenTextures(1, &tex.id));
     GL_CALL(glBindTexture(GL_TEXTURE_CUBE_MAP, tex.id));
@@ -749,15 +763,15 @@ CubeTexture::create(int32_t face_width, int32_t face_height,
 
         for (int32_t i = 0; i < 6; i++) {
             GL_CALL(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0,
-                                 tex_details.internal_format, face_width,
-                                 face_height, 0, tex_details.format,
+                                 tex_details.internal_format, face_dim,
+                                 face_dim, 0, tex_details.format,
                                  tex_details.type, faces_data.value()[i]));
         }
     } else {
         for (int32_t i = 0; i < 6; i++) {
             GL_CALL(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0,
-                                 tex_details.internal_format, face_width,
-                                 face_height, 0, tex_details.format,
+                                 tex_details.internal_format, face_dim,
+                                 face_dim, 0, tex_details.format,
                                  tex_details.type, nullptr));
         }
     }

@@ -167,14 +167,23 @@ enum class ImageAccess {
     READ_WRITE
 };
 
+struct TextureSpec {
+    TextureFormat format;
+    glm::ivec2 size;
+
+    GLint min_filter;
+    GLint mag_filter;
+    GLint wrap;
+
+    int32_t mips = 1;
+    bool gen_mipmaps = false;
+};
+
 struct Texture {
     [[nodiscard]] static Texture create(const std::string &path,
-                                        TextureFormat format);
-    [[nodiscard]] static Texture create(const void *data, int32_t width,
-                                        int32_t height, TextureFormat format);
-    [[nodiscard]] static Texture
-    create_storage(int32_t width, int32_t height, TextureFormat format,
-                   std::optional<int32_t> mips = {});
+                                        TextureSpec spec);
+    [[nodiscard]] static Texture create(const void *data, TextureSpec spec);
+    [[nodiscard]] static Texture create_storage(TextureSpec spec);
 
     void destroy();
 
@@ -185,20 +194,15 @@ struct Texture {
     void clear_texture();
 
     GLuint id = 0;
-    int32_t width = 0;
-    int32_t height = 0;
-    int32_t bpp = 0;
-    int32_t mips = 0;
+    TextureSpec spec;
 
     std::string path;
     std::string name;
-
-    TextureFormat format;
 };
 
 struct CubeTexture {
     [[nodiscard]] static CubeTexture
-    create(int32_t face_width, int32_t face_height, TextureFormat format,
+    create(int32_t face_dim, TextureFormat format,
            std::optional<const std::vector<void *>> faces_data = {});
 
     void destroy();

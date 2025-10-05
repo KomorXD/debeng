@@ -268,9 +268,15 @@ bool init() {
             {.path = "resources/shaders/envmap/prefilter_convolution.comp"}) &&
         "Failed to build cubemap prefilter shader");
 
-    s_renderer.brdf_map =
-        Texture::create(nullptr, 512, 512, TextureFormat::RG16F);
-    s_renderer.slots.prefilter_mips = s_renderer.brdf_map.mips;
+    {
+        TextureSpec spec;
+        spec.format = TextureFormat::RG16F;
+        spec.size = {512, 512};
+        spec.min_filter = spec.mag_filter = GL_LINEAR;
+        spec.wrap = GL_CLAMP_TO_EDGE;
+        s_renderer.brdf_map = Texture::create(nullptr, spec);
+        s_renderer.slots.prefilter_mips = s_renderer.brdf_map.spec.mips;
+    }
 
     {
         Shader brdf_shader = Shader::create();
@@ -279,8 +285,8 @@ bool init() {
                "Failed to build BRDF shader");
 
         glm::ivec3 groups;
-        groups.x = (s_renderer.brdf_map.width + 15) / 16;
-        groups.y = (s_renderer.brdf_map.width + 15) / 16;
+        groups.x = (s_renderer.brdf_map.spec.size.x + 15) / 16;
+        groups.y = (s_renderer.brdf_map.spec.size.y + 15) / 16;
         groups.z = 1;
 
         s_renderer.brdf_map.bind_image(0, 0, ImageAccess::WRITE);
@@ -332,8 +338,17 @@ bool init() {
                 {{"${CAMERA_BINDING}", std::to_string(CAMERA_BINDING)}}}) &&
            "Failed to build bloom upsampler shader");
 
-    s_renderer.bloom_texture =
-        Texture::create_storage(1920, 1080, TextureFormat::RGBA16F);
+    {
+        TextureSpec spec;
+        spec.format = TextureFormat::RGBA16F;
+        spec.size = {800, 600};
+        spec.min_filter = GL_LINEAR_MIPMAP_LINEAR;
+        spec.mag_filter = GL_LINEAR;
+        spec.wrap = GL_CLAMP_TO_EDGE;
+        spec.mips = 5;
+
+        s_renderer.bloom_texture = Texture::create_storage(spec);
+    }
 
     {
         ColorAttachmentSpec spec;
@@ -957,10 +972,10 @@ void submit_spot_light(const Transform &transform, const SpotLight &light) {
 EnvMap create_envmap(const Texture &equirect) {
     EnvMap emap;
     emap.thumbnail = equirect;
-    emap.cube_map = CubeTexture::create(equirect.width, equirect.width,
-                                        TextureFormat::RGBA16F);
-    emap.irradiance_map = CubeTexture::create(32, 32, emap.cube_map.format);
-    emap.prefilter_map = CubeTexture::create(128, 128, emap.cube_map.format);
+    emap.cube_map =
+        CubeTexture::create(equirect.spec.size.y, TextureFormat::RGBA16F);
+    emap.irradiance_map = CubeTexture::create(32, emap.cube_map.format);
+    emap.prefilter_map = CubeTexture::create(128, emap.cube_map.format);
 
     glm::ivec3 groups;
     groups.x = (emap.cube_map.face_width + 15) / 16;
@@ -1057,12 +1072,14 @@ void post_proc_combine() {
 }
 
 void post_process() {
-    if (s_renderer.bloom_texture.width != s_active_camera->viewport.x ||
-        s_renderer.bloom_texture.height != s_active_camera->viewport.y) {
+    if (s_renderer.bloom_texture.spec.size !=
+        glm::ivec2(s_active_camera->viewport)) {
         s_renderer.bloom_texture.destroy();
-        s_renderer.bloom_texture = Texture::create_storage(
-            s_active_camera->viewport.x, s_active_camera->viewport.y,
-            TextureFormat::RGBA16F);
+
+        s_renderer.bloom_texture.spec.size =
+            glm::ivec2(s_active_camera->viewport);
+        s_renderer.bloom_texture =
+            Texture::create_storage(s_renderer.bloom_texture.spec);
     }
 
     s_renderer.bloom_texture.clear_texture();
@@ -1078,7 +1095,7 @@ void post_process() {
     s_renderer.bloom_texture.bind(1);
 
     s_renderer.bloom_downsampler.bind();
-    for (int32_t i = 1; i < s_renderer.bloom_texture.mips; i++) {
+    for (int32_t i = 1; i < s_renderer.bloom_texture.spec.mips; i++) {
         s_renderer.bloom_texture.bind_image(i, 2, ImageAccess::WRITE);
 
         s_renderer.bloom_downsampler.set_uniform_1f("u_mip", i - 1);
@@ -1086,7 +1103,7 @@ void post_process() {
     }
 
     s_renderer.bloom_upsampler.bind();
-    for (int32_t i = s_renderer.bloom_texture.mips - 1; i > 0; i--) {
+    for (int32_t i = s_renderer.bloom_texture.spec.mips - 1; i > 0; i--) {
         s_renderer.bloom_texture.bind_image(i - 1, 2, ImageAccess::READ_WRITE);
 
         s_renderer.bloom_upsampler.set_uniform_1f("u_mip", i);

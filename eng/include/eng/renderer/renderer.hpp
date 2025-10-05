@@ -55,8 +55,7 @@ struct CameraData {
 
     float bloom_strength;
     float bloom_threshold;
-
-    float padding;
+    int32_t bloom_mip_radius;
 };
 
 struct DirLightData {

@@ -137,6 +137,7 @@ renderer::CameraData SpectatorCamera::render_data() const {
 
     cdata.bloom_strength = bloom_strength;
     cdata.bloom_threshold = bloom_threshold;
+    cdata.bloom_mip_radius = bloom_mip_radius;
 
     return cdata;
 }

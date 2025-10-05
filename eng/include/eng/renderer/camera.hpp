@@ -68,6 +68,7 @@ struct SpectatorCamera {
 
     float bloom_strength = 1.0f;
     float bloom_threshold = 1.0f;
+    int32_t bloom_mip_radius = 5;
 
     float moving_speed_ps = 10.0f;
     float rolling_angle_ps = 180.0f;

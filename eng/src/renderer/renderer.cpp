@@ -1072,14 +1072,20 @@ void post_proc_combine() {
 }
 
 void post_process() {
-    if (s_renderer.bloom_texture.spec.size !=
-        glm::ivec2(s_active_camera->viewport)) {
-        s_renderer.bloom_texture.destroy();
+    TextureSpec new_spec = s_renderer.bloom_texture.spec;
 
-        s_renderer.bloom_texture.spec.size =
-            glm::ivec2(s_active_camera->viewport);
+    if (s_renderer.bloom_texture.spec.size !=
+        glm::ivec2(s_active_camera->viewport))
+        new_spec.size = glm::ivec2(s_active_camera->viewport);
+
+    if (s_renderer.bloom_texture.spec.mips != s_active_camera->bloom_mip_radius)
+        new_spec.mips = s_active_camera->bloom_mip_radius;
+
+    if (memcmp(&new_spec, &s_renderer.bloom_texture.spec,
+               sizeof(TextureSpec)) != 0) {
+        s_renderer.bloom_texture.destroy();
         s_renderer.bloom_texture =
-            Texture::create_storage(s_renderer.bloom_texture.spec);
+            Texture::create_storage(new_spec);
     }
 
     s_renderer.bloom_texture.clear_texture();

@@ -631,6 +631,8 @@ static void render_control_panel(EditorLayer &layer) {
                                0.01f, 0.0f, FLT_MAX, "%.3f", horizontal_size);
         ImGui::PrettyDragFloat("Bloom threshold", &layer.camera.bloom_threshold,
                                0.01f, 0.0f, FLT_MAX, "%.3f", horizontal_size);
+        ImGui::PrettyDragInt("Bloom mip radius", &layer.camera.bloom_mip_radius,
+                             1, 7, horizontal_size);
         ImGui::PrettyDragFloat("Near clip", &layer.camera.near_clip, 0.01f,
                                0.0f, layer.camera.far_clip, "%.3f",
                                horizontal_size);

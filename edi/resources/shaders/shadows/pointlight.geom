@@ -1,7 +1,6 @@
 #version 430 core
 
 #define POINT_LIGHTS_BINDING ${POINT_LIGHTS_BINDING}
-#define MAX_POINT_LIGHTS ${MAX_POINT_LIGHTS}
 
 layout (triangles, invocations = ${INVOCATIONS}) in;
 layout (triangle_strip, max_vertices = 18) out;

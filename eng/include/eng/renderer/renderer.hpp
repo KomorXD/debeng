@@ -16,9 +16,16 @@ constexpr int32_t SOFT_SHADOW_PROPS_BINDING = 4;
 constexpr int32_t DRAW_PARAMS_BINDING = 5;
 
 constexpr int32_t MAX_MESH_INSTANCES = 128;
-constexpr int32_t MAX_DIR_LIGHTS = 4;
-constexpr int32_t MAX_POINT_LIGHTS = 32;
-constexpr int32_t MAX_SPOT_LIGHTS = 32;
+
+constexpr int32_t MAX_DIR_LIGHTS = 8;
+constexpr int32_t MIN_DIR_LIGHTS_STORAGE = 2;
+
+constexpr int32_t MAX_POINT_LIGHTS = 128;
+constexpr int32_t MIN_POINT_LIGHTS_STORAGE = 32;
+
+constexpr int32_t MAX_SPOT_LIGHTS = 128;
+constexpr int32_t MIN_SPOT_LIGHTS_STORAGE = 32;
+
 constexpr int32_t MAX_TEXTURES = 16;
 constexpr int32_t MAX_DRAW_PARAMS = 128;
 

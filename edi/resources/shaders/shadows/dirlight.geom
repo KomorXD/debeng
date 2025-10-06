@@ -1,7 +1,6 @@
 #version 430 core
 
 #define DIR_LIGHTS_BINDING ${DIR_LIGHTS_BINDING}
-#define MAX_DIR_LIGHTS ${MAX_DIR_LIGHTS}
 #define CASCADES_COUNT ${CASCADES_COUNT}
 
 layout (triangles, invocations = ${INVOCATIONS}) in;

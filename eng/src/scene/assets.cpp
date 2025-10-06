@@ -134,10 +134,6 @@ AssetPack AssetPack::create(const std::string &pack_name) {
                 std::to_string(renderer::DIR_LIGHTS_BINDING)
             },
             {
-                "${MAX_DIR_LIGHTS}",
-                std::to_string(renderer::MAX_DIR_LIGHTS)
-            },
-            {
                 "${CASCADES_COUNT}",
                 std::to_string(renderer::CASCADES_COUNT)
             },
@@ -146,16 +142,8 @@ AssetPack AssetPack::create(const std::string &pack_name) {
                 std::to_string(renderer::POINT_LIGHTS_BINDING)
             },
             {
-                "${MAX_POINT_LIGHTS}",
-                std::to_string(renderer::MAX_POINT_LIGHTS)
-            },
-            {
                 "${SPOT_LIGHTS_BINDING}",
                 std::to_string(renderer::SPOT_LIGHTS_BINDING)
-            },
-            {
-                "${MAX_SPOT_LIGHTS}",
-                std::to_string(renderer::MAX_SPOT_LIGHTS)
             },
             {
                 "${SOFT_SHADOW_PROPS_BINDING}",

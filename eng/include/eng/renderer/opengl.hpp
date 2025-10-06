@@ -303,6 +303,8 @@ struct Framebuffer {
     void add_renderbuffer(RenderbufferSpec spec);
     void add_color_attachment(ColorAttachmentSpec spec);
 
+    void rebuild_color_attachment(uint32_t index, ColorAttachmentSpec spec);
+
     void bind_renderbuffer() const;
     void bind_color_attachment(uint32_t index, uint32_t slot = 0) const;
     void bind_color_attachment_image(uint32_t index,

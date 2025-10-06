@@ -57,12 +57,15 @@ struct Renderer {
     UniformBuffer camera_uni_buffer;
 
     ShaderStorage dir_lights_storage;
+    int32_t dir_lights_allocated = MIN_DIR_LIGHTS_STORAGE;
     std::vector<DirLightData> dir_lights;
 
     ShaderStorage point_lights_storage;
+    int32_t point_lights_allocated = MIN_POINT_LIGHTS_STORAGE;
     std::vector<PointLightData> point_lights;
 
     ShaderStorage spot_lights_storage;
+    int32_t spot_lights_allocated = MIN_SPOT_LIGHTS_STORAGE;
     std::vector<SpotLightData> spot_lights;
 
     Framebuffer shadow_fbo;
@@ -302,20 +305,22 @@ bool init() {
     s_renderer.camera_uni_buffer = UniformBuffer::create(nullptr, size);
     s_renderer.camera_uni_buffer.bind_buffer_range(CAMERA_BINDING, 0, size);
 
-    size = MAX_DIR_LIGHTS * sizeof(DirLightData) + sizeof(int32_t) * 4;
+    size = MIN_DIR_LIGHTS_STORAGE * sizeof(DirLightData) + sizeof(int32_t) * 4;
     s_renderer.dir_lights_storage = ShaderStorage::create(nullptr, size);
     s_renderer.dir_lights_storage.bind_buffer_range(DIR_LIGHTS_BINDING, 0,
-                                                       size);
+                                                    size);
 
-    size = MAX_POINT_LIGHTS * sizeof(PointLightData) + sizeof(int32_t) * 4;
+    size =
+        MIN_POINT_LIGHTS_STORAGE * sizeof(PointLightData) + sizeof(int32_t) * 4;
     s_renderer.point_lights_storage = ShaderStorage::create(nullptr, size);
-    s_renderer.point_lights_storage.bind_buffer_range(POINT_LIGHTS_BINDING,
-                                                         0, size);
+    s_renderer.point_lights_storage.bind_buffer_range(POINT_LIGHTS_BINDING, 0,
+                                                      size);
 
-    size = MAX_SPOT_LIGHTS * sizeof(SpotLightData) + sizeof(int32_t) * 4;
+    size =
+        MIN_SPOT_LIGHTS_STORAGE * sizeof(SpotLightData) + sizeof(int32_t) * 4;
     s_renderer.spot_lights_storage = ShaderStorage::create(nullptr, size);
     s_renderer.spot_lights_storage.bind_buffer_range(SPOT_LIGHTS_BINDING, 0,
-                                                        size);
+                                                     size);
 
     size = sizeof(SoftShadowProps);
     s_renderer.soft_shadow_uni_buffer= UniformBuffer::create(nullptr, size);
@@ -358,7 +363,7 @@ bool init() {
         spec.wrap = GL_CLAMP_TO_BORDER;
         spec.min_filter = spec.mag_filter = GL_NEAREST;
         spec.size = {2048, 2048};
-        spec.layers = MAX_DIR_LIGHTS * CASCADES_COUNT;
+        spec.layers = MIN_DIR_LIGHTS_STORAGE * CASCADES_COUNT;
         spec.gen_minmaps = false;
         spec.border_color = glm::vec4(1.0f);
 
@@ -367,10 +372,10 @@ bool init() {
         s_renderer.shadow_fbo.add_color_attachment(spec);
 
         spec.size = {512, 512};
-        spec.layers = MAX_POINT_LIGHTS * 6;
+        spec.layers = MIN_POINT_LIGHTS_STORAGE * 6;
         s_renderer.shadow_fbo.add_color_attachment(spec);
 
-        spec.layers = MAX_SPOT_LIGHTS;
+        spec.layers = MIN_SPOT_LIGHTS_STORAGE;
         s_renderer.shadow_fbo.add_color_attachment(spec);
     }
 
@@ -386,10 +391,6 @@ bool init() {
                 {
                     "${DIR_LIGHTS_BINDING}",
                     std::to_string(renderer::DIR_LIGHTS_BINDING)
-                },
-                {
-                    "${MAX_DIR_LIGHTS}",
-                    std::to_string(renderer::MAX_DIR_LIGHTS)
                 },
                 {
                     "${INVOCATIONS}",
@@ -424,10 +425,6 @@ bool init() {
                     std::to_string(renderer::POINT_LIGHTS_BINDING)
                 },
                 {
-                    "${MAX_POINT_LIGHTS}",
-                    std::to_string(renderer::MAX_POINT_LIGHTS)
-                },
-                {
                     "${INVOCATIONS}",
                     std::to_string(s_renderer.gpu.max_geom_invocations)
                 }
@@ -450,10 +447,6 @@ bool init() {
                 {
                     "${SPOT_LIGHTS_BINDING}",
                     std::to_string(renderer::SPOT_LIGHTS_BINDING)
-                },
-                {
-                    "${MAX_SPOT_LIGHTS}",
-                    std::to_string(renderer::MAX_SPOT_LIGHTS)
                 },
                 {
                     "${INVOCATIONS}",
@@ -545,6 +538,30 @@ void scene_begin(const CameraData &camera, AssetPack &asset_pack) {
         &s_renderer.cached_soft_shadow_props, sizeof(SoftShadowProps));
 }
 
+static int32_t try_realloc_light_storage(int32_t needed_count,
+                                         int32_t curr_count,
+                                         size_t element_size,
+                                         ShaderStorage &storage,
+                                         int32_t binding) {
+    int32_t new_cap = curr_count * element_size;
+    int32_t needed_cap = needed_count * element_size;
+
+    if (needed_count > curr_count) {
+        while (new_cap < needed_cap)
+            new_cap = (int32_t)(new_cap * 1.5f);
+    } else if (needed_count < (int32_t)(curr_count * 0.66f)) {
+        while ((int32_t)(new_cap * 0.66f) > needed_cap)
+            new_cap = (int32_t)(new_cap * 0.66f);
+    } else
+        return curr_count;
+
+    storage.bind();
+    storage.realloc(new_cap + sizeof(int32_t) * 4);
+    storage.bind_buffer_range(binding, 0, new_cap + sizeof(int32_t) * 4);
+
+    return new_cap / element_size;
+}
+
 void scene_end() {
     Timer t;
     t.start();
@@ -555,20 +572,38 @@ void scene_end() {
     s_renderer.draw_params_uni_buffer.bind();
 
     int32_t count = s_renderer.dir_lights.size();
+    s_renderer.dir_lights_allocated = try_realloc_light_storage(
+        glm::max(count, MIN_DIR_LIGHTS_STORAGE),
+        s_renderer.dir_lights_allocated, sizeof(DirLightData),
+        s_renderer.dir_lights_storage, DIR_LIGHTS_BINDING);
+
     int32_t offset = sizeof(int32_t) * 4;
     s_renderer.dir_lights_storage.set_data(&count, sizeof(int32_t));
     s_renderer.dir_lights_storage.set_data(
         s_renderer.dir_lights.data(), count * sizeof(DirLightData), offset);
 
+
     count = s_renderer.point_lights.size();
+    s_renderer.point_lights_allocated = try_realloc_light_storage(
+        glm::max(count, MIN_POINT_LIGHTS_STORAGE),
+        s_renderer.point_lights_allocated, sizeof(PointLightData),
+        s_renderer.point_lights_storage, POINT_LIGHTS_BINDING);
+
     s_renderer.point_lights_storage.set_data(&count, sizeof(int32_t));
     s_renderer.point_lights_storage.set_data(
         s_renderer.point_lights.data(), count * sizeof(PointLightData), offset);
 
+
     count = s_renderer.spot_lights.size();
+    s_renderer.spot_lights_allocated = try_realloc_light_storage(
+        glm::max(count, MIN_SPOT_LIGHTS_STORAGE),
+        s_renderer.spot_lights_allocated, sizeof(SpotLightData),
+        s_renderer.spot_lights_storage, SPOT_LIGHTS_BINDING);
+
     s_renderer.spot_lights_storage.set_data(&count, sizeof(int32_t));
     s_renderer.spot_lights_storage.set_data(
         s_renderer.spot_lights.data(), count * sizeof(SpotLightData), offset);
+
 
     count = s_renderer.draw_params.size();
     s_renderer.draw_params_uni_buffer.set_data(s_renderer.draw_params.data(),
@@ -667,6 +702,17 @@ void shadow_pass_begin(const CameraData &camera, AssetPack &asset_pack) {
     s_renderer.shader_render_group.clear();
 }
 
+static void try_change_shadow_layers(Framebuffer &fbo,
+                                     uint32_t color_attach_index,
+                                     int32_t expected_layers) {
+    ColorAttachmentSpec spec = fbo.color_attachments[color_attach_index].spec;
+    if (spec.layers == expected_layers)
+        return;
+
+    spec.layers = expected_layers;
+    fbo.rebuild_color_attachment(color_attach_index, spec);
+}
+
 void shadow_pass_end() {
     if (s_renderer.shader_render_group.empty() ||
         (s_renderer.dir_lights.empty() && s_renderer.point_lights.empty() &&
@@ -681,20 +727,47 @@ void shadow_pass_end() {
     s_renderer.spot_lights_storage.bind();
 
     int32_t count = s_renderer.dir_lights.size();
+    s_renderer.dir_lights_allocated = try_realloc_light_storage(
+        glm::max(count, MIN_DIR_LIGHTS_STORAGE),
+        s_renderer.dir_lights_allocated, sizeof(DirLightData),
+        s_renderer.dir_lights_storage, DIR_LIGHTS_BINDING);
+
     int32_t offset = sizeof(int32_t) * 4;
     s_renderer.dir_lights_storage.set_data(&count, sizeof(int32_t));
     s_renderer.dir_lights_storage.set_data(
         s_renderer.dir_lights.data(), count * sizeof(DirLightData), offset);
 
+    try_change_shadow_layers(s_renderer.shadow_fbo, 0,
+                             s_renderer.dir_lights_allocated * CASCADES_COUNT);
+
+
     count = s_renderer.point_lights.size();
+    s_renderer.point_lights_allocated = try_realloc_light_storage(
+        glm::max(count, MIN_POINT_LIGHTS_STORAGE),
+        s_renderer.point_lights_allocated, sizeof(PointLightData),
+        s_renderer.point_lights_storage, POINT_LIGHTS_BINDING);
+
     s_renderer.point_lights_storage.set_data(&count, sizeof(int32_t));
     s_renderer.point_lights_storage.set_data(
         s_renderer.point_lights.data(), count * sizeof(PointLightData), offset);
 
+    try_change_shadow_layers(s_renderer.shadow_fbo, 1,
+                             s_renderer.point_lights_allocated * 6);
+
+
     count = s_renderer.spot_lights.size();
+    s_renderer.spot_lights_allocated = try_realloc_light_storage(
+        glm::max(count, MIN_SPOT_LIGHTS_STORAGE),
+        s_renderer.spot_lights_allocated, sizeof(SpotLightData),
+        s_renderer.spot_lights_storage, SPOT_LIGHTS_BINDING);
+
     s_renderer.spot_lights_storage.set_data(&count, sizeof(int32_t));
     s_renderer.spot_lights_storage.set_data(
         s_renderer.spot_lights.data(), count * sizeof(SpotLightData), offset);
+
+    try_change_shadow_layers(s_renderer.shadow_fbo, 2,
+                             s_renderer.spot_lights_allocated);
+
 
     assert(s_renderer.shader_render_group.size() == 1 &&
            "More than 1 shader submitted for shadow pass");

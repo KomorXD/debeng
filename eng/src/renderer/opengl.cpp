@@ -1041,6 +1041,74 @@ void Framebuffer::add_color_attachment(ColorAttachmentSpec spec) {
     color_attachments.push_back({tex_id, spec});
 }
 
+void Framebuffer::rebuild_color_attachment(uint32_t index,
+                                           ColorAttachmentSpec spec) {
+    assert(id != 0 &&
+           "Trying to rebuild color attachment for invalid framebuffer object");
+    assert(index < color_attachments.size() &&
+           "Invalid color attachment index");
+
+    bind();
+    remove_color_attachment(index);
+
+    GLuint tex_id{};
+    GL_CALL(glGenTextures(1, &tex_id));
+
+    TextureFormatDetails tex_details = format_details(spec.format);
+    GLint tex_type = opengl_texture_type(spec.type);
+    GL_CALL(glBindTexture(tex_type, tex_id));
+    GL_CALL(glTexParameteri(tex_type, GL_TEXTURE_MIN_FILTER, spec.min_filter));
+    GL_CALL(glTexParameteri(tex_type, GL_TEXTURE_MAG_FILTER, spec.mag_filter));
+    GL_CALL(glTexParameteri(tex_type, GL_TEXTURE_WRAP_S, spec.wrap));
+    GL_CALL(glTexParameteri(tex_type, GL_TEXTURE_WRAP_T, spec.wrap));
+
+    switch (tex_type) {
+    case GL_TEXTURE_2D:
+        GL_CALL(glTexParameterfv(tex_type, GL_TEXTURE_BORDER_COLOR,
+                                 &spec.border_color[0]));
+        GL_CALL(glTexImage2D(tex_type, 0, tex_details.internal_format,
+                             spec.size.x, spec.size.y, 0, tex_details.format,
+                             tex_details.type, nullptr));
+        break;
+    case GL_TEXTURE_2D_ARRAY:
+        if (spec.type == ColorAttachmentType::TEX_2D_ARRAY_SHADOW) {
+            GL_CALL(glTexParameteri(tex_type, GL_TEXTURE_COMPARE_MODE,
+                                    GL_COMPARE_REF_TO_TEXTURE));
+            }
+
+        GL_CALL(glTexParameterfv(tex_type, GL_TEXTURE_BORDER_COLOR,
+                                 &spec.border_color[0]));
+        GL_CALL(glTexImage3D(tex_type, 0, tex_details.internal_format,
+                             spec.size.x, spec.size.y, spec.layers, 0,
+                             tex_details.format, tex_details.type, nullptr));
+        break;
+    case GL_TEXTURE_CUBE_MAP_ARRAY:
+        GL_CALL(glTexParameterfv(tex_type, GL_TEXTURE_BORDER_COLOR,
+                                 &spec.border_color[0]));
+        GL_CALL(glTexStorage3D(tex_type, 1, tex_details.internal_format,
+                               spec.size.x, spec.size.y, spec.layers * 6));
+        break;
+    case GL_TEXTURE_CUBE_MAP:
+        GL_CALL(glTexParameteri(tex_type, GL_TEXTURE_WRAP_R, spec.wrap));
+        for (int32_t i = 0; i < 6; i++) {
+            GL_CALL(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0,
+                                 tex_details.internal_format, spec.size.x,
+                                 spec.size.y, 0, tex_details.format,
+                                 tex_details.type, nullptr));
+        }
+        break;
+    default:
+        assert(true && "Unsupported texture type");
+        break;
+    }
+
+    if (spec.gen_minmaps) {
+        GL_CALL(glGenerateMipmap(tex_type));
+    }
+
+    color_attachments.insert(color_attachments.begin() + index, {tex_id, spec});
+}
+
 void Framebuffer::bind_renderbuffer() const {
     assert(id != 0 &&
            "Trying to bind renderbuffer of invalid framebuffer object");

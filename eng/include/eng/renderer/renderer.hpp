@@ -40,7 +40,7 @@ struct TextureSlots {
     int32_t random_offsets_texture{};
 };
 
-struct CameraData {
+struct alignas(16) CameraData {
     glm::mat4 view_projection;
     glm::mat4 projection;
     glm::mat4 view;
@@ -58,37 +58,33 @@ struct CameraData {
     int32_t bloom_mip_radius;
 };
 
-struct DirLightData {
+struct alignas(16) DirLightData {
     std::array<glm::mat4, CASCADES_COUNT> cascade_mats;
     glm::vec4 direction;
     glm::vec4 color;
 };
 
-struct PointLightData {
+struct alignas(16) PointLightData {
     std::array<glm::mat4, 6> light_space_matrices;
     glm::vec4 position_and_linear;
     glm::vec4 color_and_quadratic;
 };
 
-struct SpotLightData {
+struct alignas(16) SpotLightData {
     glm::mat4 light_space_mat;
     glm::vec4 pos_and_cutoff;
     glm::vec4 dir_and_outer_cutoff;
     glm::vec4 color_and_linear;
     float quadratic;
-
-    glm::vec3 padding;
 };
 
-struct SoftShadowProps {
+struct alignas(16) SoftShadowProps {
     int32_t offsets_tex_size = 16;
     int32_t offsets_filter_size = 8;
     float offset_radius = 3.0f;
-
-    float padding;
 };
 
-struct MaterialData {
+struct alignas(16) MaterialData {
     glm::vec4 color = glm::vec4(1.0f);
     glm::vec2 tiling_factor = glm::vec2(1.0f);
     glm::vec2 texture_offset = glm::vec2(0.0f);
@@ -96,14 +92,10 @@ struct MaterialData {
     float roughness = -1.0f;
     float metallic = -1.0f;
     float ao = -1.0f;
-
-    float padding;
 };
 
-struct DrawParams {
+struct alignas(16) DrawParams {
     float color_intensity = 1.0f;
-
-    glm::vec3 padding;
 };
 
 struct RenderStats {

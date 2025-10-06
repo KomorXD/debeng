@@ -1295,3 +1295,47 @@ void UniformBuffer::set_data(const void *data, uint32_t size,
     GL_CALL(glBindBuffer(GL_UNIFORM_BUFFER, id));
     GL_CALL(glBufferSubData(GL_UNIFORM_BUFFER, (GLintptr)offset, size, data));
 }
+
+ShaderStorage ShaderStorage::create(const void *data, uint32_t size) {
+    ShaderStorage sso;
+    GL_CALL(glGenBuffers(1, &sso.id));
+    GL_CALL(glBindBuffer(GL_SHADER_STORAGE_BUFFER, sso.id));
+    GL_CALL(
+        glBufferData(GL_SHADER_STORAGE_BUFFER, size, data, GL_DYNAMIC_DRAW));
+
+    return sso;
+}
+
+void ShaderStorage::destroy() {
+    assert(id != 0 && "Trying to destroy invalid shader storage object");
+
+    GL_CALL(glDeleteBuffers(1, &id));
+    id = 0;
+}
+
+void ShaderStorage::bind() const {
+    assert(id != 0 && "Trying to bind invalid shader storage object");
+
+    GL_CALL(glBindBuffer(GL_SHADER_STORAGE_BUFFER, id));
+}
+
+void ShaderStorage::unbind() const {
+    GL_CALL(glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0));
+}
+
+void ShaderStorage::bind_buffer_range(uint32_t index, uint32_t offset,
+                                      uint32_t size) {
+    assert(id != 0 && "Trying to bind range of invalid shader storage object");
+
+    GL_CALL(glBindBufferRange(GL_SHADER_STORAGE_BUFFER, index, id,
+                              (GLintptr)offset, size));
+}
+
+void ShaderStorage::set_data(const void *data, uint32_t size,
+                             uint32_t offset) const {
+    assert(id != 0 && "Trying to set data of invalid shader storage object");
+
+    GL_CALL(glBindBuffer(GL_SHADER_STORAGE_BUFFER, id));
+    GL_CALL(glBufferSubData(GL_SHADER_STORAGE_BUFFER, (GLintptr)offset, size,
+                            data));
+}

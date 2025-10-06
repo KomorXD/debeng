@@ -350,4 +350,19 @@ struct UniformBuffer {
     GLuint id = 0;
 };
 
+struct ShaderStorage {
+    [[nodiscard]] static ShaderStorage create(const void *data, uint32_t size);
+
+    void destroy();
+
+    void bind() const;
+    void unbind() const;
+
+    void bind_buffer_range(uint32_t index, uint32_t offset, uint32_t size);
+
+    void set_data(const void *data, uint32_t size, uint32_t offset = 0) const;
+
+    GLuint id = 0;
+};
+
 #endif

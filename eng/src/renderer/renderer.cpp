@@ -913,7 +913,7 @@ void submit_point_light(const glm::vec3 &position, const PointLight &light) {
     s_renderer.stats.point_lights++;
 
     float radius = light_radius(1.0f, light.linear, light.quadratic,
-                                max_component(light.color));
+                                max_component(light.color * light.intensity));
     glm::mat4 proj =
         glm::perspective(glm::radians(91.0f), 1.0f, 0.1f, radius);
 
@@ -945,7 +945,7 @@ void submit_spot_light(const Transform &transform, const SpotLight &light) {
     s_renderer.stats.spot_lights++;
 
     float radius = light_radius(1.0f, light.linear, light.quadratic,
-                                max_component(light.color));
+                                max_component(light.color * light.intensity));
     glm::vec3 dir = glm::toMat3(glm::quat(transform.rotation)) *
                     glm::vec3(0.0f, 0.0f, -1.0f);
 

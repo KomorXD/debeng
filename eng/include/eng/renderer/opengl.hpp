@@ -362,6 +362,8 @@ struct ShaderStorage {
 
     void set_data(const void *data, uint32_t size, uint32_t offset = 0) const;
 
+    void realloc(uint32_t new_size);
+
     GLuint id = 0;
 };
 

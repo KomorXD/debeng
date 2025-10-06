@@ -1339,3 +1339,10 @@ void ShaderStorage::set_data(const void *data, uint32_t size,
     GL_CALL(glBufferSubData(GL_SHADER_STORAGE_BUFFER, (GLintptr)offset, size,
                             data));
 }
+
+void ShaderStorage::realloc(uint32_t new_size) {
+    assert(id != 0 && "Trying to realloc invalid shader storage object");
+
+    GL_CALL(
+        glBufferData(GL_SHADER_STORAGE_BUFFER, new_size, nullptr, GL_DYNAMIC_DRAW));
+}

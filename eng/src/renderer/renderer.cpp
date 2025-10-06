@@ -275,8 +275,9 @@ bool init() {
         spec.min_filter = spec.mag_filter = GL_LINEAR;
         spec.wrap = GL_CLAMP_TO_EDGE;
         s_renderer.brdf_map = Texture::create(nullptr, spec);
-        s_renderer.slots.prefilter_mips = s_renderer.brdf_map.spec.mips;
     }
+
+    s_renderer.slots.prefilter_mips = 5;
 
     {
         Shader brdf_shader = Shader::create();

@@ -807,13 +807,22 @@ void shadow_pass_end() {
 
     if (!s_renderer.point_lights.empty()) {
         s_renderer.pointlight_shadow_shader.bind();
-        for (auto &[mesh_id, instances] : mesh_group) {
-            if (instances.empty())
-                continue;
 
-            Mesh &mesh = s_asset_pack->meshes.at(mesh_id);
-            draw_elements_instanced(s_renderer.pointlight_shadow_shader,
-                                    mesh.vao, instances.size());
+        int32_t passes = (s_renderer.point_lights.size() /
+                          s_renderer.gpu.max_geom_invocations) +
+                         1;
+        for (int32_t pass = 0; pass < passes; pass++) {
+            s_renderer.pointlight_shadow_shader.set_uniform_1i("u_offset",
+                                                               pass);
+
+            for (auto &[mesh_id, instances] : mesh_group) {
+                if (instances.empty())
+                    continue;
+
+                Mesh &mesh = s_asset_pack->meshes.at(mesh_id);
+                draw_elements_instanced(s_renderer.pointlight_shadow_shader,
+                                        mesh.vao, instances.size());
+            }
         }
     }
 
@@ -822,13 +831,21 @@ void shadow_pass_end() {
 
     if (!s_renderer.spot_lights.empty()) {
         s_renderer.spotlight_shadow_shader.bind();
-        for (auto &[mesh_id, instances] : mesh_group) {
-            if (instances.empty())
-                continue;
 
-            Mesh &mesh = s_asset_pack->meshes.at(mesh_id);
-            draw_elements_instanced(s_renderer.spotlight_shadow_shader,
-                                    mesh.vao, instances.size());
+        int32_t passes = (s_renderer.spot_lights.size() /
+                          s_renderer.gpu.max_geom_invocations) +
+                         1;
+        for (int32_t pass = 0; pass < passes; pass++) {
+            s_renderer.spotlight_shadow_shader.set_uniform_1i("u_offset", pass);
+
+            for (auto &[mesh_id, instances] : mesh_group) {
+                if (instances.empty())
+                    continue;
+
+                Mesh &mesh = s_asset_pack->meshes.at(mesh_id);
+                draw_elements_instanced(s_renderer.spotlight_shadow_shader,
+                                        mesh.vao, instances.size());
+            }
         }
     }
 

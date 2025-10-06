@@ -16,16 +16,19 @@ layout (std430, binding = POINT_LIGHTS_BINDING) buffer PointLights {
     PointLight lights[];
 } u_point_lights;
 
+uniform int u_offset;
+
 void main() {
     if (gl_InvocationID >= u_point_lights.count)
         return;
 
-    int layer = gl_InvocationID * 6;
+    int iid = gl_InvocationID + u_offset;
+    int layer = iid * 6;
     for (int face = 0; face < 6; face++) {
         for (int v = 0; v < 3; v++) {
             gl_Layer = layer;
             gl_Position
-                = u_point_lights.lights[gl_InvocationID].light_space_mats[face]
+                = u_point_lights.lights[iid].light_space_mats[face]
                 * gl_in[v].gl_Position;
 
             EmitVertex();

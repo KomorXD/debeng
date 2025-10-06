@@ -18,14 +18,17 @@ layout (std430, binding = SPOT_LIGHTS_BINDING) buffer SpotLights {
     SpotLight lights[];
 } u_spot_lights;
 
+uniform int u_offset;
+
 void main()
 {
     if(gl_InvocationID >= u_spot_lights.count)
         return;
 
+    int iid = gl_InvocationID + u_offset;
     for(int v = 0; v < 3; v++) {
         gl_Layer = gl_InvocationID;
-        gl_Position = u_spot_lights.lights[gl_InvocationID].light_space_mat
+        gl_Position = u_spot_lights.lights[iid].light_space_mat
             * gl_in[v].gl_Position;
 
         EmitVertex();

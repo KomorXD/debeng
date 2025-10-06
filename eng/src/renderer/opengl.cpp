@@ -1003,9 +1003,10 @@ void Framebuffer::add_color_attachment(ColorAttachmentSpec spec) {
                              tex_details.type, nullptr));
         break;
     case GL_TEXTURE_2D_ARRAY:
-        if (spec.type == ColorAttachmentType::TEX_2D_ARRAY_SHADOW)
+        if (spec.type == ColorAttachmentType::TEX_2D_ARRAY_SHADOW) {
             GL_CALL(glTexParameteri(tex_type, GL_TEXTURE_COMPARE_MODE,
                                     GL_COMPARE_REF_TO_TEXTURE));
+            }
 
         GL_CALL(glTexParameterfv(tex_type, GL_TEXTURE_BORDER_COLOR,
                                  &spec.border_color[0]));
@@ -1033,8 +1034,9 @@ void Framebuffer::add_color_attachment(ColorAttachmentSpec spec) {
         break;
     }
 
-    if (spec.gen_minmaps)
+    if (spec.gen_minmaps) {
         GL_CALL(glGenerateMipmap(tex_type));
+    }
 
     color_attachments.push_back({tex_id, spec});
 }

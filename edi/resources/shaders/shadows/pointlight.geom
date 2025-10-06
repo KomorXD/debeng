@@ -12,9 +12,9 @@ struct PointLight {
     vec4 color_and_quadratic;
 };
 
-layout (std140, binding = POINT_LIGHTS_BINDING) uniform PointLights {
-    PointLight lights[MAX_POINT_LIGHTS];
+layout (std430, binding = POINT_LIGHTS_BINDING) buffer PointLights {
     int count;
+    PointLight lights[];
 } u_point_lights;
 
 void main() {

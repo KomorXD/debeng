@@ -38,9 +38,9 @@ struct DirLight {
     vec4 color;
 };
 
-layout (std140, binding = DIR_LIGHTS_BINDING) uniform DirLights {
-    DirLight lights[MAX_DIR_LIGHTS];
+layout (std430, binding = DIR_LIGHTS_BINDING) buffer DirLights {
     int count;
+    DirLight lights[];
 } u_dir_lights;
 
 struct PointLight {
@@ -49,9 +49,9 @@ struct PointLight {
     vec4 color_and_quadratic;
 };
 
-layout (std140, binding = POINT_LIGHTS_BINDING) uniform PointLights {
-    PointLight lights[MAX_POINT_LIGHTS];
+layout (std430, binding = POINT_LIGHTS_BINDING) buffer PointLights {
     int count;
+    PointLight lights[];
 } u_point_lights;
 
 struct SpotLight {
@@ -62,9 +62,9 @@ struct SpotLight {
     float quadratic;
 };
 
-layout (std140, binding = SPOT_LIGHTS_BINDING) uniform SpotLights {
-    SpotLight lights[MAX_SPOT_LIGHTS];
+layout (std430, binding = SPOT_LIGHTS_BINDING) buffer SpotLights {
     int count;
+    SpotLight lights[];
 } u_spot_lights;
 
 struct SoftShadowProps {

@@ -13,9 +13,9 @@ struct DirLight {
     vec4 color;
 };
 
-layout (std140, binding = DIR_LIGHTS_BINDING) uniform DirLights {
-    DirLight lights[MAX_DIR_LIGHTS];
+layout (std430, binding = DIR_LIGHTS_BINDING) buffer DirLights {
     int count;
+    DirLight lights[];
 } u_dir_lights;
 
 void main() {

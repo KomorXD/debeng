@@ -14,9 +14,9 @@ struct SpotLight {
     float quadratic;
 };
 
-layout (std140, binding = SPOT_LIGHTS_BINDING) uniform SpotLights {
-    SpotLight lights[MAX_SPOT_LIGHTS];
+layout (std430, binding = SPOT_LIGHTS_BINDING) buffer SpotLights {
     int count;
+    SpotLight lights[];
 } u_spot_lights;
 
 void main()

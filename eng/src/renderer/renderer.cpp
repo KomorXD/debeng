@@ -56,13 +56,13 @@ struct Renderer {
 
     UniformBuffer camera_uni_buffer;
 
-    UniformBuffer dir_lights_uni_buffer;
+    ShaderStorage dir_lights_storage;
     std::vector<DirLightData> dir_lights;
 
-    UniformBuffer point_lights_uni_buffer;
+    ShaderStorage point_lights_storage;
     std::vector<PointLightData> point_lights;
 
-    UniformBuffer spot_lights_uni_buffer;
+    ShaderStorage spot_lights_storage;
     std::vector<SpotLightData> spot_lights;
 
     Framebuffer shadow_fbo;
@@ -301,19 +301,19 @@ bool init() {
     s_renderer.camera_uni_buffer = UniformBuffer::create(nullptr, size);
     s_renderer.camera_uni_buffer.bind_buffer_range(CAMERA_BINDING, 0, size);
 
-    size = MAX_DIR_LIGHTS * sizeof(DirLightData) + sizeof(int32_t);
-    s_renderer.dir_lights_uni_buffer = UniformBuffer::create(nullptr, size);
-    s_renderer.dir_lights_uni_buffer.bind_buffer_range(DIR_LIGHTS_BINDING, 0,
+    size = MAX_DIR_LIGHTS * sizeof(DirLightData) + sizeof(int32_t) * 4;
+    s_renderer.dir_lights_storage = ShaderStorage::create(nullptr, size);
+    s_renderer.dir_lights_storage.bind_buffer_range(DIR_LIGHTS_BINDING, 0,
                                                        size);
 
-    size = MAX_POINT_LIGHTS * sizeof(PointLightData) + sizeof(int32_t);
-    s_renderer.point_lights_uni_buffer = UniformBuffer::create(nullptr, size);
-    s_renderer.point_lights_uni_buffer.bind_buffer_range(POINT_LIGHTS_BINDING,
+    size = MAX_POINT_LIGHTS * sizeof(PointLightData) + sizeof(int32_t) * 4;
+    s_renderer.point_lights_storage = ShaderStorage::create(nullptr, size);
+    s_renderer.point_lights_storage.bind_buffer_range(POINT_LIGHTS_BINDING,
                                                          0, size);
 
-    size = MAX_SPOT_LIGHTS * sizeof(SpotLightData) + sizeof(int32_t);
-    s_renderer.spot_lights_uni_buffer = UniformBuffer::create(nullptr, size);
-    s_renderer.spot_lights_uni_buffer.bind_buffer_range(SPOT_LIGHTS_BINDING, 0,
+    size = MAX_SPOT_LIGHTS * sizeof(SpotLightData) + sizeof(int32_t) * 4;
+    s_renderer.spot_lights_storage = ShaderStorage::create(nullptr, size);
+    s_renderer.spot_lights_storage.bind_buffer_range(SPOT_LIGHTS_BINDING, 0,
                                                         size);
 
     size = sizeof(SoftShadowProps);
@@ -478,9 +478,9 @@ bool init() {
 
 void shutdown() {
     s_renderer.camera_uni_buffer.destroy();
-    s_renderer.dir_lights_uni_buffer.destroy();
-    s_renderer.point_lights_uni_buffer.destroy();
-    s_renderer.spot_lights_uni_buffer.destroy();
+    s_renderer.dir_lights_storage.destroy();
+    s_renderer.point_lights_storage.destroy();
+    s_renderer.spot_lights_storage.destroy();
     s_renderer.soft_shadow_uni_buffer.destroy();
     s_renderer.draw_params_uni_buffer.destroy();
 
@@ -548,29 +548,26 @@ void scene_end() {
     Timer t;
     t.start();
 
-    s_renderer.dir_lights_uni_buffer.bind();
-    s_renderer.point_lights_uni_buffer.bind();
-    s_renderer.spot_lights_uni_buffer.bind();
+    s_renderer.dir_lights_storage.bind();
+    s_renderer.point_lights_storage.bind();
+    s_renderer.spot_lights_storage.bind();
     s_renderer.draw_params_uni_buffer.bind();
 
     int32_t count = s_renderer.dir_lights.size();
-    int32_t offset = MAX_DIR_LIGHTS * sizeof(DirLightData);
-    s_renderer.dir_lights_uni_buffer.set_data(s_renderer.dir_lights.data(),
-                                              count * sizeof(DirLightData));
-    s_renderer.dir_lights_uni_buffer.set_data(&count, sizeof(int32_t), offset);
+    int32_t offset = sizeof(int32_t) * 4;
+    s_renderer.dir_lights_storage.set_data(&count, sizeof(int32_t));
+    s_renderer.dir_lights_storage.set_data(
+        s_renderer.dir_lights.data(), count * sizeof(DirLightData), offset);
 
     count = s_renderer.point_lights.size();
-    offset = MAX_POINT_LIGHTS * sizeof(PointLightData);
-    s_renderer.point_lights_uni_buffer.set_data(s_renderer.point_lights.data(),
-                                                count * sizeof(PointLightData));
-    s_renderer.point_lights_uni_buffer.set_data(&count, sizeof(int32_t),
-                                                offset);
+    s_renderer.point_lights_storage.set_data(&count, sizeof(int32_t));
+    s_renderer.point_lights_storage.set_data(
+        s_renderer.point_lights.data(), count * sizeof(PointLightData), offset);
 
     count = s_renderer.spot_lights.size();
-    offset = MAX_SPOT_LIGHTS * sizeof(SpotLightData);
-    s_renderer.spot_lights_uni_buffer.set_data(s_renderer.spot_lights.data(),
-                                               count * sizeof(SpotLightData));
-    s_renderer.spot_lights_uni_buffer.set_data(&count, sizeof(int32_t), offset);
+    s_renderer.spot_lights_storage.set_data(&count, sizeof(int32_t));
+    s_renderer.spot_lights_storage.set_data(
+        s_renderer.spot_lights.data(), count * sizeof(SpotLightData), offset);
 
     count = s_renderer.draw_params.size();
     s_renderer.draw_params_uni_buffer.set_data(s_renderer.draw_params.data(),
@@ -678,27 +675,25 @@ void shadow_pass_end() {
     Timer t;
     t.start();
 
-    s_renderer.dir_lights_uni_buffer.bind();
-    s_renderer.point_lights_uni_buffer.bind();
-    s_renderer.spot_lights_uni_buffer.bind();
+    s_renderer.dir_lights_storage.bind();
+    s_renderer.point_lights_storage.bind();
+    s_renderer.spot_lights_storage.bind();
 
     int32_t count = s_renderer.dir_lights.size();
-    int32_t offset = MAX_DIR_LIGHTS * sizeof(DirLightData);
-    s_renderer.dir_lights_uni_buffer.set_data(s_renderer.dir_lights.data(),
-                                                count * sizeof(DirLightData));
-    s_renderer.dir_lights_uni_buffer.set_data(&count, sizeof(int32_t), offset);
+    int32_t offset = sizeof(int32_t) * 4;
+    s_renderer.dir_lights_storage.set_data(&count, sizeof(int32_t));
+    s_renderer.dir_lights_storage.set_data(
+        s_renderer.dir_lights.data(), count * sizeof(DirLightData), offset);
 
     count = s_renderer.point_lights.size();
-    offset = MAX_POINT_LIGHTS * sizeof(PointLightData);
-    s_renderer.point_lights_uni_buffer.set_data(s_renderer.point_lights.data(),
-                                                count * sizeof(PointLightData));
-    s_renderer.point_lights_uni_buffer.set_data(&count, sizeof(int32_t), offset);
+    s_renderer.point_lights_storage.set_data(&count, sizeof(int32_t));
+    s_renderer.point_lights_storage.set_data(
+        s_renderer.point_lights.data(), count * sizeof(PointLightData), offset);
 
     count = s_renderer.spot_lights.size();
-    offset = MAX_SPOT_LIGHTS * sizeof(SpotLightData);
-    s_renderer.spot_lights_uni_buffer.set_data(s_renderer.spot_lights.data(),
-                                               count * sizeof(SpotLightData));
-    s_renderer.spot_lights_uni_buffer.set_data(&count, sizeof(int32_t), offset);
+    s_renderer.spot_lights_storage.set_data(&count, sizeof(int32_t));
+    s_renderer.spot_lights_storage.set_data(
+        s_renderer.spot_lights.data(), count * sizeof(SpotLightData), offset);
 
     assert(s_renderer.shader_render_group.size() == 1 &&
            "More than 1 shader submitted for shadow pass");

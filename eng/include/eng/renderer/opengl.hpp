@@ -236,7 +236,6 @@ struct CubeTexture {
 
 enum class DepthAttachmentType {
     DEPTH,
-    STENICL,
     DEPTH_STENCIL,
 
     COUNT

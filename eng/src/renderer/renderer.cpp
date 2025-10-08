@@ -38,6 +38,7 @@ struct Renderer {
     TextureSlots slots;
     RenderStats stats;
 
+    Shader depth_pass_shader;
     Shader post_proc_combine_shader;
 
     VertexArray cubemap_vao;
@@ -219,6 +220,15 @@ bool init() {
     GL_CALL(glStencilMask(0x00));
     GL_CALL(glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS));
 
+    s_renderer.depth_pass_shader = Shader::create();
+    {
+        ShaderSpec spec;
+        spec.vertex_shader.path = "resources/shaders/depth.vert";
+        spec.vertex_shader.replacements = {
+            {"${CAMERA_BINDING}", std::to_string(CAMERA_BINDING)}};
+        spec.fragment_shader.path = "resources/shaders/depth.frag";
+    }
+
     s_renderer.post_proc_combine_shader = Shader::create();
     assert(s_renderer.post_proc_combine_shader.build_compute(
                {.path = "resources/shaders/post_proc/post_process_combine.comp",
@@ -383,7 +393,7 @@ bool init() {
         s_renderer.dirlight_shadow_shader = Shader::create();
 
         ShaderSpec spec;
-        spec.vertex_shader.path = "resources/shaders/depth.vert";
+        spec.vertex_shader.path = "resources/shaders/shadows/depth-shadow.vert";
         spec.fragment_shader.path = "resources/shaders/depth.frag";
         spec.geometry_shader = {
             .path = "resources/shaders/shadows/dirlight.geom",
@@ -415,7 +425,7 @@ bool init() {
         s_renderer.pointlight_shadow_shader = Shader::create();
 
         ShaderSpec spec;
-        spec.vertex_shader.path = "resources/shaders/depth.vert";
+        spec.vertex_shader.path = "resources/shaders/shadows/depth-shadow.vert";
         spec.fragment_shader.path = "resources/shaders/depth.frag";
         spec.geometry_shader = {
             .path = "resources/shaders/shadows/pointlight.geom",
@@ -439,7 +449,7 @@ bool init() {
         s_renderer.spotlight_shadow_shader = Shader::create();
 
         ShaderSpec spec;
-        spec.vertex_shader.path = "resources/shaders/depth.vert";
+        spec.vertex_shader.path = "resources/shaders/shadows/depth-shadow.vert";
         spec.fragment_shader.path = "resources/shaders/depth.frag";
         spec.geometry_shader = {
             .path = "resources/shaders/shadows/spotlight.geom",
@@ -483,6 +493,7 @@ void shutdown() {
     s_renderer.spotlight_shadow_shader.destroy();
     s_renderer.pointlight_shadow_shader.destroy();
 
+    s_renderer.depth_pass_shader.destroy();
     s_renderer.post_proc_combine_shader.destroy();
 
     s_renderer.cubemap_vao.destroy();

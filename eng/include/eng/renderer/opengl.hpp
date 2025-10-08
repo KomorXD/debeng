@@ -261,11 +261,8 @@ struct Renderbuffer {
 
 enum class ColorAttachmentType {
     TEX_2D,
-    TEX_2D_MULTISAMPLE,
     TEX_2D_ARRAY,
     TEX_2D_ARRAY_SHADOW,
-    TEX_CUBEMAP,
-    TEX_CUBEMAP_ARRAY,
 
     COUNT
 };
@@ -301,30 +298,29 @@ struct Framebuffer {
     void unbind() const;
 
     void add_renderbuffer(RenderbufferSpec spec);
-    void add_color_attachment(ColorAttachmentSpec spec);
+    void add_color_attachment(ColorAttachmentSpec spec,
+                              std::optional<int32_t> target_index = {});
 
-    void rebuild_color_attachment(uint32_t index, ColorAttachmentSpec spec);
+    void rebuild_color_attachment(int32_t index, ColorAttachmentSpec spec);
 
     void bind_renderbuffer() const;
-    void bind_color_attachment(uint32_t index, uint32_t slot = 0) const;
-    void bind_color_attachment_image(uint32_t index,
-                                     uint32_t mip,
-                                     uint32_t binding,
-                                     ImageAccess access) const;
+    void bind_color_attachment(int32_t index, int32_t slot = 0) const;
+    void bind_color_attachment_image(int32_t index, int32_t mip,
+                                     int32_t binding, ImageAccess access) const;
 
-    void draw_to_depth_map(uint32_t index, int32_t mip = 0);
-    void draw_to_color_attachment(uint32_t index, uint32_t target_attachment,
+    void draw_to_depth_map(int32_t index, int32_t mip = 0);
+    void draw_to_color_attachment(int32_t index, int32_t target_attachment,
                                   int32_t mip = 0);
 
-    void clear_color_attachment(uint32_t attachment_index,
-                                uint32_t mip = 0) const;
+    void clear_color_attachment(int32_t attachment_index,
+                                int32_t mip = 0) const;
 
     void resize_renderbuffer(const glm::ivec2 &size);
-    void resize_color_attachment(uint32_t index, const glm::ivec2 &size);
+    void resize_color_attachment(int32_t index, const glm::ivec2 &size);
     void resize_everything(const glm::ivec2 &size);
 
     void remove_renderbuffer();
-    void remove_color_attachment(uint32_t index);
+    void remove_color_attachment(int32_t index);
 
     void fill_draw_buffers();
 

@@ -125,7 +125,8 @@ void opengl_msg_cb(unsigned source, unsigned type, unsigned id,
 
 void shutdown();
 
-void scene_begin(const CameraData &camera, AssetPack &asset_pack);
+void scene_begin(const CameraData &camera, AssetPack &asset_pack,
+                 Framebuffer &target_fbo);
 void scene_end();
 
 void shadow_pass_begin(const CameraData &camera, AssetPack &asset_pack);

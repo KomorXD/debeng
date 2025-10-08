@@ -89,6 +89,7 @@ static Renderer s_renderer{};
 static AssetPack *s_asset_pack{};
 static const CameraData *s_active_camera{};
 static EnvMap *s_envmap{};
+static Framebuffer *s_target_fbo{};
 
 void opengl_msg_cb(unsigned source, unsigned type, unsigned id,
                    unsigned severity, int length, const char *msg,
@@ -227,6 +228,9 @@ bool init() {
         spec.vertex_shader.replacements = {
             {"${CAMERA_BINDING}", std::to_string(CAMERA_BINDING)}};
         spec.fragment_shader.path = "resources/shaders/depth.frag";
+
+        assert(s_renderer.depth_pass_shader.build(spec) &&
+               "Failed to build depth pass-thourgh shader");
     }
 
     s_renderer.post_proc_combine_shader = Shader::create();
@@ -509,9 +513,11 @@ void shutdown() {
     s_renderer.bloom_upsampler.destroy();
 }
 
-void scene_begin(const CameraData &camera, AssetPack &asset_pack) {
+void scene_begin(const CameraData &camera, AssetPack &asset_pack,
+                 Framebuffer &target_fbo) {
     s_asset_pack = &asset_pack;
     s_active_camera = &camera;
+    s_target_fbo = &target_fbo;
 
     assert(s_asset_pack && "Empty asset pack object");
 
@@ -576,6 +582,32 @@ static int32_t try_realloc_light_storage(int32_t needed_count,
 void scene_end() {
     Timer t;
     t.start();
+
+    s_target_fbo->bind();
+    s_target_fbo->draw_to_depth_attachment(0);
+    GL_CALL(glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT));
+    GL_CALL(glDrawBuffer(GL_NONE));
+    GL_CALL(glDepthFunc(GL_LESS));
+
+    for (auto &[shader_id, material_group] : s_renderer.shader_render_group) {
+        for (auto &[mat_id, mesh_group] : material_group) {
+            for (auto &[mesh_id, instances] : mesh_group) {
+                Mesh &mesh = s_asset_pack->meshes.at(mesh_id);
+                mesh.vao.vbo_instanced.set_data(
+                    instances.data(), instances.size() * sizeof(MeshInstance));
+                draw_elements_instanced(s_renderer.depth_pass_shader, mesh.vao,
+                                        instances.size());
+            }
+        }
+    }
+
+    s_target_fbo->draw_to_color_attachment(0, 0);
+    s_target_fbo->draw_to_color_attachment(1, 1);
+    s_target_fbo->fill_color_draw_buffers();
+    GL_CALL(glClear(GL_COLOR_BUFFER_BIT));
+    GL_CALL(glClearColor(0.33f, 0.33f, 0.33f, 1.0f));
+    GL_CALL(glDepthFunc(GL_EQUAL));
+    s_target_fbo->clear_color_attachment(1);
 
     s_renderer.dir_lights_storage.bind();
     s_renderer.point_lights_storage.bind();
@@ -685,6 +717,7 @@ void scene_end() {
         }
     }
 
+    GL_CALL(glDepthFunc(GL_LESS));
     GL_CALL(glFinish());
     t.stop();
     s_renderer.stats.base_pass_ms += t.elapsed_time_ms();

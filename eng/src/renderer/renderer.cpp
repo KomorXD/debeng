@@ -357,26 +357,26 @@ bool init() {
     }
 
     {
-        ColorAttachmentSpec spec;
-        spec.type = TextureType::TEX_2D_ARRAY_SHADOW;
-        spec.format = TextureFormat::DEPTH_32F;
-        spec.wrap = GL_CLAMP_TO_BORDER;
-        spec.min_filter = spec.mag_filter = GL_NEAREST;
-        spec.size = {2048, 2048};
-        spec.layers = MIN_DIR_LIGHTS_STORAGE * CASCADES_COUNT;
-        spec.gen_minmaps = false;
-        spec.border_color = glm::vec4(1.0f);
-
         s_renderer.shadow_fbo = Framebuffer::create();
         s_renderer.shadow_fbo.bind();
-        s_renderer.shadow_fbo.add_color_attachment(spec);
+
+        DepthAttachmentSpec spec;
+        spec.type = DepthAttachmentType::DEPTH;
+        spec.tex_type = TextureType::TEX_2D_ARRAY_SHADOW;
+        spec.size = {2048, 2048};
+        spec.layers = MIN_DIR_LIGHTS_STORAGE * CASCADES_COUNT;
+        s_renderer.shadow_fbo.add_depth_attachment(spec);
 
         spec.size = {512, 512};
         spec.layers = MIN_POINT_LIGHTS_STORAGE * 6;
-        s_renderer.shadow_fbo.add_color_attachment(spec);
+        s_renderer.shadow_fbo.add_depth_attachment(spec);
 
         spec.layers = MIN_SPOT_LIGHTS_STORAGE;
-        s_renderer.shadow_fbo.add_color_attachment(spec);
+        s_renderer.shadow_fbo.add_depth_attachment(spec);
+
+        s_renderer.shadow_fbo.draw_to_depth_attachment(0);
+        assert(s_renderer.shadow_fbo.is_complete() &&
+               "Incomplete shadow framebuffer");
     }
 
     {
@@ -609,11 +609,11 @@ void scene_end() {
     s_renderer.draw_params_uni_buffer.set_data(s_renderer.draw_params.data(),
                                                count * sizeof(DrawParams));
 
-    s_renderer.shadow_fbo.bind_color_attachment(
+    s_renderer.shadow_fbo.bind_depth_attachment(
         0, s_renderer.slots.dir_csm_shadowmaps);
-    s_renderer.shadow_fbo.bind_color_attachment(
+    s_renderer.shadow_fbo.bind_depth_attachment(
         1, s_renderer.slots.point_lights_shadowmaps);
-    s_renderer.shadow_fbo.bind_color_attachment(
+    s_renderer.shadow_fbo.bind_depth_attachment(
         2, s_renderer.slots.spot_lights_shadowmaps);
 
     GL_CALL(
@@ -703,14 +703,14 @@ void shadow_pass_begin(const CameraData &camera, AssetPack &asset_pack) {
 }
 
 static void try_change_shadow_layers(Framebuffer &fbo,
-                                     uint32_t color_attach_index,
+                                     int32_t depth_attach_index,
                                      int32_t expected_layers) {
-    ColorAttachmentSpec spec = fbo.color_attachments[color_attach_index].spec;
+    DepthAttachmentSpec spec = fbo.depth_attachments[depth_attach_index].spec;
     if (spec.layers == expected_layers)
         return;
 
     spec.layers = expected_layers;
-    fbo.rebuild_color_attachment(color_attach_index, spec);
+    fbo.rebuild_depth_attachment(depth_attach_index, spec);
 }
 
 void shadow_pass_end() {
@@ -787,7 +787,7 @@ void shadow_pass_end() {
     GL_CALL(glDrawBuffer(GL_NONE));
     GL_CALL(glCullFace(GL_FRONT));
 
-    s_renderer.shadow_fbo.draw_to_depth_map(0);
+    s_renderer.shadow_fbo.draw_to_depth_attachment(0);
     GL_CALL(glClear(GL_DEPTH_BUFFER_BIT));
 
     if (!s_renderer.dir_lights.empty()) {
@@ -802,7 +802,7 @@ void shadow_pass_end() {
         }
     }
 
-    s_renderer.shadow_fbo.draw_to_depth_map(1);
+    s_renderer.shadow_fbo.draw_to_depth_attachment(1);
     GL_CALL(glClear(GL_DEPTH_BUFFER_BIT));
 
     if (!s_renderer.point_lights.empty()) {
@@ -826,7 +826,7 @@ void shadow_pass_end() {
         }
     }
 
-    s_renderer.shadow_fbo.draw_to_depth_map(2);
+    s_renderer.shadow_fbo.draw_to_depth_attachment(2);
     GL_CALL(glClear(GL_DEPTH_BUFFER_BIT));
 
     if (!s_renderer.spot_lights.empty()) {

@@ -32,30 +32,31 @@ std::unique_ptr<Layer> EditorLayer::create(const eng::WindowSpec &win_spec) {
     layer->camera.cam_control = eng::TrackballControl::create(&layer->camera);
     eng::disable_cursor();
 
-    layer->main_fbo = Framebuffer::create();
-    layer->main_fbo.add_renderbuffer(
-        {RenderbufferType::DEPTH_STENCIL, window_size});
-    layer->main_fbo.add_color_attachment({.type = ColorAttachmentType::TEX_2D,
-                                          .format = TextureFormat::RGBA16F,
-                                          .wrap = GL_CLAMP_TO_EDGE,
-                                          .min_filter = GL_NEAREST,
-                                          .mag_filter = GL_NEAREST,
-                                          .size = window_size,
-                                          .gen_minmaps = false});
-    layer->main_fbo.add_color_attachment({.type = ColorAttachmentType::TEX_2D,
-                                          .format = TextureFormat::RGBA8,
-                                          .wrap = GL_CLAMP_TO_EDGE,
-                                          .min_filter = GL_NEAREST,
-                                          .mag_filter = GL_NEAREST,
-                                          .size = window_size,
-                                          .gen_minmaps = false});
-    layer->main_fbo.add_color_attachment({.type = ColorAttachmentType::TEX_2D,
-                                          .format = TextureFormat::RGBA8,
-                                          .wrap = GL_CLAMP_TO_EDGE,
-                                          .min_filter = GL_NEAREST,
-                                          .mag_filter = GL_NEAREST,
-                                          .size = window_size,
-                                          .gen_minmaps = false});
+
+    {
+        layer->main_fbo = Framebuffer::create();
+        layer->main_fbo.add_depth_attachment(
+            {.type = DepthAttachmentType::DEPTH_STENCIL,
+             .tex_type = TextureType::TEX_2D,
+             .size = window_size});
+
+        ColorAttachmentSpec spec;
+        spec.type = TextureType::TEX_2D;
+        spec.format = TextureFormat::RGBA16F;
+        spec.wrap = GL_CLAMP_TO_EDGE;
+        spec.min_filter = spec.mag_filter = GL_NEAREST;
+        spec.size = window_size;
+        spec.gen_minmaps = false;
+        layer->main_fbo.add_color_attachment(spec);
+
+        spec.format = TextureFormat::RGBA8;
+        layer->main_fbo.add_color_attachment(spec);
+        layer->main_fbo.add_color_attachment(spec);
+
+        layer->main_fbo.draw_to_depth_attachment(0);
+        layer->main_fbo.draw_to_color_attachment(0, 0);
+        assert(layer->main_fbo.is_complete() && "Incomplete main framebuffer");
+    }
 
     layer->asset_pack = eng::AssetPack::create("default");
 
@@ -310,10 +311,10 @@ void EditorLayer::on_render() {
 
     main_fbo.bind();
     main_fbo.resize_everything(avail_region_iv2);
-    main_fbo.bind_renderbuffer();
+    main_fbo.draw_to_depth_attachment(0);
     main_fbo.draw_to_color_attachment(0, 0);
     main_fbo.draw_to_color_attachment(1, 1);
-    main_fbo.fill_draw_buffers();
+    main_fbo.fill_color_draw_buffers();
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     glClearColor(0.33f, 0.33f, 0.33f, 1.0f);
     main_fbo.clear_color_attachment(1);

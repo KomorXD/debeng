@@ -62,18 +62,30 @@ std::unique_ptr<Layer> EditorLayer::create(const eng::WindowSpec &win_spec) {
 
     layer->scene = eng::Scene::create("New scene");
 
-    eng::Entity ent = layer->scene.spawn_entity("ent");
-    ent.get_component<eng::Transform>().scale = glm::vec3(10.0f, 1.0f, 10.0f);
-    ent.add_component<eng::MeshComp>().id = eng::AssetPack::CUBE_ID;
-    ent.add_component<eng::MaterialComp>().id =
-        eng::AssetPack::DEFAULT_BASE_MATERIAL;
+    eng::Entity ent;
 
-    ent = layer->scene.spawn_entity("light");
-    ent.get_component<eng::Transform>().position = glm::vec3(0.0f, 4.0f, 0.0f);
-    ent.add_component<eng::PointLight>().intensity = 10.0f;
-    ent.add_component<eng::MeshComp>().id = eng::AssetPack::CUBE_ID;
-    ent.add_component<eng::MaterialComp>().id =
-        eng::AssetPack::DEFAULT_FLAT_MATERIAL;
+    for (int32_t y = -100; y <= 0; y++) {
+        ent = layer->scene.spawn_entity("ent");
+        ent.get_component<eng::Transform>().position =
+            glm::vec3(0.0f, (float)y, 0.0f);
+        ent.get_component<eng::Transform>().scale =
+            glm::vec3(200.0f, 1.0f, 200.0f);
+        ent.add_component<eng::MeshComp>().id = eng::AssetPack::CUBE_ID;
+        ent.add_component<eng::MaterialComp>().id =
+            eng::AssetPack::DEFAULT_BASE_MATERIAL;
+    }
+
+    for (int32_t x = -5; x <= 5; x++) {
+        for (int32_t y = -5; y <= 5; y++) {
+            ent = layer->scene.spawn_entity("light");
+            ent.get_component<eng::Transform>().position =
+                glm::vec3(x * 3.0f, 4.0f, y * 3.0f);
+            ent.add_component<eng::PointLight>().intensity = 3.0f;
+            ent.add_component<eng::MeshComp>().id = eng::AssetPack::CUBE_ID;
+            ent.add_component<eng::MaterialComp>().id =
+                eng::AssetPack::DEFAULT_FLAT_MATERIAL;
+        }
+    }
 
     eng::Material mat;
     mat.name = "Outline";
@@ -311,17 +323,10 @@ void EditorLayer::on_render() {
 
     main_fbo.bind();
     main_fbo.resize_everything(avail_region_iv2);
-    main_fbo.draw_to_depth_attachment(0);
-    main_fbo.draw_to_color_attachment(0, 0);
-    main_fbo.draw_to_color_attachment(1, 1);
-    main_fbo.fill_color_draw_buffers();
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-    glClearColor(0.33f, 0.33f, 0.33f, 1.0f);
-    main_fbo.clear_color_attachment(1);
 
     glStencilFunc(GL_ALWAYS, 0, 0xFF);
     glStencilMask(0x00);
-    eng::renderer::scene_begin(camera.render_data(), asset_pack);
+    eng::renderer::scene_begin(camera.render_data(), asset_pack, main_fbo);
 
     eng::ecs::RegistryView rview =
         scene.registry.view<eng::Transform, eng::DirLight>();

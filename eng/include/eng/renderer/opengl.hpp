@@ -234,7 +234,7 @@ struct CubeTexture {
     CubeTextureSpec spec;
 };
 
-enum class RenderbufferType {
+enum class DepthAttachmentType {
     DEPTH,
     STENICL,
     DEPTH_STENCIL,
@@ -242,24 +242,7 @@ enum class RenderbufferType {
     COUNT
 };
 
-struct RenderbufferDetails {
-    GLint type;
-    GLint attachment_type;
-};
-
-struct RenderbufferSpec {
-    RenderbufferType type;
-    glm::ivec2 size;
-};
-
-struct Renderbuffer {
-    GLuint id = 0;
-    RenderbufferSpec spec;
-};
-
-[[nodiscard]] RenderbufferDetails rbo_details(const RenderbufferSpec &spec);
-
-enum class ColorAttachmentType {
+enum class TextureType {
     TEX_2D,
     TEX_2D_ARRAY,
     TEX_2D_ARRAY_SHADOW,
@@ -267,10 +250,33 @@ enum class ColorAttachmentType {
     COUNT
 };
 
-[[nodiscard]] GLint opengl_texture_type(ColorAttachmentType type);
+struct DepthAttachmentDetails {
+    GLint internal_format;
+    GLint format;
+    GLint type;
+    GLint attachment_type;
+};
+
+struct DepthAttachmentSpec {
+    DepthAttachmentType type;
+    TextureType tex_type;
+
+    glm::ivec2 size;
+    int32_t layers = 1;
+};
+
+struct DepthAttachment {
+    GLuint id = 0;
+    DepthAttachmentSpec spec;
+};
+
+[[nodiscard]] DepthAttachmentDetails
+depth_attachment_details(const DepthAttachmentSpec &spec);
+
+[[nodiscard]] GLint opengl_texture_type(TextureType type);
 
 struct ColorAttachmentSpec {
-    ColorAttachmentType type;
+    TextureType type;
     TextureFormat format;
 
     GLint wrap;
@@ -297,39 +303,42 @@ struct Framebuffer {
     void bind() const;
     void unbind() const;
 
-    void add_renderbuffer(RenderbufferSpec spec);
+    void add_depth_attachment(DepthAttachmentSpec spec,
+                              std::optional<int32_t> target_index = {});
     void add_color_attachment(ColorAttachmentSpec spec,
                               std::optional<int32_t> target_index = {});
 
+    void rebuild_depth_attachment(int32_t index, DepthAttachmentSpec spec);
     void rebuild_color_attachment(int32_t index, ColorAttachmentSpec spec);
 
-    void bind_renderbuffer() const;
+    void bind_depth_attachment(int32_t index, int32_t slot = 0) const;
     void bind_color_attachment(int32_t index, int32_t slot = 0) const;
+
     void bind_color_attachment_image(int32_t index, int32_t mip,
                                      int32_t binding, ImageAccess access) const;
 
-    void draw_to_depth_map(int32_t index, int32_t mip = 0);
+    void draw_to_depth_attachment(int32_t index, int32_t mip = 0);
     void draw_to_color_attachment(int32_t index, int32_t target_attachment,
                                   int32_t mip = 0);
 
     void clear_color_attachment(int32_t attachment_index,
                                 int32_t mip = 0) const;
 
-    void resize_renderbuffer(const glm::ivec2 &size);
+    void resize_depth_attachment(int32_t index, const glm::ivec2 &size);
     void resize_color_attachment(int32_t index, const glm::ivec2 &size);
     void resize_everything(const glm::ivec2 &size);
 
-    void remove_renderbuffer();
+    void remove_depth_attachment(int32_t index);
     void remove_color_attachment(int32_t index);
 
-    void fill_draw_buffers();
+    void fill_color_draw_buffers();
 
     glm::u8vec4 pixel_at(const glm::vec2 &coords, int32_t attachment_idx) const;
 
     [[nodiscard]] bool is_complete() const;
 
     GLuint id = 0;
-    Renderbuffer rbo;
+    std::vector<DepthAttachment> depth_attachments;
     std::vector<ColorAttachment> color_attachments;
 };
 

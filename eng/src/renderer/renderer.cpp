@@ -358,7 +358,7 @@ bool init() {
 
     {
         ColorAttachmentSpec spec;
-        spec.type = ColorAttachmentType::TEX_2D_ARRAY_SHADOW;
+        spec.type = TextureType::TEX_2D_ARRAY_SHADOW;
         spec.format = TextureFormat::DEPTH_32F;
         spec.wrap = GL_CLAMP_TO_BORDER;
         spec.min_filter = spec.mag_filter = GL_NEAREST;

@@ -901,28 +901,32 @@ void CubeTexture::unbind() const {
     GL_CALL(glBindTexture(GL_TEXTURE_CUBE_MAP, 0));
 }
 
-RenderbufferDetails rbo_details(const RenderbufferSpec &spec) {
-    static GLint type[] = {GL_DEPTH_COMPONENT, GL_STENCIL_COMPONENTS,
-                           GL_DEPTH24_STENCIL8};
-    static GLint attachment[] = {GL_DEPTH_ATTACHMENT, GL_STENCIL_ATTACHMENT,
+DepthAttachmentDetails depth_attachment_details(const DepthAttachmentSpec &spec) {
+    static GLint internal_format[] = {GL_DEPTH_COMPONENT32F,
+                                      GL_DEPTH24_STENCIL8};
+    static GLint format[] = {GL_DEPTH_COMPONENT, GL_DEPTH_STENCIL};
+    static GLint type[] = {GL_FLOAT, GL_UNSIGNED_INT_24_8};
+    static GLint attachment[] = {GL_DEPTH_ATTACHMENT,
                                  GL_DEPTH_STENCIL_ATTACHMENT};
 
     int32_t idx = (int32_t)spec.type;
-    assert(idx < (int32_t)RenderbufferType::COUNT &&
+    assert(idx < (int32_t)DepthAttachmentType::COUNT &&
            "Invalid renderbuffer type");
 
     return {
+        internal_format[idx],
+        format[idx],
         type[idx],
         attachment[idx]
     };
 }
 
-GLint opengl_texture_type(ColorAttachmentType type) {
+GLint opengl_texture_type(TextureType type) {
     switch (type) {
-    case ColorAttachmentType::TEX_2D:
+    case TextureType::TEX_2D:
         return GL_TEXTURE_2D;
-    case ColorAttachmentType::TEX_2D_ARRAY:
-    case ColorAttachmentType::TEX_2D_ARRAY_SHADOW:
+    case TextureType::TEX_2D_ARRAY:
+    case TextureType::TEX_2D_ARRAY_SHADOW:
         return GL_TEXTURE_2D_ARRAY;
     default:
         assert(true && "Unsupported texture type passed");
@@ -952,23 +956,52 @@ void Framebuffer::unbind() const {
     GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 }
 
-void Framebuffer::add_renderbuffer(RenderbufferSpec spec) {
+void Framebuffer::add_depth_attachment(DepthAttachmentSpec spec,
+                                       std::optional<int32_t> target_index) {
     assert(id != 0 &&
-           "Trying to create renderbuffer for invalid framebuffer object");
-    assert(rbo.id == 0 && "Trying to overwrite existing renderbuffer without "
-                          "destroying it first");
+           "Trying to create depth attachment for invalid framebuffer object");
 
     bind();
-    GL_CALL(glGenRenderbuffers(1, &rbo.id));
-    GL_CALL(glBindRenderbuffer(GL_RENDERBUFFER, rbo.id));
 
-    RenderbufferDetails details = rbo_details(spec);
-    GL_CALL(glRenderbufferStorage(GL_RENDERBUFFER, details.type, spec.size.x,
-                                  spec.size.y));
-    GL_CALL(glFramebufferRenderbuffer(GL_FRAMEBUFFER, details.attachment_type,
-                                      GL_RENDERBUFFER, rbo.id));
+    GLuint tex_id{};
+    GL_CALL(glGenTextures(1, &tex_id));
 
-    rbo.spec = spec;
+    DepthAttachmentDetails details = depth_attachment_details(spec);
+    GLenum tex_type = opengl_texture_type(spec.tex_type);
+    GL_CALL(glBindTexture(tex_type, tex_id));
+    GL_CALL(glTexParameteri(tex_type, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
+    GL_CALL(glTexParameteri(tex_type, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
+    GL_CALL(glTexParameteri(tex_type, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
+    GL_CALL(glTexParameteri(tex_type, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+
+    switch (spec.tex_type) {
+    case TextureType::TEX_2D:
+        GL_CALL(glTexImage2D(tex_type, 0, details.internal_format, spec.size.x,
+                             spec.size.y, 0, details.format, details.type,
+                             nullptr));
+        break;
+
+    case TextureType::TEX_2D_ARRAY_SHADOW:
+        GL_CALL(glTexParameteri(tex_type, GL_TEXTURE_COMPARE_MODE,
+                                GL_COMPARE_REF_TO_TEXTURE));
+        [[fallthrough]];
+
+    case TextureType::TEX_2D_ARRAY:
+        GL_CALL(glTexImage3D(tex_type, 0, details.internal_format, spec.size.x,
+                             spec.size.y, spec.layers, 0, details.format,
+                             details.type, nullptr));
+        break;
+
+    default:
+        assert("Invalid TextureType provided");
+        __builtin_unreachable();
+    }
+
+    auto insert_itr = depth_attachments.end();
+    if (target_index.has_value())
+        insert_itr = depth_attachments.begin() + target_index.value();
+
+    depth_attachments.insert(insert_itr, {tex_id, spec});
 }
 
 void Framebuffer::add_color_attachment(ColorAttachmentSpec spec,
@@ -998,7 +1031,7 @@ void Framebuffer::add_color_attachment(ColorAttachmentSpec spec,
                              tex_details.type, nullptr));
         break;
     case GL_TEXTURE_2D_ARRAY:
-        if (spec.type == ColorAttachmentType::TEX_2D_ARRAY_SHADOW) {
+        if (spec.type == TextureType::TEX_2D_ARRAY_SHADOW) {
             GL_CALL(glTexParameteri(tex_type, GL_TEXTURE_COMPARE_MODE,
                                     GL_COMPARE_REF_TO_TEXTURE));
         }
@@ -1023,6 +1056,18 @@ void Framebuffer::add_color_attachment(ColorAttachmentSpec spec,
     color_attachments.insert(insert_itr, {tex_id, spec});
 }
 
+void Framebuffer::rebuild_depth_attachment(int32_t index,
+                                           DepthAttachmentSpec spec) {
+    assert(id != 0 &&
+           "Trying to rebuild depth attachment for invalid framebuffer object");
+    assert(index < depth_attachments.size() &&
+           "Invalid depth attachment index");
+
+    bind();
+    remove_depth_attachment(index);
+    add_depth_attachment(spec, index);
+}
+
 void Framebuffer::rebuild_color_attachment(int32_t index,
                                            ColorAttachmentSpec spec) {
     assert(id != 0 &&
@@ -1035,14 +1080,18 @@ void Framebuffer::rebuild_color_attachment(int32_t index,
     add_color_attachment(spec, index);
 }
 
-void Framebuffer::bind_renderbuffer() const {
+void Framebuffer::bind_depth_attachment(int32_t index, int32_t slot) const {
     assert(id != 0 &&
            "Trying to bind renderbuffer of invalid framebuffer object");
-    assert(rbo.id != 0 && "Trying to bind invalid renderbuffer object");
+    assert(index < depth_attachments.size() &&
+           "Invalid depth attachment index");
 
-    bind();
-    GL_CALL(glBindRenderbuffer(GL_RENDERBUFFER, rbo.id));
-    GL_CALL(glViewport(0, 0, rbo.spec.size.x, rbo.spec.size.y));
+    const auto &[tex_id, spec] = depth_attachments[index];
+    assert(tex_id != 0 && "Trying to bind invalid depth attachment");
+
+    GLuint tex_type = opengl_texture_type(spec.tex_type);
+    GL_CALL(glActiveTexture(GL_TEXTURE0 + slot));
+    GL_CALL(glBindTexture(tex_type, tex_id));
 }
 
 void Framebuffer::bind_color_attachment(int32_t index, int32_t slot) const {
@@ -1079,14 +1128,22 @@ void Framebuffer::bind_color_attachment_image(int32_t index, int32_t mip,
                                acc[(int32_t)access], internal));
 }
 
-void Framebuffer::draw_to_depth_map(int32_t index, int32_t mip) {
-    assert(index < color_attachments.size() &&
+void Framebuffer::draw_to_depth_attachment(int32_t index, int32_t mip) {
+    assert(index < depth_attachments.size() &&
            "Trying to draw to invalid depth map");
 
-    const auto &[id, spec] = color_attachments[index];
+    const auto &[id, spec] = depth_attachments[index];
     bind();
 
-    GL_CALL(glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, id, 0));
+    DepthAttachmentDetails details = depth_attachment_details(spec);
+    if (spec.tex_type == TextureType::TEX_2D) {
+        GL_CALL(glFramebufferTexture2D(GL_FRAMEBUFFER, details.attachment_type,
+                                       GL_TEXTURE_2D, id, 0));
+    } else {
+        GL_CALL(glFramebufferTexture(GL_FRAMEBUFFER, details.attachment_type,
+                                     id, 0));
+    }
+
     GL_CALL(glViewport(0, 0, spec.size.x, spec.size.y));
 }
 
@@ -1113,23 +1170,25 @@ void Framebuffer::clear_color_attachment(int32_t attachment_index,
     GL_CALL(glClearTexImage(id, mip, tex_details.format, GL_FLOAT, 0));
 }
 
-void Framebuffer::resize_renderbuffer(const glm::ivec2 &size) {
+void Framebuffer::resize_depth_attachment(int32_t index,
+                                          const glm::ivec2 &size) {
     assert(id != 0 && "Trying to alter invalid framebuffer object");
-    assert(rbo.id != 0 && "Trying to resize invalid renderbuffer object");
+    assert(index < depth_attachments.size() &&
+           "Invalid depth attachment index");
 
-    if (size == rbo.spec.size)
+    DepthAttachment &attach = depth_attachments[index];
+    assert(attach.id != 0 &&
+           "Trying to resize invalid depth attachment object");
+
+    if (attach.spec.size == size)
         return;
 
+    DepthAttachmentSpec spec = attach.spec;
+    spec.size = size;
+
     bind();
-    bind_renderbuffer();
-
-    RenderbufferDetails details = rbo_details(rbo.spec);
-    GL_CALL(
-        glRenderbufferStorage(GL_RENDERBUFFER, details.type, size.x, size.y));
-    GL_CALL(glFramebufferRenderbuffer(GL_FRAMEBUFFER, details.attachment_type,
-                                      GL_RENDERBUFFER, rbo.id));
-
-    rbo.spec.size = size;
+    remove_depth_attachment(index);
+    add_depth_attachment(spec, index);
 }
 
 void Framebuffer::resize_color_attachment(int32_t index,
@@ -1156,22 +1215,27 @@ void Framebuffer::resize_color_attachment(int32_t index,
 void Framebuffer::resize_everything(const glm::ivec2 &size) {
     assert(id != 0 && "Trying to alter invalid framebuffer object");
 
-    resize_renderbuffer(size);
+    for (int32_t i = 0; i < depth_attachments.size(); i++)
+        resize_depth_attachment(i, size);
 
     for (int32_t i = 0; i < color_attachments.size(); i++)
         resize_color_attachment(i, size);
 }
 
-void Framebuffer::remove_renderbuffer() {
+void Framebuffer::remove_depth_attachment(int32_t index) {
     assert(id != 0 &&
-           "Trying to remove renderbuffer of invalid framebuffer object");
-    assert(rbo.id != 0 && "Trying to remove invalid renderbuffer object");
+           "Trying to remove depth attachment of invalid framebuffer object");
+    assert(index < depth_attachments.size() &&
+           "Invalid depth attachment index");
 
     bind();
-    GL_CALL(glBindRenderbuffer(GL_RENDERBUFFER, 0));
-    GL_CALL(glDeleteRenderbuffers(1, &rbo.id));
 
-    rbo = {};
+    DepthAttachment &depth_attach = depth_attachments[index];
+    GLint tex_type = opengl_texture_type(depth_attach.spec.tex_type);
+    GL_CALL(glBindTexture(tex_type, 0));
+    GL_CALL(glDeleteTextures(1, &depth_attach.id));
+
+    depth_attachments.erase(depth_attachments.begin() + index);
 }
 
 void Framebuffer::remove_color_attachment(int32_t index) {
@@ -1190,7 +1254,7 @@ void Framebuffer::remove_color_attachment(int32_t index) {
     color_attachments.erase(color_attachments.begin() + index);
 }
 
-void Framebuffer::fill_draw_buffers() {
+void Framebuffer::fill_color_draw_buffers() {
     std::vector<GLenum> buffers(color_attachments.size());
     for (int32_t i = 0; i < color_attachments.size(); i++)
         buffers[i] = GL_COLOR_ATTACHMENT0 + i;

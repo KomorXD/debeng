@@ -1,0 +1,161 @@
+#version 460 core
+
+#define VISIBLE_INDICES_BINDING ${VISIBLE_INDICES_BINDING}
+
+#define POINT_LIGHTS_BINDING ${POINT_LIGHTS_BINDING}
+#define MAX_POINT_LIGHTS ${MAX_POINT_LIGHTS}
+
+#define CAMERA_BINDING ${CAMERA_BINDING}
+
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
+layout(binding = 0) uniform sampler2D u_depth_map;
+
+layout(std430, binding = VISIBLE_INDICES_BINDING) writeonly buffer VisibleIndices {
+    int indices[];
+} u_indices;
+
+struct PointLight {
+    mat4 light_space_mats[6];
+    vec4 position_and_linear;
+    vec4 color_and_quadratic;
+};
+
+layout(std430, binding = POINT_LIGHTS_BINDING) readonly buffer PointLights {
+    int count;
+    PointLight lights[];
+} u_point_lights;
+
+layout (std140, binding = CAMERA_BINDING) uniform Camera {
+    mat4 view_projection;
+    mat4 projection;
+    mat4 view;
+    vec4 position;
+    vec2 viewport;
+
+    float exposure;
+    float gamma;
+    float near_clip;
+    float far_clip;
+    float fov;
+
+    float bloom_strength;
+    float bloom_threshold;
+} u_camera;
+
+float linearize_depth(float depth) {
+    float ndc = depth * 2.0 - 1.0;
+    float near = u_camera.near_clip;
+    float far = u_camera.far_clip;
+
+    float z = (2.0 * near * far) / (near + far - ndc * (far - near));
+    return z;
+}
+
+shared int min_depth_int;
+shared int max_depth_int;
+shared int visible_lights_count;
+shared int visible_lights_indices[MAX_POINT_LIGHTS];
+shared vec4 frustum_planes[6];
+
+bool sphere_outside(vec3 center, float radius) {
+    for (int i = 0; i < 6; i++) {
+        float d = dot(frustum_planes[i].xyz, center) + frustum_planes[i].w + radius;
+        if (d <= 0.0)
+            return false;
+    }
+
+    return true;
+}
+
+void main() {
+    ivec2 loc = ivec2(gl_GlobalInvocationID.xy);
+    if (loc.x >= u_camera.viewport.x || loc.y >= u_camera.viewport.y)
+        return;
+
+    int tid = int(gl_LocalInvocationIndex);
+    if (tid == 0) {
+        min_depth_int = -1;
+        max_depth_int = 0;
+        visible_lights_count = 0;
+    }
+
+    barrier();
+
+    vec2 uv = vec2(loc) / u_camera.viewport;
+    float depth = texture(u_depth_map, uv).r;
+    depth = linearize_depth(depth);
+
+    int depth_int = floatBitsToInt(depth);
+    atomicMin(min_depth_int, depth_int);
+    atomicMax(max_depth_int, depth_int);
+
+    barrier();
+
+    ivec2 item_id = ivec2(gl_LocalInvocationID.xy);
+    ivec2 tile_id = ivec2(gl_WorkGroupID.xy);
+    ivec2 tile_num = ivec2(gl_NumWorkGroups.xy);
+    int index = tile_id.y * tile_num.x + tile_id.x;
+
+    if (tid == 0) {
+        float min_depth = intBitsToFloat(min_depth_int);
+        float max_depth = intBitsToFloat(max_depth_int);
+
+        vec2 neg_step = (2.0 * vec2(tile_id + ivec2(0))) / vec2(tile_num);
+        vec2 pos_step = (2.0 * vec2(tile_id + ivec2(1))) / vec2(tile_num);
+
+        frustum_planes[0] = vec4( 1.0,  0.0,  0.0,  1.0 - neg_step.x); // Left
+        frustum_planes[1] = vec4(-1.0,  0.0,  0.0, -1.0 + pos_step.x); // Right
+        frustum_planes[2] = vec4( 0.0,  1.0,  0.0,  1.0 - neg_step.y); // Down
+        frustum_planes[3] = vec4( 0.0, -1.0,  0.0, -1.0 + pos_step.y); // Up
+        frustum_planes[4] = vec4( 0.0,  0.0, -1.0,  -min_depth); // Near
+        frustum_planes[5] = vec4( 0.0,  0.0,  1.0,   max_depth); // Far
+
+        for (int i = 0; i < 4; i++) {
+            frustum_planes[i] *= u_camera.view_projection;
+            frustum_planes[i] /= length(frustum_planes[i].xyz);
+        }
+
+        for (int i = 4; i < 6; i++) {
+            frustum_planes[i] *= u_camera.view;
+            frustum_planes[i] /= length(frustum_planes[i].xyz);
+        }
+    }
+
+    barrier();
+
+    int thread_count = 16 * 16;
+    int passes = (u_point_lights.count + thread_count - 1) / thread_count;
+    for (int i = 0; i < passes; i++) {
+        int light_index = i * thread_count + tid;
+        if (light_index >= u_point_lights.count
+            || visible_lights_count >= MAX_POINT_LIGHTS)
+            break;
+
+        PointLight pl = u_point_lights.lights[light_index];
+        vec3 position = pl.position_and_linear.xyz;
+        vec3 color = pl.color_and_quadratic.rgb;
+        float linear = pl.position_and_linear.w;
+        float quadratic = pl.color_and_quadratic.w;
+
+        float max_comp = max(color.r, max(color.g, color.b));
+        float radius = (-linear + sqrt(linear * linear - 4.0 * quadratic
+            * (1.0 - (256.0 / 5.0) * max_comp))) / (2.0 * quadratic);
+
+        if (sphere_outside(position, radius)) {
+            int count = atomicAdd(visible_lights_count, 1);
+            visible_lights_indices[count] = light_index;
+        }
+    }
+
+    barrier();
+
+    if (tid == 0) {
+        int offset = index * MAX_POINT_LIGHTS;
+        for (int i = 0; i < visible_lights_count; i++)
+            u_indices.indices[offset + i] = visible_lights_indices[i];
+
+        for (int i = visible_lights_count; i < MAX_POINT_LIGHTS; i++)
+            u_indices.indices[offset + i] = -1;
+    }
+}

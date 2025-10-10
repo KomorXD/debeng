@@ -6,6 +6,9 @@
 #define CASCADES_COUNT ${CASCADES_COUNT}
 
 #define POINT_LIGHTS_BINDING ${POINT_LIGHTS_BINDING}
+#define MAX_POINT_LIGHTS ${MAX_POINT_LIGHTS}
+
+#define VISIBLE_INDICES_BINDING ${VISIBLE_INDICES_BINDING}
 
 #define SPOT_LIGHTS_BINDING ${SPOT_LIGHTS_BINDING}
 
@@ -50,6 +53,10 @@ layout (std430, binding = POINT_LIGHTS_BINDING) buffer PointLights {
     int count;
     PointLight lights[];
 } u_point_lights;
+
+layout(std430, binding = VISIBLE_INDICES_BINDING) readonly buffer VisibleIndices {
+    int indices[];
+} u_indices;
 
 struct SpotLight {
     mat4 light_space_mat;
@@ -331,8 +338,17 @@ void main() {
         Lo += brdf * radiance * shadow * ao;
     }
 
+    ivec2 loc = ivec2(gl_FragCoord.xy);
+    ivec2 tile_id = loc / ivec2(16, 16);
+    int index = tile_id.y * int((u_camera.viewport.x + 15) / 16) + tile_id.x;
+
+    int offset = index * MAX_POINT_LIGHTS;
     for (int i = 0; i < u_point_lights.count; i++) {
-        PointLight pl           = u_point_lights.lights[i];
+        int light_idx = u_indices.indices[offset + i];
+        if (light_idx == -1)
+            break;
+
+        PointLight pl           = u_point_lights.lights[light_idx];
         vec3 position           = pl.position_and_linear.xyz;
         vec3 tangent_position   = fs_in.TBN * position;
         vec3 color              = pl.color_and_quadratic.rgb;
@@ -364,7 +380,7 @@ void main() {
 
         float shadow = calc_shadow(u_point_lights_shadowmaps,
                                    pl.light_space_mats[dir_idx],
-                                   i * 6 + dir_idx, N, L);
+                                   light_idx * 6 + dir_idx, N, L);
         Lo += brdf * radiance * shadow * ao;
     }
 

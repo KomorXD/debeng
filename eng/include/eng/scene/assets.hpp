@@ -32,10 +32,10 @@ struct Material {
     AssetID normal_texture_id = 2;
 
     AssetID roughness_texture_id = 1;
-    float roughness = 0.5f;
+    float roughness = 1.0f;
 
     AssetID metallic_texture_id = 1;
-    float metallic = 0.1f;
+    float metallic = 0.05f;
 
     AssetID ao_texture_id = 1;
     float ao = 1.0f;

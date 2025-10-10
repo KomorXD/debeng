@@ -142,6 +142,14 @@ AssetPack AssetPack::create(const std::string &pack_name) {
                 std::to_string(renderer::POINT_LIGHTS_BINDING)
             },
             {
+                "${MAX_POINT_LIGHTS}",
+                std::to_string(renderer::MAX_POINT_LIGHTS)
+            },
+            {
+                "${VISIBLE_INDICES_BINDING}",
+                std::to_string(renderer::VISIBLE_INDICES_BINDING)
+            },
+            {
                 "${SPOT_LIGHTS_BINDING}",
                 std::to_string(renderer::SPOT_LIGHTS_BINDING)
             },

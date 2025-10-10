@@ -10,6 +10,7 @@
 
 #include <cstring>
 #include <random>
+#include <strings.h>
 #include <vector>
 
 #define GLM_ENABLE_EXPERIMENTAL
@@ -68,6 +69,9 @@ struct Renderer {
     ShaderStorage spot_lights_storage;
     int32_t spot_lights_allocated = MIN_SPOT_LIGHTS_STORAGE;
     std::vector<SpotLightData> spot_lights;
+
+    ShaderStorage visible_indicies_storage;
+    Shader light_culling_shader;
 
     Framebuffer shadow_fbo;
     Shader dirlight_shadow_shader;
@@ -371,6 +375,53 @@ bool init() {
     }
 
     {
+        constexpr glm::ivec2 ASSUMED_SCREEN_DIM = glm::ivec2(1920, 1080);
+        constexpr glm::ivec2 ASSUMED_TILE_DIM = glm::ivec2(16, 16);
+        constexpr int32_t ASSUMED_TILE_COUNT =
+            (ASSUMED_SCREEN_DIM.x / ASSUMED_TILE_DIM.x) *
+            (ASSUMED_SCREEN_DIM.y / ASSUMED_TILE_DIM.y);
+        constexpr int32_t ASSUMED_MAX_LIGHTS_PER_TILE = MAX_POINT_LIGHTS;
+        constexpr int32_t ASSUMED_BUFFER_SIZE =
+            ASSUMED_TILE_COUNT * ASSUMED_MAX_LIGHTS_PER_TILE * sizeof(int32_t);
+
+        char *data = new char[ASSUMED_BUFFER_SIZE];
+        bzero(data, ASSUMED_BUFFER_SIZE);
+        /* ~2Mb */
+        s_renderer.visible_indicies_storage =
+            ShaderStorage::create(data, ASSUMED_BUFFER_SIZE);
+        s_renderer.visible_indicies_storage.bind_buffer_range(
+            VISIBLE_INDICES_BINDING, 0, ASSUMED_BUFFER_SIZE);
+        delete[] data;
+    }
+
+    {
+        s_renderer.light_culling_shader = Shader::create();
+        bool success = s_renderer.light_culling_shader.build_compute(
+            {.path = "resources/shaders/light_cull.comp",
+             .replacements = {
+                {
+                    "${VISIBLE_INDICES_BINDING}",
+                    std::to_string(VISIBLE_INDICES_BINDING)
+                },
+                {
+                    "${POINT_LIGHTS_BINDING}",
+                    std::to_string(POINT_LIGHTS_BINDING)
+                },
+                {
+                    "${MAX_POINT_LIGHTS}",
+                    std::to_string(MAX_POINT_LIGHTS)
+                },
+                {
+                    "${CAMERA_BINDING}",
+                    std::to_string(CAMERA_BINDING)
+                }
+            }
+        });
+
+        assert(success && "Failed to build light culling shader");
+    }
+
+    {
         s_renderer.shadow_fbo = Framebuffer::create();
         s_renderer.shadow_fbo.bind();
 
@@ -492,6 +543,9 @@ void shutdown() {
     s_renderer.soft_shadow_uni_buffer.destroy();
     s_renderer.draw_params_uni_buffer.destroy();
 
+    s_renderer.light_culling_shader.destroy();
+    s_renderer.visible_indicies_storage.destroy();
+
     s_renderer.shadow_fbo.destroy();
     s_renderer.dirlight_shadow_shader.destroy();
     s_renderer.spotlight_shadow_shader.destroy();
@@ -601,19 +655,6 @@ void scene_end() {
         }
     }
 
-    s_target_fbo->draw_to_color_attachment(0, 0);
-    s_target_fbo->draw_to_color_attachment(1, 1);
-    s_target_fbo->fill_color_draw_buffers();
-    GL_CALL(glClear(GL_COLOR_BUFFER_BIT));
-    GL_CALL(glClearColor(0.33f, 0.33f, 0.33f, 1.0f));
-    GL_CALL(glDepthFunc(GL_EQUAL));
-    s_target_fbo->clear_color_attachment(1);
-
-    s_renderer.dir_lights_storage.bind();
-    s_renderer.point_lights_storage.bind();
-    s_renderer.spot_lights_storage.bind();
-    s_renderer.draw_params_uni_buffer.bind();
-
     int32_t count = s_renderer.dir_lights.size();
     s_renderer.dir_lights_allocated = try_realloc_light_storage(
         glm::max(count, MIN_DIR_LIGHTS_STORAGE),
@@ -647,10 +688,33 @@ void scene_end() {
     s_renderer.spot_lights_storage.set_data(
         s_renderer.spot_lights.data(), count * sizeof(SpotLightData), offset);
 
+    s_renderer.dir_lights_storage.bind();
+    s_renderer.point_lights_storage.bind();
+    s_renderer.spot_lights_storage.bind();
+    s_renderer.draw_params_uni_buffer.bind();
+
+    s_renderer.visible_indicies_storage.bind();
+    s_target_fbo->bind_depth_attachment(0);
+
+    glm::ivec3 groups;
+    groups.x = (s_active_camera->viewport.x + 15) / 16;
+    groups.y = (s_active_camera->viewport.y + 15) / 16;
+    groups.z = 1;
+    s_renderer.light_culling_shader.dispatch_compute(groups);
+
+    s_target_fbo->draw_to_color_attachment(0, 0);
+    s_target_fbo->draw_to_color_attachment(1, 1);
+    s_target_fbo->fill_color_draw_buffers();
+    GL_CALL(glClear(GL_COLOR_BUFFER_BIT));
+    GL_CALL(glClearColor(0.33f, 0.33f, 0.33f, 1.0f));
+    GL_CALL(glDepthFunc(GL_EQUAL));
+    s_target_fbo->clear_color_attachment(1);
+
 
     count = s_renderer.draw_params.size();
     s_renderer.draw_params_uni_buffer.set_data(s_renderer.draw_params.data(),
                                                count * sizeof(DrawParams));
+
 
     s_renderer.shadow_fbo.bind_depth_attachment(
         0, s_renderer.slots.dir_csm_shadowmaps);

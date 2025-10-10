@@ -39,7 +39,9 @@ Mind you I only work with clang and on Linux, I can't promise it will work on ot
  - [x] Dynamic light sources count (with a limit ofc) so to not waste resources
  - [x] Not-that-miserable editor
  - [x] Whatever smaller thing/thing I forgot
- - [ ] 2D forward+ rendering (then clustered forward+ rendering)
+ - [x] 2D forward+ rendering (with that, early-Z for color pass)
+ - [x] Culling shadow meshes, shadow casters
+ - [ ] Forward+ clustered rendering
  - [ ] MSAA (2xSMAA later perhaps)
  - [ ] Screen space contact shadows
  - [ ] Screen space reflections

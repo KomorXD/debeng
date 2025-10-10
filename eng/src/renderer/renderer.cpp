@@ -920,8 +920,8 @@ void shadow_pass_end() {
                           s_renderer.gpu.max_geom_invocations) +
                          1;
         for (int32_t pass = 0; pass < passes; pass++) {
-            s_renderer.pointlight_shadow_shader.set_uniform_1i("u_offset",
-                                                               pass);
+            s_renderer.pointlight_shadow_shader.set_uniform_1i(
+                "u_offset", pass * s_renderer.gpu.max_geom_invocations);
 
             for (auto &[mesh_id, instances] : mesh_group) {
                 if (instances.empty())
@@ -944,7 +944,8 @@ void shadow_pass_end() {
                           s_renderer.gpu.max_geom_invocations) +
                          1;
         for (int32_t pass = 0; pass < passes; pass++) {
-            s_renderer.spotlight_shadow_shader.set_uniform_1i("u_offset", pass);
+            s_renderer.spotlight_shadow_shader.set_uniform_1i(
+                "u_offset", pass * s_renderer.gpu.max_geom_invocations);
 
             for (auto &[mesh_id, instances] : mesh_group) {
                 if (instances.empty())

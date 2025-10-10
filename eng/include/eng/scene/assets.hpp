@@ -14,9 +14,15 @@ struct MeshInstance {
 
 using AssetID = int32_t;
 
+struct MeshAABB {
+    glm::vec3 min;
+    glm::vec3 max;
+};
+
 struct Mesh {
     std::string name;
     VertexArray vao;
+    MeshAABB local_bb;
 };
 
 struct Material {

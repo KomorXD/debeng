@@ -2,8 +2,22 @@
 #include "eng/renderer/opengl.hpp"
 #include "eng/renderer/primitives.hpp"
 #include "eng/renderer/renderer.hpp"
+#include <span>
 
 namespace eng {
+
+MeshAABB mesh_bb(std::span<Vertex> vertices) {
+    MeshAABB bb{};
+    bb.min = glm::vec3( FLT_MAX);
+    bb.max = glm::vec3(-FLT_MAX);
+
+    for (const Vertex &v : vertices) {
+        bb.min = glm::min(bb.min, v.position);
+        bb.max = glm::max(bb.max, v.position);
+    }
+
+    return bb;
+}
 
 Mesh create_mesh(VertexData vertex_data) {
     Mesh mesh{};
@@ -39,6 +53,8 @@ Mesh create_mesh(VertexData vertex_data) {
     vbo.allocate(nullptr, renderer::MAX_MESH_INSTANCES * sizeof(MeshInstance));
     mesh.vao.add_instanced_vertex_buffer(vbo, layout, 5);
     mesh.vao.unbind();
+
+    mesh.local_bb = mesh_bb(vertices);
 
     return mesh;
 }

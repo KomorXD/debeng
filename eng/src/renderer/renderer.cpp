@@ -965,6 +965,32 @@ void shadow_pass_end() {
     s_renderer.stats.shadow_pass_ms += t.elapsed_time_ms();
 }
 
+static MeshAABB world_space_bb(Mesh &mesh, const glm::mat4 &transform) {
+    glm::vec3 world_min( FLT_MAX);
+    glm::vec3 world_max(-FLT_MAX);
+
+    MeshAABB &local = mesh.local_bb;
+
+    std::array<glm::vec3, 8> corners = {
+        glm::vec3{local.min.x, local.min.y, local.min.z},
+        glm::vec3{local.max.x, local.min.y, local.min.z},
+        glm::vec3{local.min.x, local.max.y, local.min.z},
+        glm::vec3{local.max.x, local.max.y, local.min.z},
+        glm::vec3{local.min.x, local.min.y, local.max.z},
+        glm::vec3{local.max.x, local.min.y, local.max.z},
+        glm::vec3{local.min.x, local.max.y, local.max.z},
+        glm::vec3{local.max.x, local.max.y, local.max.z}
+    };
+
+    for (int32_t i = 0; i < corners.size(); i++) {
+        glm::vec3 w = glm::vec3(transform * glm::vec4(corners[i], 1.0f));
+        world_min = glm::min(world_min, w);
+        world_max = glm::max(world_max, w);
+    }
+
+    return {world_min, world_max};
+}
+
 void submit_mesh(const glm::mat4 &transform, AssetID mesh_id,
                  AssetID material_id, int32_t ent_id,
                  const DrawParams &params) {
@@ -1032,6 +1058,41 @@ frustrum_corners_world_space(const glm::mat4 &proj_view) {
 
     return corners;
 }
+
+void submit_shadow_mesh(const glm::mat4 &transform, AssetID mesh_id) {
+    Mesh &mesh = s_asset_pack->meshes.at(mesh_id);
+    MeshAABB world_bb = world_space_bb(mesh, transform);
+
+    bool visible_to_any = false;
+    for (const PointLightData &pl : s_renderer.point_lights) {
+        glm::vec3 color = glm::vec3(pl.color_and_quadratic);
+        float linear = pl.position_and_linear.w;
+        float quadratic = pl.color_and_quadratic.w;
+        float radius = light_radius(1.0, linear, quadratic, glm::compMax(color));
+
+        glm::vec3 position = glm::vec3(pl.position_and_linear);
+        glm::vec3 closest = glm::clamp(position, world_bb.min, world_bb.max);
+        float dist2 = glm::length2(position - closest);
+        if (dist2 <= radius * radius) {
+            visible_to_any = true;
+            break;
+        }
+    }
+
+    if (!visible_to_any)
+        return;
+
+    s_renderer.stats.shadow_meshes_rendered++;
+
+    /* Only one shader in use at a time in shadow passes. */
+    MaterialGroup &mat_grp = s_renderer.shader_render_group[0];
+    MeshGroup &mesh_grp = mat_grp[0];
+    std::vector<MeshInstance> &instances = mesh_grp[mesh_id];
+
+    MeshInstance &instance = instances.emplace_back();
+    instance.transform = transform;
+}
+
 
 void submit_dir_light(const glm::vec3 &rotation, const DirLight &light) {
     if (s_renderer.dir_lights.size() >= MAX_DIR_LIGHTS)
@@ -1105,14 +1166,78 @@ void submit_dir_light(const glm::vec3 &rotation, const DirLight &light) {
     light_data.color = glm::vec4(light.color * light.intensity, 1.0f);
 }
 
+struct Plane {
+    glm::vec3 normal;
+    float d;
+};
+
+std::array<Plane, 6> extract_frustm_planes(const glm::mat4 &mat) {
+    std::array<Plane, 6> planes;
+
+    // Left
+    planes[0].normal.x = mat[0][3] + mat[0][0];
+    planes[0].normal.y = mat[1][3] + mat[1][0];
+    planes[0].normal.z = mat[2][3] + mat[2][0];
+    planes[0].d        = mat[3][3] + mat[3][0];
+
+    // Right
+    planes[1].normal.x = mat[0][3] - mat[0][0];
+    planes[1].normal.y = mat[1][3] - mat[1][0];
+    planes[1].normal.z = mat[2][3] - mat[2][0];
+    planes[1].d        = mat[3][3] - mat[3][0];
+
+    // Bottom
+    planes[2].normal.x = mat[0][3] + mat[0][1];
+    planes[2].normal.y = mat[1][3] + mat[1][1];
+    planes[2].normal.z = mat[2][3] + mat[2][1];
+    planes[2].d        = mat[3][3] + mat[3][1];
+
+    // Top
+    planes[3].normal.x = mat[0][3] - mat[0][1];
+    planes[3].normal.y = mat[1][3] - mat[1][1];
+    planes[3].normal.z = mat[2][3] - mat[2][1];
+    planes[3].d        = mat[3][3] - mat[3][1];
+
+    // Near
+    planes[4].normal.x = mat[0][3] + mat[0][2];
+    planes[4].normal.y = mat[1][3] + mat[1][2];
+    planes[4].normal.z = mat[2][3] + mat[2][2];
+    planes[4].d        = mat[3][3] + mat[3][2];
+
+    // Far
+    planes[5].normal.x = mat[0][3] - mat[0][2];
+    planes[5].normal.y = mat[1][3] - mat[1][2];
+    planes[5].normal.z = mat[2][3] - mat[2][2];
+    planes[5].d        = mat[3][3] - mat[3][2];
+
+    for (int i = 0; i < 6; i++) {
+        float inv_len = 1.0f / glm::length(planes[i].normal);
+        planes[i].normal *= inv_len;
+        planes[i].d *= inv_len;
+    }
+
+    return planes;
+}
+
 void submit_point_light(const glm::vec3 &position, const PointLight &light) {
     if (s_renderer.point_lights.size() >= MAX_POINT_LIGHTS)
         return;
 
-    s_renderer.stats.point_lights++;
+    s_renderer.stats.submitted_point_lights++;
 
+    std::array<Plane, 6> camera_planes =
+        extract_frustm_planes(s_active_camera->view_projection);
     float radius = light_radius(1.0f, light.linear, light.quadratic,
-                                max_component(light.color * light.intensity));
+                                glm::compMax(light.color * light.intensity));
+    for (int32_t i = 0; i < camera_planes.size(); i++) {
+        Plane &plane = camera_planes[i];
+        float dist = glm::dot(plane.normal, position) + plane.d + radius;
+        if (dist <= 0.0f)
+            return;
+    }
+
+    s_renderer.stats.accepted_point_lights++;
+
     glm::mat4 proj =
         glm::perspective(glm::radians(91.0f), 1.0f, 0.1f, radius);
 
@@ -1141,10 +1266,22 @@ void submit_spot_light(const Transform &transform, const SpotLight &light) {
     if (s_renderer.spot_lights.size() >= MAX_SPOT_LIGHTS)
         return;
 
-    s_renderer.stats.spot_lights++;
+    s_renderer.stats.submitted_spot_lights++;
 
+    std::array<Plane, 6> camera_planes =
+        extract_frustm_planes(s_active_camera->view_projection);
     float radius = light_radius(1.0f, light.linear, light.quadratic,
-                                max_component(light.color * light.intensity));
+                                glm::compMax(light.color * light.intensity));
+    for (int32_t i = 0; i < camera_planes.size(); i++) {
+        Plane &plane = camera_planes[i];
+        float dist =
+            glm::dot(plane.normal, transform.position) + plane.d + radius;
+        if (dist <= 0.0f)
+            return;
+    }
+
+    s_renderer.stats.accepted_spot_lights++;
+
     glm::vec3 dir = glm::toMat3(glm::quat(transform.rotation)) *
                     glm::vec3(0.0f, 0.0f, -1.0f);
 

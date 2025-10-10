@@ -21,7 +21,7 @@ constexpr int32_t MAX_MESH_INSTANCES = 256;
 constexpr int32_t MAX_DIR_LIGHTS = 8;
 constexpr int32_t MIN_DIR_LIGHTS_STORAGE = 2;
 
-constexpr int32_t MAX_POINT_LIGHTS = 64;
+constexpr int32_t MAX_POINT_LIGHTS = 128;
 constexpr int32_t MIN_POINT_LIGHTS_STORAGE = 32;
 
 constexpr int32_t MAX_SPOT_LIGHTS = 128;
@@ -111,8 +111,14 @@ struct RenderStats {
     float base_pass_ms{};
 
     int32_t dir_lights{};
-    int32_t point_lights{};
-    int32_t spot_lights{};
+
+    int32_t submitted_point_lights{};
+    int32_t accepted_point_lights{};
+
+    int32_t submitted_spot_lights{};
+    int32_t accepted_spot_lights{};
+
+    int32_t shadow_meshes_rendered{};
 
     int32_t instances{};
     int32_t draw_calls{};
@@ -136,7 +142,7 @@ void shadow_pass_end();
 void submit_mesh(const glm::mat4 &transform, AssetID mesh_id,
                  AssetID material_id, int32_t ent_id,
                  const DrawParams &params = {});
-void submit_shadow_pass_mesh(const glm::mat4 &transform, AssetID mesh_id);
+void submit_shadow_mesh(const glm::mat4 &transform, AssetID mesh_id);
 
 void submit_dir_light(const glm::vec3 &rotation, const DirLight &light);
 void submit_point_light(const glm::vec3 &position, const PointLight &light);

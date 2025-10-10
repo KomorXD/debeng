@@ -45,8 +45,8 @@ layout (std430, binding = DIR_LIGHTS_BINDING) buffer DirLights {
 
 struct PointLight {
     mat4 light_space_mats[6];
-    vec4 position_and_linear;
-    vec4 color_and_quadratic;
+    vec4 position_and_radius;
+    vec3 color;
 };
 
 layout (std430, binding = POINT_LIGHTS_BINDING) buffer PointLights {
@@ -62,8 +62,7 @@ struct SpotLight {
     mat4 light_space_mat;
     vec4 pos_and_cutoff;
     vec4 dir_and_outer_cutoff;
-    vec4 color_and_linear;
-    float quadratic;
+    vec4 color_and_distance;
 };
 
 layout (std430, binding = SPOT_LIGHTS_BINDING) buffer SpotLights {
@@ -349,17 +348,17 @@ void main() {
             break;
 
         PointLight pl           = u_point_lights.lights[light_idx];
-        vec3 position           = pl.position_and_linear.xyz;
+        vec3 position           = pl.position_and_radius.xyz;
         vec3 tangent_position   = fs_in.TBN * position;
-        vec3 color              = pl.color_and_quadratic.rgb;
-        float linear            = pl.position_and_linear.w;
-        float quadratic         = pl.color_and_quadratic.w;
+        vec3 color              = pl.color;
+        float radius            = pl.position_and_radius.w;
 
         float dist = length(position - fs_in.world_space_position);
-        float attentuation
-            = 1.0 / (1.0 + linear * dist + quadratic * dist * dist);
+        float x = clamp(dist / radius, 0.0, 1.0);
+        float falloff = 1.0 - smoothstep(0.7, 1.0, x);
+        falloff *= falloff;
 
-        vec3 radiance = color * attentuation;
+        vec3 radiance = color * falloff;
         vec3 L = normalize(tangent_position - fs_in.tangent_world_position);
         vec3 brdf = berley_brdf(N, V, L, diffuse.rgb, metallic, roughness);
 
@@ -390,25 +389,27 @@ void main() {
         vec3 position           = sl.pos_and_cutoff.xyz;
         vec3 tangent_position   = fs_in.TBN * position;
         vec3 direction          = fs_in.TBN * sl.dir_and_outer_cutoff.xyz;
-        vec3 color              = sl.color_and_linear.rgb;
 
         float cutoff        = sl.pos_and_cutoff.w;
         float outer_cutoff  = sl.dir_and_outer_cutoff.w;
-        float linear        = sl.color_and_linear.w;
-        float quadratic     = sl.quadratic;
 
         vec3 L = normalize(tangent_position - fs_in.tangent_world_position);
         float theta = dot(L, normalize(-direction));
 
         if (theta > cutoff) {
+            float ang_falloff = smoothstep(outer_cutoff, cutoff, theta);
+
             float epsilon = abs(cutoff - outer_cutoff) + 0.0001;
             float intensity = clamp((theta - outer_cutoff) / epsilon, 0.0, 1.0);
 
-            float dist = length(position - fs_in.world_space_position);
-            float attentuation
-                = 1.0 / (1.0 + linear * dist + quadratic * dist * dist);
+            vec3 color = sl.color_and_distance.rgb;
+            float distance = sl.color_and_distance.w;
 
-            vec3 radiance = color * attentuation;
+            float dist = length(position - fs_in.world_space_position);
+            float x = clamp(dist / distance, 0.0, 1.0);
+            float radius_falloff = pow(1.0 - x * x, 2.0);
+
+            vec3 radiance = color * radius_falloff * ang_falloff;
             vec3 brdf = berley_brdf(N, V, L, diffuse.rgb, metallic, roughness);
 
             float shadow

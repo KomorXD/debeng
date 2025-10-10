@@ -30,10 +30,8 @@ struct MaterialComp {
 
 struct PointLight {
     glm::vec3 color{1.0f};
+    float radius = 5.0f;
     float intensity = 1.0f;
-
-    float linear = 0.14f;
-    float quadratic = 0.07f;
 };
 
 struct DirLight {
@@ -43,13 +41,11 @@ struct DirLight {
 
 struct SpotLight {
     glm::vec3 color{1.0f};
+    float distance = 5.0f;
     float intensity = 1.0f;
 
     float cutoff = 12.5f;
     float edge_smoothness = 0.0f;
-
-    float linear = 0.22f;
-    float quadratic = 0.2f;
 };
 
 } // namespace eng

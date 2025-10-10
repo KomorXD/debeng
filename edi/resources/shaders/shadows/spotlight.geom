@@ -9,8 +9,7 @@ struct SpotLight {
     mat4 light_space_mat;
     vec4 pos_and_cutoff;
     vec4 dir_and_outer_cutoff;
-    vec4 color_and_linear;
-    float quadratic;
+    vec4 color_and_distance;
 };
 
 layout (std430, binding = SPOT_LIGHTS_BINDING) buffer SpotLights {

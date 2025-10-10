@@ -21,7 +21,7 @@ constexpr int32_t MAX_MESH_INSTANCES = 256;
 constexpr int32_t MAX_DIR_LIGHTS = 8;
 constexpr int32_t MIN_DIR_LIGHTS_STORAGE = 2;
 
-constexpr int32_t MAX_POINT_LIGHTS = 128;
+constexpr int32_t MAX_POINT_LIGHTS = 256;
 constexpr int32_t MIN_POINT_LIGHTS_STORAGE = 32;
 
 constexpr int32_t MAX_SPOT_LIGHTS = 128;
@@ -74,16 +74,15 @@ struct alignas(16) DirLightData {
 
 struct alignas(16) PointLightData {
     std::array<glm::mat4, 6> light_space_matrices;
-    glm::vec4 position_and_linear;
-    glm::vec4 color_and_quadratic;
+    glm::vec4 position_and_radius;
+    glm::vec3 color;
 };
 
 struct alignas(16) SpotLightData {
     glm::mat4 light_space_mat;
     glm::vec4 pos_and_cutoff;
     glm::vec4 dir_and_outer_cutoff;
-    glm::vec4 color_and_linear;
-    float quadratic;
+    glm::vec4 color_and_distance;
 };
 
 struct alignas(16) SoftShadowProps {

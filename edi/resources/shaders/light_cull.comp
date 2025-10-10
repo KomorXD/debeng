@@ -17,8 +17,8 @@ layout(std430, binding = VISIBLE_INDICES_BINDING) writeonly buffer VisibleIndice
 
 struct PointLight {
     mat4 light_space_mats[6];
-    vec4 position_and_linear;
-    vec4 color_and_quadratic;
+    vec4 position_and_radius;
+    vec3 color;
 };
 
 layout(std430, binding = POINT_LIGHTS_BINDING) readonly buffer PointLights {
@@ -133,14 +133,9 @@ void main() {
             break;
 
         PointLight pl = u_point_lights.lights[light_index];
-        vec3 position = pl.position_and_linear.xyz;
-        vec3 color = pl.color_and_quadratic.rgb;
-        float linear = pl.position_and_linear.w;
-        float quadratic = pl.color_and_quadratic.w;
-
-        float max_comp = max(color.r, max(color.g, color.b));
-        float radius = (-linear + sqrt(linear * linear - 4.0 * quadratic
-            * (1.0 - (256.0 / 5.0) * max_comp))) / (2.0 * quadratic);
+        vec3 position = pl.position_and_radius.xyz;
+        vec3 color = pl.color;
+        float radius = pl.position_and_radius.w;
 
         if (sphere_outside(position, radius)) {
             int count = atomicAdd(visible_lights_count, 1);

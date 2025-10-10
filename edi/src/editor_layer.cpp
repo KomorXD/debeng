@@ -77,8 +77,8 @@ std::unique_ptr<Layer> EditorLayer::create(const eng::WindowSpec &win_spec) {
 
     std::default_random_engine eng{};
     std::uniform_real_distribution<float> dist(0.0f, 1.0f);
-    for (int32_t x = -0; x <= 0; x++) {
-        for (int32_t y = -0; y <= 0; y++) {
+    for (int32_t x = -5; x <= 5; x++) {
+        for (int32_t y = -5; y <= 5; y++) {
             ent = layer->scene.spawn_entity("light");
             ent.get_component<eng::Transform>().position =
                 glm::vec3(x * 5.0f, 4.0f, y * 5.0f);
@@ -88,6 +88,7 @@ std::unique_ptr<Layer> EditorLayer::create(const eng::WindowSpec &win_spec) {
                 dist(eng),
                 dist(eng)
             );
+            ent.get_component<eng::PointLight>().radius = 7.0f;
             ent.add_component<eng::MeshComp>().id = eng::AssetPack::CUBE_ID;
             ent.add_component<eng::MaterialComp>().id =
                 eng::AssetPack::DEFAULT_FLAT_MATERIAL;
@@ -1132,10 +1133,8 @@ static void render_entity_panel(EditorLayer &layer) {
             float width = ImGui::CalcTextSize("Quadratic").x;
             ImGui::PrettyDragFloat("Intensity", &pl.intensity, 0.01f, 0.0f,
                                    FLT_MAX, "%.2f", width);
-            ImGui::PrettyDragFloat("Linear", &pl.linear, 0.0001f, 0.0f,
-                                   FLT_MAX, "%.5f", width);
-            ImGui::PrettyDragFloat("Quadratic", &pl.quadratic, 0.0001f, 0.0f,
-                                   FLT_MAX, "%.5f", width);
+            ImGui::PrettyDragFloat("Radius", &pl.radius, 0.01f, 0.0f,
+                                   FLT_MAX, "%.2f", width);
 
             if (ImGui::PrettyButton("Remove component"))
                 ent.remove_component<eng::PointLight>();
@@ -1161,10 +1160,8 @@ static void render_entity_panel(EditorLayer &layer) {
                                    "%.3f");
             ImGui::PrettyDragFloat("Smoothness", &sl.edge_smoothness, 0.01f,
                                    0.0f, sl.cutoff, "%.3f");
-            ImGui::PrettyDragFloat("Linear", &sl.linear, 0.0001f, 0.0f, FLT_MAX,
-                                   "%.5f");
-            ImGui::PrettyDragFloat("Quadratic", &sl.quadratic, 0.0001f, 0.0f,
-                                   FLT_MAX, "%.5f");
+            ImGui::PrettyDragFloat("Distance", &sl.distance, 0.01f, 0.0f,
+                                   FLT_MAX, "%.2f");
 
             if (ImGui::PrettyButton("Remove component"))
                 ent.remove_component<eng::SpotLight>();

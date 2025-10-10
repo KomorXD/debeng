@@ -7,8 +7,8 @@ layout (triangle_strip, max_vertices = 18) out;
 
 struct PointLight {
     mat4 light_space_mats[6];
-    vec4 position_and_linear;
-    vec4 color_and_quadratic;
+    vec4 position_and_radius;
+    vec3 color;
 };
 
 layout (std430, binding = POINT_LIGHTS_BINDING) buffer PointLights {

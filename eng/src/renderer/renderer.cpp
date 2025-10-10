@@ -1018,29 +1018,6 @@ void submit_mesh(const glm::mat4 &transform, AssetID mesh_id,
     instance.draw_params_idx = draw_params.size() - 1;
 }
 
-void submit_shadow_pass_mesh(const glm::mat4 &transform, AssetID mesh_id) {
-    /* Only one shader in use at a time in shadow passes. */
-    MaterialGroup &mat_grp = s_renderer.shader_render_group[0];
-    MeshGroup &mesh_grp = mat_grp[0];
-    std::vector<MeshInstance> &instances = mesh_grp[mesh_id];
-
-    MeshInstance &instance = instances.emplace_back();
-    instance.transform = transform;
-}
-
-static float max_component(const glm::vec3 &v) {
-    return glm::max(v.x, glm::max(v.y, v.z));
-}
-
-static float light_radius(float constant, float linear, float quadratic,
-                          float max_brightness) {
-    float num =
-        -linear + glm::sqrt(linear * linear -
-                            4.0f * quadratic *
-                                (constant - (256.0f / 5.0f) * max_brightness));
-    return num / (2.0f * quadratic);
-}
-
 static std::vector<glm::vec4>
 frustrum_corners_world_space(const glm::mat4 &proj_view) {
     glm::mat4 inv = glm::inverse(proj_view);
@@ -1065,17 +1042,29 @@ void submit_shadow_mesh(const glm::mat4 &transform, AssetID mesh_id) {
 
     bool visible_to_any = false;
     for (const PointLightData &pl : s_renderer.point_lights) {
-        glm::vec3 color = glm::vec3(pl.color_and_quadratic);
-        float linear = pl.position_and_linear.w;
-        float quadratic = pl.color_and_quadratic.w;
-        float radius = light_radius(1.0, linear, quadratic, glm::compMax(color));
-
-        glm::vec3 position = glm::vec3(pl.position_and_linear);
+        glm::vec3 position = glm::vec3(pl.position_and_radius);
         glm::vec3 closest = glm::clamp(position, world_bb.min, world_bb.max);
+
         float dist2 = glm::length2(position - closest);
+        float radius = pl.position_and_radius.w;
         if (dist2 <= radius * radius) {
             visible_to_any = true;
             break;
+        }
+    }
+
+    if (!visible_to_any) {
+        for (const SpotLightData &sl : s_renderer.spot_lights) {
+            glm::vec3 position = glm::vec3(sl.pos_and_cutoff);
+            glm::vec3 closest =
+                glm::clamp(position, world_bb.min, world_bb.max);
+
+            float dist2 = glm::length2(position - closest);
+            float radius = sl.color_and_distance.w;
+            if (dist2 <= radius * radius) {
+                visible_to_any = true;
+                break;
+            }
         }
     }
 
@@ -1227,11 +1216,9 @@ void submit_point_light(const glm::vec3 &position, const PointLight &light) {
 
     std::array<Plane, 6> camera_planes =
         extract_frustm_planes(s_active_camera->view_projection);
-    float radius = light_radius(1.0f, light.linear, light.quadratic,
-                                glm::compMax(light.color * light.intensity));
     for (int32_t i = 0; i < camera_planes.size(); i++) {
         Plane &plane = camera_planes[i];
-        float dist = glm::dot(plane.normal, position) + plane.d + radius;
+        float dist = glm::dot(plane.normal, position) + plane.d + light.radius;
         if (dist <= 0.0f)
             return;
     }
@@ -1239,7 +1226,7 @@ void submit_point_light(const glm::vec3 &position, const PointLight &light) {
     s_renderer.stats.accepted_point_lights++;
 
     glm::mat4 proj =
-        glm::perspective(glm::radians(91.0f), 1.0f, 0.1f, radius);
+        glm::perspective(glm::radians(91.0f), 1.0f, 0.1f, light.radius);
 
     PointLightData &light_data = s_renderer.point_lights.emplace_back();
     light_data.light_space_matrices = {
@@ -1256,10 +1243,9 @@ void submit_point_light(const glm::vec3 &position, const PointLight &light) {
         proj * glm::lookAt(position, position + glm::vec3(0.0f, 0.0f, -1.0f),
                            glm::vec3(0.0f, -1.0f, 0.0f))
     };
-    light_data.position_and_linear =
-        glm::vec4(position, light.linear);
-    light_data.color_and_quadratic =
-        glm::vec4(light.color * light.intensity, light.quadratic);
+    light_data.position_and_radius =
+        glm::vec4(position, light.radius);
+    light_data.color = light.color * light.intensity;
 }
 
 void submit_spot_light(const Transform &transform, const SpotLight &light) {
@@ -1270,12 +1256,10 @@ void submit_spot_light(const Transform &transform, const SpotLight &light) {
 
     std::array<Plane, 6> camera_planes =
         extract_frustm_planes(s_active_camera->view_projection);
-    float radius = light_radius(1.0f, light.linear, light.quadratic,
-                                glm::compMax(light.color * light.intensity));
     for (int32_t i = 0; i < camera_planes.size(); i++) {
         Plane &plane = camera_planes[i];
-        float dist =
-            glm::dot(plane.normal, transform.position) + plane.d + radius;
+        float dist = glm::dot(plane.normal, transform.position) + plane.d +
+                     light.distance;
         if (dist <= 0.0f)
             return;
     }
@@ -1285,8 +1269,8 @@ void submit_spot_light(const Transform &transform, const SpotLight &light) {
     glm::vec3 dir = glm::toMat3(glm::quat(transform.rotation)) *
                     glm::vec3(0.0f, 0.0f, -1.0f);
 
-    glm::mat4 proj =
-        glm::perspective(glm::radians(2.0f * light.cutoff), 1.0f, 0.1f, radius);
+    glm::mat4 proj = glm::perspective(glm::radians(2.0f * light.cutoff), 1.0f,
+                                      0.1f, light.distance);
     glm::mat4 view = glm::lookAt(transform.position, transform.position + dir,
                                  glm::vec3(0.0f, 1.0f, 0.0f));
 
@@ -1296,9 +1280,8 @@ void submit_spot_light(const Transform &transform, const SpotLight &light) {
         glm::vec4(transform.position, glm::cos(glm::radians(light.cutoff)));
     light_data.dir_and_outer_cutoff = glm::vec4(
         dir, glm::cos(glm::radians(light.cutoff - light.edge_smoothness)));
-    light_data.color_and_linear =
-        glm::vec4(light.color * light.intensity, light.linear);
-    light_data.quadratic = light.quadratic;
+    light_data.color_and_distance =
+        glm::vec4(light.color * light.intensity, light.distance);
 }
 
 EnvMap create_envmap(const Texture &equirect) {

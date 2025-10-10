@@ -19,6 +19,7 @@
 #include "imgui/ImGuizmo.h"
 #include "layers.hpp"
 #include <cfloat>
+#include <random>
 #include <string>
 #include <signal.h>
 
@@ -26,12 +27,11 @@ std::unique_ptr<Layer> EditorLayer::create(const eng::WindowSpec &win_spec) {
     glm::ivec2 window_size = glm::ivec2(win_spec.width, win_spec.height);
 
     std::unique_ptr<EditorLayer> layer = std::make_unique<EditorLayer>();
-    layer->camera.position = glm::vec3(0.0f, 2.0f, -3.0f);
+    layer->camera.position = glm::vec3(0.0f, 2.0f, 0.0f);
     layer->camera.yaw = 180.0f;
     layer->camera.viewport = window_size;
     layer->camera.cam_control = eng::TrackballControl::create(&layer->camera);
     eng::disable_cursor();
-
 
     {
         layer->main_fbo = Framebuffer::create();
@@ -69,18 +69,25 @@ std::unique_ptr<Layer> EditorLayer::create(const eng::WindowSpec &win_spec) {
         ent.get_component<eng::Transform>().position =
             glm::vec3(0.0f, (float)y, 0.0f);
         ent.get_component<eng::Transform>().scale =
-            glm::vec3(200.0f, 1.0f, 200.0f);
+            glm::vec3(500.0f, 1.0f, 500.0f);
         ent.add_component<eng::MeshComp>().id = eng::AssetPack::CUBE_ID;
         ent.add_component<eng::MaterialComp>().id =
             eng::AssetPack::DEFAULT_BASE_MATERIAL;
     }
 
-    for (int32_t x = -5; x <= 5; x++) {
-        for (int32_t y = -5; y <= 5; y++) {
+    std::default_random_engine eng{};
+    std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+    for (int32_t x = -0; x <= 0; x++) {
+        for (int32_t y = -0; y <= 0; y++) {
             ent = layer->scene.spawn_entity("light");
             ent.get_component<eng::Transform>().position =
-                glm::vec3(x * 3.0f, 4.0f, y * 3.0f);
-            ent.add_component<eng::PointLight>().intensity = 3.0f;
+                glm::vec3(x * 5.0f, 4.0f, y * 5.0f);
+            ent.add_component<eng::PointLight>().intensity = 2.0f;
+            ent.get_component<eng::PointLight>().color = glm::vec3(
+                dist(eng),
+                dist(eng),
+                dist(eng)
+            );
             ent.add_component<eng::MeshComp>().id = eng::AssetPack::CUBE_ID;
             ent.add_component<eng::MaterialComp>().id =
                 eng::AssetPack::DEFAULT_FLAT_MATERIAL;
@@ -240,7 +247,7 @@ static void render_control_panel(EditorLayer &layer);
 static void render_entity_panel(EditorLayer &layer);
 static void render_gizmo(EditorLayer &layer);
 
-static void on_shadow_pass(EditorLayer &layer) {
+[[maybe_unused]] static void on_shadow_pass(EditorLayer &layer) {
     eng::Scene &scene = layer.scene;
 
     eng::renderer::shadow_pass_begin(layer.camera.render_data(),
@@ -280,7 +287,7 @@ static void on_shadow_pass(EditorLayer &layer) {
         eng::Transform &transform = rview.get<eng::Transform>(entry);
         eng::MeshComp &mesh = rview.get<eng::MeshComp>(entry);
 
-        eng::renderer::submit_shadow_pass_mesh(transform.to_mat4(), mesh.id);
+        eng::renderer::submit_shadow_mesh(transform.to_mat4(), mesh.id);
     }
 
     eng::renderer::shadow_pass_end();
@@ -666,7 +673,7 @@ static void render_control_panel(EditorLayer &layer) {
     if (ImGui::CollapsingHeader("Render stats")) {
         eng::renderer::RenderStats stats = eng::renderer::stats();
 
-        float horizontal_size = ImGui::CalcTextSize("Shadow pass (ms)").x;
+        float horizontal_size = ImGui::CalcTextSize("Accepted point lights").x;
         ImGui::Indent(8.0f);
 
         if (ImGui::BeginTable("#Stats", 2)) {
@@ -695,12 +702,23 @@ static void render_control_panel(EditorLayer &layer) {
             {
                 /* Lights divided by 2 because they're submitted for shadow AND
                  * base pass. */
-                std::array<int32_t, 5> values = {
-                    stats.dir_lights / 2, stats.point_lights / 2,
-                    stats.spot_lights / 2, stats.instances, stats.draw_calls};
-                std::array<const char *, 5> labels = {
-                    "Dir lights", "Point lights", "Spot lights", "Instances",
-                    "Draw calls"};
+                std::array<int32_t, 8> values = {
+                    stats.dir_lights / 2,
+                    stats.submitted_point_lights / 2,
+                    stats.accepted_point_lights / 2,
+                    stats.submitted_spot_lights / 2,
+                    stats.accepted_spot_lights / 2,
+                    stats.shadow_meshes_rendered,
+                    stats.instances,
+                    stats.draw_calls};
+                std::array<const char *, 8> labels = {"Dir lights",
+                                                      "Submitted point lights",
+                                                      "Accepted point lights",
+                                                      "Submitted spot lights",
+                                                      "Accepted spot lights",
+                                                      "Meshes shadowed",
+                                                      "Instances",
+                                                      "Draw calls"};
 
                 for (int32_t i = 0; i < labels.size(); i++) {
                     ImGui::TableNextColumn();

@@ -16,7 +16,7 @@ constexpr int32_t SOFT_SHADOW_PROPS_BINDING = 4;
 constexpr int32_t VISIBLE_INDICES_BINDING = 5;
 constexpr int32_t DRAW_PARAMS_BINDING = 6;
 
-constexpr int32_t MAX_MESH_INSTANCES = 256;
+constexpr int32_t MAX_MESH_INSTANCES = 1024;
 
 constexpr int32_t MAX_DIR_LIGHTS = 8;
 constexpr int32_t MIN_DIR_LIGHTS_STORAGE = 2;
@@ -73,7 +73,6 @@ struct alignas(16) DirLightData {
 };
 
 struct alignas(16) PointLightData {
-    std::array<glm::mat4, 6> light_space_matrices;
     glm::vec4 position_and_radius;
     glm::vec3 color;
 };

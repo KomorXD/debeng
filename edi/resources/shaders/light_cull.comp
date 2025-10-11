@@ -16,7 +16,6 @@ layout(std430, binding = VISIBLE_INDICES_BINDING) writeonly buffer VisibleIndice
 } u_indices;
 
 struct PointLight {
-    mat4 light_space_mats[6];
     vec4 position_and_radius;
     vec3 color;
 };

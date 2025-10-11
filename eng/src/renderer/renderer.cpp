@@ -432,10 +432,12 @@ bool init() {
         spec.layers = MIN_DIR_LIGHTS_STORAGE * CASCADES_COUNT;
         s_renderer.shadow_fbo.add_depth_attachment(spec);
 
+        spec.tex_type = TextureType::TEX_CUBE_ARRAY_SHADOW;
         spec.size = {512, 512};
-        spec.layers = MIN_POINT_LIGHTS_STORAGE * 6;
+        spec.layers = MIN_POINT_LIGHTS_STORAGE;
         s_renderer.shadow_fbo.add_depth_attachment(spec);
 
+        spec.tex_type = TextureType::TEX_2D_ARRAY_SHADOW;
         spec.layers = MIN_SPOT_LIGHTS_STORAGE;
         s_renderer.shadow_fbo.add_depth_attachment(spec);
 
@@ -481,7 +483,7 @@ bool init() {
 
         ShaderSpec spec;
         spec.vertex_shader.path = "resources/shaders/shadows/depth-shadow.vert";
-        spec.fragment_shader.path = "resources/shaders/depth.frag";
+        spec.fragment_shader.path = "resources/shaders/shadows/pointlight.frag";
         spec.geometry_shader = {
             .path = "resources/shaders/shadows/pointlight.geom",
             .replacements = {
@@ -860,7 +862,7 @@ void shadow_pass_end() {
         s_renderer.point_lights.data(), count * sizeof(PointLightData), offset);
 
     try_change_shadow_layers(s_renderer.shadow_fbo, 1,
-                             s_renderer.point_lights_allocated * 6);
+                             s_renderer.point_lights_allocated);
 
 
     count = s_renderer.spot_lights.size();
@@ -1246,24 +1248,7 @@ void submit_point_light(const glm::vec3 &position, const PointLight &light) {
 
     s_renderer.stats.accepted_point_lights++;
 
-    glm::mat4 proj =
-        glm::perspective(glm::radians(91.0f), 1.0f, 0.1f, light.radius);
-
     PointLightData &light_data = s_renderer.point_lights.emplace_back();
-    light_data.light_space_matrices = {
-        proj * glm::lookAt(position, position + glm::vec3(1.0f, 0.0f, 0.0f),
-                           glm::vec3(0.0f, -1.0f, 0.0f)),
-        proj * glm::lookAt(position, position + glm::vec3(-1.0f, 0.0f, 0.0f),
-                           glm::vec3(0.0f, -1.0f, 0.0f)),
-        proj * glm::lookAt(position, position + glm::vec3(0.0f, 1.0f, 0.0f),
-                           glm::vec3(0.0f, 0.0f, 1.0f)),
-        proj * glm::lookAt(position, position + glm::vec3(0.0f, -1.0f, 0.0f),
-                           glm::vec3(0.0f, 0.0f, -1.0f)),
-        proj * glm::lookAt(position, position + glm::vec3(0.0f, 0.0f, 1.0f),
-                           glm::vec3(0.0f, -1.0f, 0.0f)),
-        proj * glm::lookAt(position, position + glm::vec3(0.0f, 0.0f, -1.0f),
-                           glm::vec3(0.0f, -1.0f, 0.0f))
-    };
     light_data.position_and_radius =
         glm::vec4(position, light.radius);
     light_data.color = light.color * light.intensity;

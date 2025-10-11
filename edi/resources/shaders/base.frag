@@ -44,7 +44,6 @@ layout (std430, binding = DIR_LIGHTS_BINDING) buffer DirLights {
 } u_dir_lights;
 
 struct PointLight {
-    mat4 light_space_mats[6];
     vec4 position_and_radius;
     vec3 color;
 };
@@ -135,12 +134,20 @@ uniform sampler2D u_BRDF_LUT;
 
 uniform float u_cascade_distances[CASCADES_COUNT];
 uniform sampler2DArrayShadow u_dir_lights_csm_shadowmaps;
-uniform sampler2DArrayShadow u_point_lights_shadowmaps;
+uniform samplerCubeArrayShadow u_point_lights_shadowmaps;
 uniform sampler2DArrayShadow u_spot_lights_shadowmaps;
 uniform sampler3D u_soft_shadow_offsets_texture;
 
-float calc_shadow(sampler2DArrayShadow shadowmaps, mat4 light_space_mat,
-                  int layer, vec3 N, vec3 L) {
+float point_shadow_factor(int light_idx, vec3 L, float radius) {
+    float curr_depth = length(L) / radius;
+    float shadow = texture(u_point_lights_shadowmaps,
+                           vec4(normalize(L), light_idx), curr_depth);
+
+    return shadow;
+}
+
+float depth_shadow_factor(sampler2DArrayShadow shadowmaps, mat4 light_space_mat,
+                          int layer, vec3 N, vec3 L) {
     vec4 frag_position_light_space
         = light_space_mat * vec4(fs_in.world_space_position, 1.0);
     vec3 proj_coords = frag_position_light_space.xyz
@@ -217,9 +224,9 @@ float calc_csm_shadow(int dir_light_idx, vec3 N, vec3 L) {
     if (layer == -1)
         return 1.0;
 
-    return calc_shadow(u_dir_lights_csm_shadowmaps,
-                       u_dir_lights.lights[dir_light_idx].cascades_mats[layer],
-                       dir_light_idx * CASCADES_COUNT + layer, N, L);
+    return depth_shadow_factor(u_dir_lights_csm_shadowmaps,
+                               u_dir_lights.lights[dir_light_idx].cascades_mats[layer],
+                               dir_light_idx * CASCADES_COUNT + layer, N, L);
 }
 
 const float PI = 3.14159265359;
@@ -363,23 +370,7 @@ void main() {
         vec3 brdf = berley_brdf(N, V, L, diffuse.rgb, metallic, roughness);
 
         vec3 dir = fs_in.world_space_position - position;
-        vec3 dirs[] = {
-            vec3(1.0, 0.0, 0.0), vec3(-1.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0),
-            vec3(0.0, -1.0, 0.0), vec3(0.0, 0.0, 1.0), vec3(0.0, 0.0, -1.0)
-        };
-        int dir_idx = -1;
-        float max_dot = 0.0;
-        for (int i = 0; i < 6; i++) {
-            float d = dot(dirs[i], dir);
-            if (d > max_dot) {
-                dir_idx = i;
-                max_dot = d;
-            }
-        }
-
-        float shadow = calc_shadow(u_point_lights_shadowmaps,
-                                   pl.light_space_mats[dir_idx],
-                                   light_idx * 6 + dir_idx, N, L);
+        float shadow = point_shadow_factor(light_idx, dir, radius);
         Lo += brdf * radiance * shadow * ao;
     }
 
@@ -413,8 +404,8 @@ void main() {
             vec3 brdf = berley_brdf(N, V, L, diffuse.rgb, metallic, roughness);
 
             float shadow
-                = calc_shadow(u_spot_lights_shadowmaps, sl.light_space_mat, i,
-                              N, L);
+                = depth_shadow_factor(u_spot_lights_shadowmaps, sl.light_space_mat,
+                                      i, N, L);
             Lo += brdf * radiance * shadow * ao;
         }
     }

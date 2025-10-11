@@ -929,6 +929,7 @@ GLint opengl_texture_type(TextureType type) {
     case TextureType::TEX_2D_ARRAY_SHADOW:
         return GL_TEXTURE_2D_ARRAY;
     case TextureType::TEX_CUBE_ARRAY:
+    case TextureType::TEX_CUBE_ARRAY_SHADOW:
         return GL_TEXTURE_CUBE_MAP_ARRAY;
     default:
         assert(true && "Unsupported texture type passed");

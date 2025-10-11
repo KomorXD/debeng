@@ -377,9 +377,43 @@ void main() {
             }
         }
 
-        float shadow = calc_shadow(u_point_lights_shadowmaps,
-                                   pl.light_space_mats[dir_idx],
-                                   light_idx * 6 + dir_idx, N, L);
+        /* Dynamic access to light_space_mats with dir_idx was very inefficient.
+           Doing that switch fixes that and matches performance with cubemaps,
+           while allowing me to not alter soft shadowing. */
+        float shadow = 0.0;
+        switch (dir_idx) {
+        case 0:
+            shadow = calc_shadow(u_point_lights_shadowmaps,
+                                 pl.light_space_mats[0],
+                                 light_idx * 6 + 0, N, L);
+            break;
+        case 1:
+            shadow = calc_shadow(u_point_lights_shadowmaps,
+                                 pl.light_space_mats[1],
+                                 light_idx * 6 + 1, N, L);
+            break;
+        case 2:
+            shadow = calc_shadow(u_point_lights_shadowmaps,
+                                 pl.light_space_mats[2],
+                                 light_idx * 6 + 2, N, L);
+            break;
+        case 3:
+            shadow = calc_shadow(u_point_lights_shadowmaps,
+                                 pl.light_space_mats[3],
+                                 light_idx * 6 + 3, N, L);
+            break;
+        case 4:
+            shadow = calc_shadow(u_point_lights_shadowmaps,
+                                 pl.light_space_mats[4],
+                                 light_idx * 6 + 4, N, L);
+            break;
+        case 5:
+            shadow = calc_shadow(u_point_lights_shadowmaps,
+                                 pl.light_space_mats[5],
+                                 light_idx * 6 + 5, N, L);
+            break;
+        }
+
         Lo += brdf * radiance * shadow * ao;
     }
 

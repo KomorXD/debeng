@@ -991,10 +991,84 @@ static MeshAABB world_space_bb(Mesh &mesh, const glm::mat4 &transform) {
     return {world_min, world_max};
 }
 
+struct Plane {
+    glm::vec3 normal;
+    float d;
+};
+
+std::array<Plane, 6> extract_frustm_planes(const glm::mat4 &mat) {
+    std::array<Plane, 6> planes;
+
+    // Left
+    planes[0].normal.x = mat[0][3] + mat[0][0];
+    planes[0].normal.y = mat[1][3] + mat[1][0];
+    planes[0].normal.z = mat[2][3] + mat[2][0];
+    planes[0].d        = mat[3][3] + mat[3][0];
+
+    // Right
+    planes[1].normal.x = mat[0][3] - mat[0][0];
+    planes[1].normal.y = mat[1][3] - mat[1][0];
+    planes[1].normal.z = mat[2][3] - mat[2][0];
+    planes[1].d        = mat[3][3] - mat[3][0];
+
+    // Bottom
+    planes[2].normal.x = mat[0][3] + mat[0][1];
+    planes[2].normal.y = mat[1][3] + mat[1][1];
+    planes[2].normal.z = mat[2][3] + mat[2][1];
+    planes[2].d        = mat[3][3] + mat[3][1];
+
+    // Top
+    planes[3].normal.x = mat[0][3] - mat[0][1];
+    planes[3].normal.y = mat[1][3] - mat[1][1];
+    planes[3].normal.z = mat[2][3] - mat[2][1];
+    planes[3].d        = mat[3][3] - mat[3][1];
+
+    // Near
+    planes[4].normal.x = mat[0][3] + mat[0][2];
+    planes[4].normal.y = mat[1][3] + mat[1][2];
+    planes[4].normal.z = mat[2][3] + mat[2][2];
+    planes[4].d        = mat[3][3] + mat[3][2];
+
+    // Far
+    planes[5].normal.x = mat[0][3] - mat[0][2];
+    planes[5].normal.y = mat[1][3] - mat[1][2];
+    planes[5].normal.z = mat[2][3] - mat[2][2];
+    planes[5].d        = mat[3][3] - mat[3][2];
+
+    for (int i = 0; i < 6; i++) {
+        float inv_len = 1.0f / glm::length(planes[i].normal);
+        planes[i].normal *= inv_len;
+        planes[i].d *= inv_len;
+    }
+
+    return planes;
+}
+
+
 void submit_mesh(const glm::mat4 &transform, AssetID mesh_id,
                  AssetID material_id, int32_t ent_id,
                  const DrawParams &params) {
-    s_renderer.stats.instances++;
+    s_renderer.stats.submitted_instances++;
+
+    Mesh &mesh = s_asset_pack->meshes.at(mesh_id);
+    MeshAABB world_bb = world_space_bb(mesh, transform);
+
+    std::array<Plane, 6> camera_planes =
+        extract_frustm_planes(s_active_camera->view_projection);
+    for (int32_t i = 0; i < camera_planes.size(); i++) {
+        glm::vec3 n = camera_planes[i].normal;
+        float d = camera_planes[i].d;
+
+        glm::vec3 pos = world_bb.min;
+        if (n.x >= 0)   pos.x = world_bb.max.x;
+        if (n.y >= 0)   pos.y = world_bb.max.y;
+        if (n.z >= 0)   pos.z = world_bb.max.z;
+
+        if (glm::dot(n, pos) + d < 0.0f)
+            return;
+    }
+
+    s_renderer.stats.accepted_instances++;
 
     Material &mat = s_asset_pack->materials.at(material_id);
     MaterialGroup &mat_grp = s_renderer.shader_render_group[mat.shader_id];
@@ -1153,59 +1227,6 @@ void submit_dir_light(const glm::vec3 &rotation, const DirLight &light) {
     light_data.direction = glm::vec4(
         glm::toMat3(glm::quat(rotation)) * glm::vec3(0.0f, 0.0f, -1.0f), 1.0f);
     light_data.color = glm::vec4(light.color * light.intensity, 1.0f);
-}
-
-struct Plane {
-    glm::vec3 normal;
-    float d;
-};
-
-std::array<Plane, 6> extract_frustm_planes(const glm::mat4 &mat) {
-    std::array<Plane, 6> planes;
-
-    // Left
-    planes[0].normal.x = mat[0][3] + mat[0][0];
-    planes[0].normal.y = mat[1][3] + mat[1][0];
-    planes[0].normal.z = mat[2][3] + mat[2][0];
-    planes[0].d        = mat[3][3] + mat[3][0];
-
-    // Right
-    planes[1].normal.x = mat[0][3] - mat[0][0];
-    planes[1].normal.y = mat[1][3] - mat[1][0];
-    planes[1].normal.z = mat[2][3] - mat[2][0];
-    planes[1].d        = mat[3][3] - mat[3][0];
-
-    // Bottom
-    planes[2].normal.x = mat[0][3] + mat[0][1];
-    planes[2].normal.y = mat[1][3] + mat[1][1];
-    planes[2].normal.z = mat[2][3] + mat[2][1];
-    planes[2].d        = mat[3][3] + mat[3][1];
-
-    // Top
-    planes[3].normal.x = mat[0][3] - mat[0][1];
-    planes[3].normal.y = mat[1][3] - mat[1][1];
-    planes[3].normal.z = mat[2][3] - mat[2][1];
-    planes[3].d        = mat[3][3] - mat[3][1];
-
-    // Near
-    planes[4].normal.x = mat[0][3] + mat[0][2];
-    planes[4].normal.y = mat[1][3] + mat[1][2];
-    planes[4].normal.z = mat[2][3] + mat[2][2];
-    planes[4].d        = mat[3][3] + mat[3][2];
-
-    // Far
-    planes[5].normal.x = mat[0][3] - mat[0][2];
-    planes[5].normal.y = mat[1][3] - mat[1][2];
-    planes[5].normal.z = mat[2][3] - mat[2][2];
-    planes[5].d        = mat[3][3] - mat[3][2];
-
-    for (int i = 0; i < 6; i++) {
-        float inv_len = 1.0f / glm::length(planes[i].normal);
-        planes[i].normal *= inv_len;
-        planes[i].d *= inv_len;
-    }
-
-    return planes;
 }
 
 void submit_point_light(const glm::vec3 &position, const PointLight &light) {

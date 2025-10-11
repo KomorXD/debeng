@@ -119,7 +119,9 @@ struct RenderStats {
 
     int32_t shadow_meshes_rendered{};
 
-    int32_t instances{};
+    int32_t submitted_instances{};
+    int32_t accepted_instances{};
+
     int32_t draw_calls{};
 };
 

@@ -703,22 +703,24 @@ static void render_control_panel(EditorLayer &layer) {
             {
                 /* Lights divided by 2 because they're submitted for shadow AND
                  * base pass. */
-                std::array<int32_t, 8> values = {
+                std::array<int32_t, 9> values = {
                     stats.dir_lights / 2,
                     stats.submitted_point_lights / 2,
                     stats.accepted_point_lights / 2,
                     stats.submitted_spot_lights / 2,
                     stats.accepted_spot_lights / 2,
                     stats.shadow_meshes_rendered,
-                    stats.instances,
+                    stats.submitted_instances,
+                    stats.accepted_instances,
                     stats.draw_calls};
-                std::array<const char *, 8> labels = {"Dir lights",
+                std::array<const char *, 9> labels = {"Dir lights",
                                                       "Submitted point lights",
                                                       "Accepted point lights",
                                                       "Submitted spot lights",
                                                       "Accepted spot lights",
                                                       "Meshes shadowed",
-                                                      "Instances",
+                                                      "Submitted instances",
+                                                      "Accepted instances",
                                                       "Draw calls"};
 
                 for (int32_t i = 0; i < labels.size(); i++) {

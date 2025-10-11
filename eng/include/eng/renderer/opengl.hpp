@@ -245,6 +245,8 @@ enum class TextureType {
     TEX_2D,
     TEX_2D_ARRAY,
     TEX_2D_ARRAY_SHADOW,
+    TEX_CUBE_ARRAY,
+    TEX_CUBE_ARRAY_SHADOW,
 
     COUNT
 };

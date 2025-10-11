@@ -928,6 +928,8 @@ GLint opengl_texture_type(TextureType type) {
     case TextureType::TEX_2D_ARRAY:
     case TextureType::TEX_2D_ARRAY_SHADOW:
         return GL_TEXTURE_2D_ARRAY;
+    case TextureType::TEX_CUBE_ARRAY:
+        return GL_TEXTURE_CUBE_MAP_ARRAY;
     default:
         assert(true && "Unsupported texture type passed");
         return {};
@@ -990,6 +992,17 @@ void Framebuffer::add_depth_attachment(DepthAttachmentSpec spec,
         GL_CALL(glTexImage3D(tex_type, 0, details.internal_format, spec.size.x,
                              spec.size.y, spec.layers, 0, details.format,
                              details.type, nullptr));
+        break;
+
+    case TextureType::TEX_CUBE_ARRAY_SHADOW:
+        GL_CALL(glTexParameteri(tex_type, GL_TEXTURE_COMPARE_MODE,
+                                GL_COMPARE_REF_TO_TEXTURE));
+        [[fallthrough]];
+
+    case TextureType::TEX_CUBE_ARRAY:
+        GL_CALL(glTexParameteri(tex_type, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE));
+        GL_CALL(glTexStorage3D(tex_type, 1, details.internal_format,
+                               spec.size.x, spec.size.y, 6 * spec.layers));
         break;
 
     default:

@@ -272,12 +272,15 @@ struct Registry {
         if (comp_hashes.empty())
             return rview;
 
+        const size_t first_comp_hash = comp_hashes[0];
+        if (!component_index.contains(first_comp_hash))
+            return rview;
+
         for (ComponentHash comp_hash : comp_hashes)
             rview.queried_components.insert(comp_hash);
 
         /*  Get first component's archetype map to access IDs of archetypes
             who have this component. */
-        const size_t first_comp_hash = comp_hashes[0];
         ArchetypeMap &amap = component_index.at(first_comp_hash);
 
         std::vector<ComponentHash> excluded_comp_hashes = excl_fn();

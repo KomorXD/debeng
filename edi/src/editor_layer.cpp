@@ -19,7 +19,6 @@
 #include "imgui/ImGuizmo.h"
 #include "layers.hpp"
 #include <cfloat>
-#include <random>
 #include <string>
 #include <signal.h>
 
@@ -59,41 +58,7 @@ std::unique_ptr<Layer> EditorLayer::create(const eng::WindowSpec &win_spec) {
     }
 
     layer->asset_pack = eng::AssetPack::create("default");
-
     layer->scene = eng::Scene::create("New scene");
-
-    eng::Entity ent;
-
-    for (int32_t y = -100; y <= 0; y++) {
-        ent = layer->scene.spawn_entity("ent");
-        ent.get_component<eng::Transform>().position =
-            glm::vec3(0.0f, (float)y, 0.0f);
-        ent.get_component<eng::Transform>().scale =
-            glm::vec3(500.0f, 1.0f, 500.0f);
-        ent.add_component<eng::MeshComp>().id = eng::AssetPack::CUBE_ID;
-        ent.add_component<eng::MaterialComp>().id =
-            eng::AssetPack::DEFAULT_BASE_MATERIAL;
-    }
-
-    std::default_random_engine eng{};
-    std::uniform_real_distribution<float> dist(0.0f, 1.0f);
-    for (int32_t x = -5; x <= 5; x++) {
-        for (int32_t y = -5; y <= 5; y++) {
-            ent = layer->scene.spawn_entity("light");
-            ent.get_component<eng::Transform>().position =
-                glm::vec3(x * 5.0f, 4.0f, y * 5.0f);
-            ent.add_component<eng::PointLight>().intensity = 2.0f;
-            ent.get_component<eng::PointLight>().color = glm::vec3(
-                dist(eng),
-                dist(eng),
-                dist(eng)
-            );
-            ent.get_component<eng::PointLight>().radius = 7.0f;
-            ent.add_component<eng::MeshComp>().id = eng::AssetPack::CUBE_ID;
-            ent.add_component<eng::MaterialComp>().id =
-                eng::AssetPack::DEFAULT_FLAT_MATERIAL;
-        }
-    }
 
     eng::Material mat;
     mat.name = "Outline";
@@ -1002,16 +967,14 @@ static void render_entity_panel(EditorLayer &layer) {
 
                 eng::AssetID *tex_ids[] = {
                     &mat.albedo_texture_id, &mat.normal_texture_id,
-                    &mat.roughness_texture_id, &mat.metallic_texture_id,
-                    &mat.ao_texture_id};
+                    &mat.orm_texture_id};
                 TextureFormat formats[] = {
                     TextureFormat::RGBA8, TextureFormat::RGB8,
-                    TextureFormat::R8, TextureFormat::R8, TextureFormat::R8};
-                const char *labels[] = {"Albedo", "Normal", "Roughness",
-                                        "Metallic", "AO"};
+                    TextureFormat::RGB8};
+                const char *labels[] = {"Albedo", "Normal", "ORM"};
 
                 constexpr int32_t TEXTURES = IM_ARRAYSIZE(tex_ids);
-                horizontal_size = ImGui::CalcTextSize("Roughness").x + 1.0f;
+                horizontal_size = ImGui::CalcTextSize("Albedo").x + 1.0f;
 
                 for (int32_t i = 0; i < TEXTURES; i++) {
                     Texture &tex = layer.asset_pack.textures.at(*tex_ids[i]);

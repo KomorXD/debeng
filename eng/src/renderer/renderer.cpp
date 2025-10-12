@@ -193,9 +193,7 @@ bool init() {
 
     s_renderer.slots.albedo = 0;
     s_renderer.slots.normal = 1;
-    s_renderer.slots.roughness = 2;
-    s_renderer.slots.metallic = 3;
-    s_renderer.slots.ao = 4;
+    s_renderer.slots.orm = 2;
     s_renderer.slots.irradiance_map = 5;
     s_renderer.slots.prefilter_map = 6;
     s_renderer.slots.brdf_lut = 7;
@@ -757,14 +755,12 @@ void scene_end() {
             curr_shader.try_set_uniform_1f("u_material.metallic", mat.metallic);
             curr_shader.try_set_uniform_1f("u_material.ao", mat.ao);
 
-            std::array<AssetID, 5> tex_ids = {
-                mat.albedo_texture_id, mat.normal_texture_id,
-                mat.roughness_texture_id, mat.metallic_texture_id,
-                mat.ao_texture_id};
-            std::array<int32_t, 5> tex_bindings = {
-                s_renderer.slots.albedo, s_renderer.slots.normal,
-                s_renderer.slots.roughness, s_renderer.slots.metallic,
-                s_renderer.slots.ao};
+            std::array<AssetID, 3> tex_ids = {mat.albedo_texture_id,
+                                              mat.normal_texture_id,
+                                              mat.orm_texture_id};
+            std::array<int32_t, 3> tex_bindings = {s_renderer.slots.albedo,
+                                                   s_renderer.slots.normal,
+                                                   s_renderer.slots.orm};
             for (int32_t i = 0; i < tex_ids.size(); i++) {
                 Texture &tex = s_asset_pack->textures.at(tex_ids[i]);
                 tex.bind(tex_bindings[i]);

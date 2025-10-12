@@ -190,11 +190,9 @@ AssetPack AssetPack::create(const std::string &pack_name) {
         assert(base_shader.build(spec) && "Default shaders not found");
 
         renderer::TextureSlots slots = eng::renderer::texture_slots();
-        std::array<const char *, 13> unis = {"u_albedo",
+        std::array<const char *, 11> unis = {"u_albedo",
                                              "u_normal",
-                                             "u_roughness",
-                                             "u_metallic",
-                                             "u_ao",
+                                             "u_orm",
                                              "u_irradiance_map",
                                              "u_prefilter_map",
                                              "u_max_prefilter_mips",
@@ -203,11 +201,9 @@ AssetPack AssetPack::create(const std::string &pack_name) {
                                              "u_point_lights_shadowmaps",
                                              "u_spot_lights_shadowmaps",
                                              "u_soft_shadow_offsets_texture"};
-        std::array<int32_t, 13> tex_slots = {slots.albedo,
+        std::array<int32_t, 11> tex_slots = {slots.albedo,
                                              slots.normal,
-                                             slots.roughness,
-                                             slots.metallic,
-                                             slots.ao,
+                                             slots.orm,
                                              slots.irradiance_map,
                                              slots.prefilter_map,
                                              slots.prefilter_mips,

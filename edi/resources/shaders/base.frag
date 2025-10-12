@@ -124,9 +124,7 @@ struct Material {
 uniform Material u_material;
 uniform sampler2D u_albedo;
 uniform sampler2D u_normal;
-uniform sampler2D u_roughness;
-uniform sampler2D u_metallic;
-uniform sampler2D u_ao;
+uniform sampler2D u_orm;
 
 uniform samplerCube u_irradiance_map;
 uniform samplerCube u_prefilter_map;
@@ -315,12 +313,11 @@ void main() {
     vec3 N = texture(u_normal, tex_coords).rgb;
     N = N * 2.0 - 1.0;
 
-    float roughness = texture(u_roughness, tex_coords).r * u_material.roughness;
-    float metallic = texture(u_metallic, tex_coords).r * u_material.metallic;
+    float ao = texture(u_orm, tex_coords).r * u_material.ao;
+    float roughness = texture(u_orm, tex_coords).g * u_material.roughness;
+    float metallic = texture(u_orm, tex_coords).b * u_material.metallic;
     roughness = clamp(roughness, 0.045, 1.0 - 0.045);
     metallic = clamp(metallic, 0.045, 1.0 - 0.045);
-
-    float ao = texture(u_ao, tex_coords).r * u_material.ao;
 
     vec3 V = normalize(fs_in.tangent_view_position - fs_in.tangent_world_position);
 

@@ -35,9 +35,7 @@ constexpr int32_t CASCADES_COUNT = 5;
 struct TextureSlots {
     int32_t albedo{};
     int32_t normal{};
-    int32_t roughness{};
-    int32_t metallic{};
-    int32_t ao{};
+    int32_t orm{};
     int32_t irradiance_map{};
     int32_t prefilter_map{};
     int32_t prefilter_mips{};

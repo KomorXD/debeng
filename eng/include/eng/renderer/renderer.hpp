@@ -14,7 +14,6 @@ constexpr int32_t POINT_LIGHTS_BINDING = 2;
 constexpr int32_t SPOT_LIGHTS_BINDING = 3;
 constexpr int32_t SOFT_SHADOW_PROPS_BINDING = 4;
 constexpr int32_t VISIBLE_INDICES_BINDING = 5;
-constexpr int32_t DRAW_PARAMS_BINDING = 6;
 
 constexpr int32_t MAX_MESH_INSTANCES = 256;
 
@@ -26,9 +25,6 @@ constexpr int32_t MIN_POINT_LIGHTS_STORAGE = 32;
 
 constexpr int32_t MAX_SPOT_LIGHTS = 128;
 constexpr int32_t MIN_SPOT_LIGHTS_STORAGE = 32;
-
-constexpr int32_t MAX_TEXTURES = 16;
-constexpr int32_t MAX_DRAW_PARAMS = 128;
 
 constexpr int32_t CASCADES_COUNT = 5;
 
@@ -99,10 +95,6 @@ struct alignas(16) MaterialData {
     float ao = -1.0f;
 };
 
-struct alignas(16) DrawParams {
-    float color_intensity = 1.0f;
-};
-
 struct RenderStats {
     float shadow_pass_ms{};
     float base_pass_ms{};
@@ -139,8 +131,7 @@ void shadow_pass_begin(const CameraData &camera, AssetPack &asset_pack);
 void shadow_pass_end();
 
 void submit_mesh(const glm::mat4 &transform, AssetID mesh_id,
-                 AssetID material_id, int32_t ent_id,
-                 const DrawParams &params = {});
+                 AssetID material_id, int32_t ent_id);
 void submit_shadow_mesh(const glm::mat4 &transform, AssetID mesh_id);
 
 void submit_dir_light(const glm::vec3 &rotation, const DirLight &light);

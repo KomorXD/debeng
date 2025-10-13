@@ -83,9 +83,6 @@ struct Renderer {
     SoftShadowProps soft_shadow_props;
     SoftShadowProps cached_soft_shadow_props;
 
-    UniformBuffer draw_params_uni_buffer;
-    std::vector<DrawParams> draw_params;
-
     ShaderGroup shader_render_group;
 };
 
@@ -525,11 +522,6 @@ bool init() {
 
     soft_shadow_random_offset_texture_create();
 
-    size = MAX_DRAW_PARAMS * sizeof(DrawParams);
-    s_renderer.draw_params_uni_buffer = UniformBuffer::create(nullptr, size);
-    s_renderer.draw_params_uni_buffer.bind_buffer_range(DRAW_PARAMS_BINDING, 0,
-                                                        size);
-
     return true;
 }
 
@@ -539,7 +531,6 @@ void shutdown() {
     s_renderer.point_lights_storage.destroy();
     s_renderer.spot_lights_storage.destroy();
     s_renderer.soft_shadow_uni_buffer.destroy();
-    s_renderer.draw_params_uni_buffer.destroy();
 
     s_renderer.light_culling_shader.destroy();
     s_renderer.visible_indicies_storage.destroy();
@@ -576,7 +567,6 @@ void scene_begin(const CameraData &camera, AssetPack &asset_pack,
     s_renderer.dir_lights.clear();
     s_renderer.point_lights.clear();
     s_renderer.spot_lights.clear();
-    s_renderer.draw_params.clear();
 
     for (auto &[shader_id, shader_group] : s_renderer.shader_render_group) {
         for (auto &[mat_id, mat_group] : shader_group) {
@@ -689,7 +679,6 @@ void scene_end() {
     s_renderer.dir_lights_storage.bind();
     s_renderer.point_lights_storage.bind();
     s_renderer.spot_lights_storage.bind();
-    s_renderer.draw_params_uni_buffer.bind();
 
     s_renderer.visible_indicies_storage.bind();
     s_target_fbo->bind_depth_attachment(0);
@@ -707,11 +696,6 @@ void scene_end() {
     GL_CALL(glClearColor(0.33f, 0.33f, 0.33f, 1.0f));
     GL_CALL(glDepthFunc(GL_EQUAL));
     s_target_fbo->clear_color_attachment(1);
-
-
-    count = s_renderer.draw_params.size();
-    s_renderer.draw_params_uni_buffer.set_data(s_renderer.draw_params.data(),
-                                               count * sizeof(DrawParams));
 
 
     s_renderer.shadow_fbo.bind_depth_attachment(
@@ -790,7 +774,6 @@ void shadow_pass_begin(const CameraData &camera, AssetPack &asset_pack) {
     s_renderer.dir_lights.clear();
     s_renderer.point_lights.clear();
     s_renderer.spot_lights.clear();
-    s_renderer.draw_params.clear();
 
     for (auto &[shader_id, shader_group] : s_renderer.shader_render_group) {
         for (auto &[mat_id, mat_group] : shader_group) {
@@ -1040,10 +1023,8 @@ std::array<Plane, 6> extract_frustm_planes(const glm::mat4 &mat) {
     return planes;
 }
 
-
 void submit_mesh(const glm::mat4 &transform, AssetID mesh_id,
-                 AssetID material_id, int32_t ent_id,
-                 const DrawParams &params) {
+                 AssetID material_id, int32_t ent_id) {
     s_renderer.stats.submitted_instances++;
 
     Mesh &mesh = s_asset_pack->meshes.at(mesh_id);
@@ -1074,18 +1055,6 @@ void submit_mesh(const glm::mat4 &transform, AssetID mesh_id,
     MeshInstance &instance = instances.emplace_back();
     instance.transform = transform;
     instance.entity_id = ent_id;
-
-    std::vector<DrawParams> &draw_params = s_renderer.draw_params;
-    for (int32_t i = 0; i < draw_params.size(); i++) {
-        DrawParams &curr_params = draw_params[i];
-        if (memcmp(&curr_params, &params, sizeof(DrawParams)) == 0) {
-            instance.draw_params_idx = i;
-            return;
-        }
-    }
-
-    draw_params.push_back(params);
-    instance.draw_params_idx = draw_params.size() - 1;
 }
 
 static std::vector<glm::vec4>

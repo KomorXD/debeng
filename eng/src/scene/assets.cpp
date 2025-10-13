@@ -172,18 +172,6 @@ AssetPack AssetPack::create(const std::string &pack_name) {
             {
                 "${SOFT_SHADOW_PROPS_BINDING}",
                 std::to_string(renderer::SOFT_SHADOW_PROPS_BINDING)
-            },
-            {
-                "${MAX_TEXTURES}",
-                std::to_string(renderer::MAX_TEXTURES)
-            },
-            {
-                "${DRAW_PARAMS_BINDING}",
-                std::to_string(renderer::DRAW_PARAMS_BINDING)
-            },
-            {
-                "${MAX_DRAW_PARAMS}",
-                std::to_string(renderer::MAX_DRAW_PARAMS)
             }
         };
 
@@ -233,20 +221,6 @@ AssetPack AssetPack::create(const std::string &pack_name) {
             }
         };
         spec.fragment_shader.path = "resources/shaders/flat.frag";
-        spec.fragment_shader.replacements = {
-            {
-                "${MAX_TEXTURES}",
-                std::to_string(renderer::MAX_TEXTURES)
-            },
-            {
-                "${DRAW_PARAMS_BINDING}",
-                std::to_string(renderer::DRAW_PARAMS_BINDING)
-            },
-            {
-                "${MAX_DRAW_PARAMS}",
-                std::to_string(renderer::MAX_DRAW_PARAMS)
-            }
-        };
 
         assert(flat_shader.build(spec) && "Default shaders not found");
 

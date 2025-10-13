@@ -14,9 +14,6 @@
 
 #define SOFT_SHADOW_PROPS_BINDING ${SOFT_SHADOW_PROPS_BINDING}
 
-#define DRAW_PARAMS_BINDING ${DRAW_PARAMS_BINDING}
-#define MAX_DRAW_PARAMS ${MAX_DRAW_PARAMS}
-
 in VS_OUT {
     vec3 world_space_position;
     vec3 view_space_position;
@@ -26,7 +23,6 @@ in VS_OUT {
     vec3 tangent_view_position;
     vec2 texture_uv;
     flat float ent_id;
-    flat float draw_params_idx;
 } fs_in;
 
 layout(location = 0) out vec4 final_color;
@@ -79,18 +75,6 @@ struct SoftShadowProps {
 layout (std140, binding = SOFT_SHADOW_PROPS_BINDING) uniform SoftShadowPropsUni {
     SoftShadowProps props;
 } u_soft_shadow_props;
-
-struct DrawParams {
-    float color_intensity;
-
-    float pad1;
-    float pad2;
-    float pad3;
-};
-
-layout (std140, binding = DRAW_PARAMS_BINDING) uniform DrawParamsUni {
-    DrawParams params[MAX_DRAW_PARAMS];
-} u_draw_params;
 
 layout (std140, binding = CAMERA_BINDING) uniform Camera {
     mat4 view_projection;
@@ -468,8 +452,5 @@ void main() {
     vec3 irradiance = texture(u_irradiance_map, N).rgb;
     vec3 ambient = (kD * irradiance * diffuse.rgb + specular) * ao;
     final_color.rgb = (ambient + Lo) * u_material.color.rgb;
-
-    DrawParams params = u_draw_params.params[int(fs_in.draw_params_idx)];
-    final_color.rgb *= max(1.0, params.color_intensity);
     final_color.a = diffuse.a * u_material.color.a;
 }

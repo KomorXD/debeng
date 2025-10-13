@@ -1043,12 +1043,12 @@ static void render_entity_panel(EditorLayer &layer) {
 
         if (ImGui::CollapsingHeader("Directional light",
                                     ImGuiTreeNodeFlags_DefaultOpen)) {
+            float width = ImGui::CalcTextSize("Intensity").x;
+
             ImGui::Indent(8.0f);
-            ImGui::ColorEdit3("Color", &dl.color[0],
-                              ImGuiColorEditFlags_NoInputs);
+            ImGui::PrettyColorEdit3("Color", &dl.color[0], width);
             ImGui::PrettyDragFloat("Intensity", &dl.intensity, 0.01f, 0.0f,
-                                   FLT_MAX, "%.2f",
-                                   ImGui::CalcTextSize("Intensity").x);
+                                   FLT_MAX, "%.2f", width);
 
             if (ImGui::PrettyButton("Remove component"))
                 ent.remove_component<eng::DirLight>();
@@ -1064,12 +1064,10 @@ static void render_entity_panel(EditorLayer &layer) {
 
         if (ImGui::CollapsingHeader("Point light",
                                     ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImGui::Indent(8.0f);
-
-            ImGui::ColorEdit3("Color", &pl.color[0],
-                              ImGuiColorEditFlags_NoInputs);
-
             float width = ImGui::CalcTextSize("Quadratic").x;
+
+            ImGui::Indent(8.0f);
+            ImGui::PrettyColorEdit3("Color", &pl.color[0], width);
             ImGui::PrettyDragFloat("Intensity", &pl.intensity, 0.01f, 0.0f,
                                    FLT_MAX, "%.2f", width);
             ImGui::PrettyDragFloat("Radius", &pl.radius, 0.01f, 0.0f,
@@ -1090,17 +1088,18 @@ static void render_entity_panel(EditorLayer &layer) {
 
         if (ImGui::CollapsingHeader("Spot light",
                                     ImGuiTreeNodeFlags_DefaultOpen)) {
+            float width = ImGui::CalcTextSize("Quadratic").x;
+
             ImGui::Indent(8.0f);
-            ImGui::ColorEdit3("Color", &sl.color[0],
-                              ImGuiColorEditFlags_NoInputs);
+            ImGui::PrettyColorEdit3("Color", &sl.color[0], width);
             ImGui::PrettyDragFloat("Intensity", &sl.intensity, 0.001f, 0.0f,
-                                   FLT_MAX, "%.3f");
+                                   FLT_MAX, "%.3f", width);
             ImGui::PrettyDragFloat("Cutoff", &sl.cutoff, 0.01f, 0.0f, FLT_MAX,
-                                   "%.3f");
+                                   "%.3f", width);
             ImGui::PrettyDragFloat("Smoothness", &sl.edge_smoothness, 0.01f,
-                                   0.0f, sl.cutoff, "%.3f");
+                                   0.0f, sl.cutoff, "%.3f", width);
             ImGui::PrettyDragFloat("Distance", &sl.distance, 0.01f, 0.0f,
-                                   FLT_MAX, "%.2f");
+                                   FLT_MAX, "%.2f", width);
 
             if (ImGui::PrettyButton("Remove component"))
                 ent.remove_component<eng::SpotLight>();

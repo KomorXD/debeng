@@ -3098,7 +3098,7 @@ void ImGui::PrettyColorEdit3(const char *label, float col[3],
 
         ImGui::TableNextColumn();
         ImGui::AlignTextToFramePadding();
-        ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x / 4.0f);
+        ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x / 3.0f);
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 10.0f));
         ImGui::PushStyleColor(ImGuiCol_FrameBg,
                               ImVec4(0.8f, 0.1f, 0.15f, 1.0f));

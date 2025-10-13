@@ -3141,7 +3141,6 @@ void ImGui::PrettyColorEdit3(const char *label, float col[3],
         col[0] = (float)(col_int[0] / 255.0f);
         col[1] = (float)(col_int[1] / 255.0f);
         col[2] = (float)(col_int[2] / 255.0f);
-        col[3] = (float)(col_int[3] / 255.0f);
 
         ImGui::PopStyleVar();
         ImGui::PopItemWidth();

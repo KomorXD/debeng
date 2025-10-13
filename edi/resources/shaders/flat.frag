@@ -16,16 +16,15 @@ struct Material {
     vec4 color;
     vec2 tiling_factor;
     vec2 texture_offset;
+    vec4 emission_and_ao;
 
     float roughness;
     float metallic;
-    float ao;
-
-    float padding;
 };
 
 uniform Material u_material;
 uniform sampler2D u_albedo;
+uniform sampler2D u_emission_map;
 
 void main() {
     int ent_id = int(fs_in.ent_id);
@@ -40,6 +39,8 @@ void main() {
     vec2 tex_coords
         = fs_in.texture_uv * u_material.tiling_factor + u_material.texture_offset;
     vec4 albedo = texture(u_albedo, tex_coords) * u_material.color;
+    vec3 emission = texture(u_emission_map, tex_coords).rgb
+        * u_material.emission_and_ao.rgb;
 
-    final_color = albedo;
+    final_color = albedo + vec4(emission, 0.0);
 }

@@ -32,6 +32,7 @@ struct TextureSlots {
     int32_t albedo{};
     int32_t normal{};
     int32_t orm{};
+    int32_t emission_map{};
     int32_t irradiance_map{};
     int32_t prefilter_map{};
     int32_t prefilter_mips{};
@@ -83,16 +84,6 @@ struct alignas(16) SoftShadowProps {
     int32_t offsets_tex_size = 16;
     int32_t offsets_filter_size = 8;
     float offset_radius = 3.0f;
-};
-
-struct alignas(16) MaterialData {
-    glm::vec4 color = glm::vec4(1.0f);
-    glm::vec2 tiling_factor = glm::vec2(1.0f);
-    glm::vec2 texture_offset = glm::vec2(0.0f);
-
-    float roughness = -1.0f;
-    float metallic = -1.0f;
-    float ao = -1.0f;
 };
 
 struct RenderStats {

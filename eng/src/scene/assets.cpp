@@ -47,7 +47,6 @@ Mesh create_mesh(VertexData vertex_data) {
     layout.push_float(4); // 7 - transform
     layout.push_float(4); // 8 - transform
     layout.push_float(1); // 9 - entity id
-    layout.push_float(1); // 10 - draw params idx
 
     vbo = VertexBuffer::create();
     vbo.allocate(nullptr, renderer::MAX_MESH_INSTANCES * sizeof(MeshInstance));
@@ -178,9 +177,10 @@ AssetPack AssetPack::create(const std::string &pack_name) {
         assert(base_shader.build(spec) && "Default shaders not found");
 
         renderer::TextureSlots slots = eng::renderer::texture_slots();
-        std::array<const char *, 11> unis = {"u_albedo",
+        std::array<const char *, 12> unis = {"u_albedo",
                                              "u_normal",
                                              "u_orm",
+                                             "u_emission_map",
                                              "u_irradiance_map",
                                              "u_prefilter_map",
                                              "u_max_prefilter_mips",
@@ -189,9 +189,10 @@ AssetPack AssetPack::create(const std::string &pack_name) {
                                              "u_point_lights_shadowmaps",
                                              "u_spot_lights_shadowmaps",
                                              "u_soft_shadow_offsets_texture"};
-        std::array<int32_t, 11> tex_slots = {slots.albedo,
+        std::array<int32_t, 12> tex_slots = {slots.albedo,
                                              slots.normal,
                                              slots.orm,
+                                             slots.emission_map,
                                              slots.irradiance_map,
                                              slots.prefilter_map,
                                              slots.prefilter_mips,

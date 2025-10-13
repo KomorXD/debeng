@@ -878,7 +878,7 @@ static void render_entity_panel(EditorLayer &layer) {
                 }
             }
 
-            float horizontal_size = ImGui::CalcTextSize("Roughness").x;
+            float horizontal_size = ImGui::CalcTextSize("Emission factor").x;
 
             ImGui::BeginPrettyCombo(
                 "Material", mat.name.c_str(), [&layer, &mat_comp]() {
@@ -919,6 +919,11 @@ static void render_entity_panel(EditorLayer &layer) {
                                     0.0f, 0.0f, "%.2f", horizontal_size);
 
             ImGui::PrettyColorEdit4("Color", &mat.color[0], horizontal_size);
+            ImGui::PrettyColorEdit3("Emission color", &mat.emission_color[0],
+                                    horizontal_size);
+            ImGui::PrettyDragFloat("Emission factor", &mat.emission_factor,
+                                   0.005f, 0.0f, FLT_MAX, "%.3f",
+                                   horizontal_size);
             ImGui::PrettyDragFloat("Roughness", &mat.roughness, 0.005f, 0.0f,
                                    1.0f, "%.3f", horizontal_size);
             ImGui::PrettyDragFloat("Metallic", &mat.metallic, 0.005f, 0.0f,
@@ -936,14 +941,14 @@ static void render_entity_panel(EditorLayer &layer) {
 
                 eng::AssetID *tex_ids[] = {
                     &mat.albedo_texture_id, &mat.normal_texture_id,
-                    &mat.orm_texture_id};
+                    &mat.orm_texture_id, &mat.emission_texture_id};
                 TextureFormat formats[] = {
                     TextureFormat::RGBA8, TextureFormat::RGB8,
-                    TextureFormat::RGB8};
-                const char *labels[] = {"Albedo", "Normal", "ORM"};
+                    TextureFormat::RGB8, TextureFormat::RGB8};
+                const char *labels[] = {"Albedo", "Normal", "ORM", "Emission"};
 
                 constexpr int32_t TEXTURES = IM_ARRAYSIZE(tex_ids);
-                horizontal_size = ImGui::CalcTextSize("Albedo").x + 1.0f;
+                horizontal_size = ImGui::CalcTextSize("Emission").x + 1.0f;
 
                 for (int32_t i = 0; i < TEXTURES; i++) {
                     Texture &tex = layer.asset_pack.textures.at(*tex_ids[i]);

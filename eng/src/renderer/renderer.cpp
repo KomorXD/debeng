@@ -191,6 +191,7 @@ bool init() {
     s_renderer.slots.albedo = 0;
     s_renderer.slots.normal = 1;
     s_renderer.slots.orm = 2;
+    s_renderer.slots.emission_map = 4;
     s_renderer.slots.irradiance_map = 5;
     s_renderer.slots.prefilter_map = 6;
     s_renderer.slots.brdf_lut = 7;
@@ -734,17 +735,20 @@ void scene_end() {
                                            mat.tiling_factor);
             curr_shader.try_set_uniform_2f("u_material.texture_offset",
                                            mat.texture_offset);
+            curr_shader.try_set_uniform_4f(
+                "u_material.emission_and_ao",
+                glm::vec4(mat.emission_color * mat.emission_factor, mat.ao));
             curr_shader.try_set_uniform_1f("u_material.roughness",
                                            mat.roughness);
             curr_shader.try_set_uniform_1f("u_material.metallic", mat.metallic);
-            curr_shader.try_set_uniform_1f("u_material.ao", mat.ao);
 
-            std::array<AssetID, 3> tex_ids = {mat.albedo_texture_id,
-                                              mat.normal_texture_id,
-                                              mat.orm_texture_id};
-            std::array<int32_t, 3> tex_bindings = {s_renderer.slots.albedo,
-                                                   s_renderer.slots.normal,
-                                                   s_renderer.slots.orm};
+            std::array<AssetID, 4> tex_ids = {
+                mat.albedo_texture_id, mat.normal_texture_id,
+                mat.orm_texture_id, mat.emission_texture_id};
+            std::array<int32_t, 4> tex_bindings = {
+                s_renderer.slots.albedo, s_renderer.slots.normal,
+                s_renderer.slots.orm, s_renderer.slots.emission_map};
+
             for (int32_t i = 0; i < tex_ids.size(); i++) {
                 Texture &tex = s_asset_pack->textures.at(tex_ids[i]);
                 tex.bind(tex_bindings[i]);

@@ -97,18 +97,17 @@ struct Material {
     vec4 color;
     vec2 tiling_factor;
     vec2 texture_offset;
+    vec4 emission_and_ao;
 
     float roughness;
     float metallic;
-    float ao;
-
-    float padding;
 };
 
 uniform Material u_material;
 uniform sampler2D u_albedo;
 uniform sampler2D u_normal;
 uniform sampler2D u_orm;
+uniform sampler2D u_emission_map;
 
 uniform samplerCube u_irradiance_map;
 uniform samplerCube u_prefilter_map;
@@ -297,7 +296,7 @@ void main() {
     vec3 N = texture(u_normal, tex_coords).rgb;
     N = N * 2.0 - 1.0;
 
-    float ao = texture(u_orm, tex_coords).r * u_material.ao;
+    float ao = texture(u_orm, tex_coords).r * u_material.emission_and_ao.w;
     float roughness = texture(u_orm, tex_coords).g * u_material.roughness;
     float metallic = texture(u_orm, tex_coords).b * u_material.metallic;
     roughness = clamp(roughness, 0.045, 1.0 - 0.045);
@@ -451,6 +450,9 @@ void main() {
 
     vec3 irradiance = texture(u_irradiance_map, N).rgb;
     vec3 ambient = (kD * irradiance * diffuse.rgb + specular) * ao;
-    final_color.rgb = (ambient + Lo) * u_material.color.rgb;
+    vec3 emission = texture(u_emission_map, tex_coords).rgb
+        * u_material.emission_and_ao.rgb;
+
+    final_color.rgb = (ambient + Lo) * u_material.color.rgb + emission;
     final_color.a = diffuse.a * u_material.color.a;
 }

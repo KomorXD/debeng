@@ -36,10 +36,14 @@ struct Material {
     AssetID albedo_texture_id = 1;
     AssetID normal_texture_id = 2;
     AssetID orm_texture_id = 1;
+    AssetID emission_texture_id = 1;
 
     float roughness = 1.0f;
     float metallic = 0.05f;
     float ao = 1.0f;
+
+    glm::vec3 emission_color = glm::vec3(1.0f);
+    float emission_factor = 0.0f;
 };
 
 struct EnvMap {

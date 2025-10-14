@@ -14,8 +14,10 @@ struct Scene {
     [[nodiscard]] Entity spawn_entity(const std::string &name);
     [[nodiscard]] Entity duplicate(Entity &ent);
 
-    void destroy_entity(Entity &ent);
+    void destroy_entity(ecs::EntityID ent_id);
 
+    /* PARENT's and CHILD's relation indices are modified in-place. */
+    void link_relation(Entity &parent, Entity &child);
     void update_global_transforms();
 
     std::string name;

@@ -77,6 +77,32 @@ std::unique_ptr<Layer> EditorLayer::create(const eng::WindowSpec &win_spec) {
     layer->envmap_id = layer->asset_pack.add_env_map(env_map);
     eng::renderer::use_envmap(layer->asset_pack.env_maps.at(layer->envmap_id));
 
+    eng::Entity ent = layer->scene.spawn_entity("xdd");
+    ent.add_component<eng::MeshComp>().id = eng::AssetPack::CUBE_ID;
+    ent.add_component<eng::MaterialComp>().id =
+        eng::AssetPack::DEFAULT_BASE_MATERIAL;
+
+    eng::Entity ent2 = layer->scene.spawn_entity("xdd2");
+    ent2.get_component<eng::Transform>().position = {3.0f, 0.0f, 0.0f};
+    ent2.add_component<eng::MeshComp>().id = eng::AssetPack::CUBE_ID;
+    ent2.add_component<eng::MaterialComp>().id =
+        eng::AssetPack::DEFAULT_BASE_MATERIAL;
+
+    eng::Entity ent3 = layer->scene.spawn_entity("xdd3");
+    ent3.get_component<eng::Transform>().position = {0.0f, 2.0f, 0.0f};
+    ent3.add_component<eng::MeshComp>().id = eng::AssetPack::CUBE_ID;
+    ent3.add_component<eng::MaterialComp>().id =
+        eng::AssetPack::DEFAULT_BASE_MATERIAL;
+
+    eng::Entity ent4 = layer->scene.spawn_entity("xdd4");
+    ent4.get_component<eng::Transform>().position = {2.0f, 2.0f, 0.0f};
+    ent4.add_component<eng::MeshComp>().id = eng::AssetPack::CUBE_ID;
+    ent4.add_component<eng::MaterialComp>().id =
+        eng::AssetPack::DEFAULT_BASE_MATERIAL;
+
+    layer->scene.link_relation(ent, ent2);
+    layer->scene.link_relation(ent4, ent);
+
     return layer;
 }
 
@@ -115,7 +141,7 @@ void EditorLayer::on_event(eng::Event &event) {
 
         case eng::Key::Delete:
             if (selected_entity.has_value()) {
-                scene.destroy_entity(selected_entity.value());
+                scene.destroy_entity(selected_entity.value().handle);
                 selected_entity = std::nullopt;
                 return;
             }

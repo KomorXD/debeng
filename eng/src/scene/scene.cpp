@@ -23,6 +23,7 @@ Entity Scene::spawn_entity(const std::string &name) {
     ent.handle = registry.create_entity();
     ent.add_component<Name>().name = name;
     ent.add_component<Transform>();
+    ent.add_component<GlobalTransform>();
 
     entities.push_back(ent);
 

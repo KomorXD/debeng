@@ -27,6 +27,11 @@ struct Entity {
         assert(false && "Can't remove Transform component");
     }
 
+    template <>
+    void remove_component<GlobalTransform>() {
+        assert(false && "Can't remove GlobalTransform component");
+    }
+
     template <typename T>
     [[nodiscard]] T &get_component() {
         return owning_reg->get_component<T>(handle);

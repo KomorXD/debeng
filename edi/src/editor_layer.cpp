@@ -1163,12 +1163,11 @@ static void render_gizmo(EditorLayer &layer) {
     const glm::mat4 &camera_proj = layer.camera.projection();
     const glm::mat4 &camera_view = layer.camera.view();
 
-    eng::GlobalTransform &gt = ent.get_component<eng::GlobalTransform>();
-
     bool do_snap = eng::is_key_pressed(eng::Key::LeftControl);
     float snap_step = (layer.gizmo_op == ImGuizmo::ROTATE ? 45.0f : 0.5f);
     float snap_vals[3] = {snap_step, snap_step, snap_step};
 
+    eng::GlobalTransform &gt = ent.get_component<eng::GlobalTransform>();
     glm::mat4 transform = gt.to_mat4();
     ImGuizmo::Manipulate(&camera_view[0][0], &camera_proj[0][0], layer.gizmo_op,
                          layer.gizmo_mode, &transform[0][0], nullptr,
@@ -1177,9 +1176,10 @@ static void render_gizmo(EditorLayer &layer) {
     layer.lock_focus = ImGuizmo::IsOver();
 
     if (ImGuizmo::IsUsing()) {
-        if (ent.parent_index.has_value()) {
-            eng::Entity &parent =
-                layer.scene.entities[ent.parent_index.value()];
+        if (ent.parent_id.has_value()) {
+            int32_t parent_index =
+                layer.scene.id_to_index[ent.parent_id.value()];
+            eng::Entity &parent = layer.scene.entities[parent_index];
             eng::GlobalTransform &pgt =
                 parent.get_component<eng::GlobalTransform>();
 

@@ -49,15 +49,17 @@ void Scene::destroy_entity(Entity &ent) {
         [&](const Entity &entity) { return ent.handle == entity.handle; });
     assert(ent_itr != entities.end() && "Trying to remove non-existent entity");
 
-    std::vector<int32_t> &children = ent_itr->children_indices;
-    for (int32_t i = 0; i < children.size(); i++) {
-        eng::Entity &child = entities[children[i]];
-        child.parent_index = std::nullopt;
+    std::vector<ecs::EntityID> &children_ids = ent_itr->children_ids;
+    for (int32_t i = 0; i < children_ids.size(); i++) {
+        int32_t child_index = id_to_index[children_ids[i]];
+        Entity &child = entities[child_index];
+        child.parent_id = std::nullopt;
     }
 
     ecs::EntityID id = ent_itr->handle;
     registry.destroy_entity(id);
     id_to_index.erase(id);
+    entities.erase(ent_itr);
 
     int32_t deleted_idx = std::distance(entities.begin(), ent_itr);
     for (auto &[ent_id, ent_idx] : id_to_index) {
@@ -65,21 +67,6 @@ void Scene::destroy_entity(Entity &ent) {
             ent_idx--;
     }
 
-    entities.erase(ent_itr);
-    for (Entity &ent : entities) {
-        if (ent.parent_index.has_value()) {
-            int32_t parent_idx = ent.parent_index.value();
-            if (parent_idx > deleted_idx) {
-                parent_idx--;
-                ent.parent_index = parent_idx;
-            }
-        }
-
-        for (int32_t &child_idx : ent.children_indices) {
-            if (child_idx > deleted_idx)
-                child_idx--;
-        }
-    }
 }
 
 void Scene::update_global_transforms() {
@@ -91,8 +78,10 @@ void Scene::update_global_transforms() {
         gt.rotation = t.rotation;
         gt.scale = t.scale;
 
-        if (ent.parent_index.has_value()) {
-            Entity &parent = entities[ent.parent_index.value()];
+        if (ent.parent_id.has_value()) {
+            int32_t parent_index = id_to_index[ent.parent_id.value()];
+            Entity &parent = entities[parent_index];
+
             GlobalTransform &pgt = parent.get_component<GlobalTransform>();
             glm::mat4 new_t = pgt.to_mat4() * gt.to_mat4();
             transform_decompose(new_t, gt.position, gt.rotation, gt.scale);

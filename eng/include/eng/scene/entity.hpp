@@ -45,8 +45,8 @@ struct Entity {
     ecs::EntityID handle;
     ecs::Registry *owning_reg = nullptr;
 
-    std::optional<int32_t> parent_index = std::nullopt;
-    std::vector<int32_t> children_indices;
+    std::optional<ecs::EntityID> parent_id = std::nullopt;
+    std::vector<ecs::EntityID> children_ids;
 };
 
 } // namespace eng

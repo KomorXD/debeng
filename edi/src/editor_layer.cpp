@@ -148,7 +148,9 @@ void EditorLayer::on_event(eng::Event &event) {
 
         case eng::Key::LeftShift:
             if (selected_entity.has_value()) {
-                eng::Transform &t = selected_entity.value().get_component<eng::Transform>();
+                eng::GlobalTransform &t =
+                    selected_entity.value()
+                        .get_component<eng::GlobalTransform>();
                 camera.cam_control = eng::OrbitalControl::create(&camera, &t.position);
             }
 
@@ -188,8 +190,7 @@ void EditorLayer::on_event(eng::Event &event) {
             uint32_t green_contrib = pixel.g * 255;
             uint32_t blue_contrib = pixel.b;
             uint32_t id = red_contrib + green_contrib + blue_contrib;
-            selected_entity =
-                eng::Entity{.handle = id, .owning_reg = &scene.registry};
+            selected_entity = scene.entities[scene.id_to_index.at(id)];
         }
 
         break;
@@ -1161,12 +1162,14 @@ static void render_gizmo(EditorLayer &layer) {
     eng::Entity ent = layer.selected_entity.value();
     const glm::mat4 &camera_proj = layer.camera.projection();
     const glm::mat4 &camera_view = layer.camera.view();
-    glm::mat4 transform = ent.get_component<eng::Transform>().to_mat4();
+
+    eng::GlobalTransform &gt = ent.get_component<eng::GlobalTransform>();
 
     bool do_snap = eng::is_key_pressed(eng::Key::LeftControl);
     float snap_step = (layer.gizmo_op == ImGuizmo::ROTATE ? 45.0f : 0.5f);
     float snap_vals[3] = {snap_step, snap_step, snap_step};
 
+    glm::mat4 transform = gt.to_mat4();
     ImGuizmo::Manipulate(&camera_view[0][0], &camera_proj[0][0], layer.gizmo_op,
                          layer.gizmo_mode, &transform[0][0], nullptr,
                          (do_snap ? snap_vals : nullptr));
@@ -1174,16 +1177,16 @@ static void render_gizmo(EditorLayer &layer) {
     layer.lock_focus = ImGuizmo::IsOver();
 
     if (ImGuizmo::IsUsing()) {
-        glm::vec3 position;
-        glm::vec3 rotation;
-        glm::vec3 scale;
-        eng::Transform &t_comp = ent.get_component<eng::Transform>();
+        if (ent.parent_index.has_value()) {
+            eng::Entity &parent =
+                layer.scene.entities[ent.parent_index.value()];
+            eng::GlobalTransform &pgt =
+                parent.get_component<eng::GlobalTransform>();
 
-        (void)transform_decompose(transform, position, rotation, scale);
-        glm::vec3 delta_rot = rotation - t_comp.rotation;
+            transform = glm::inverse(pgt.to_mat4()) * transform;
+        }
 
-        t_comp.position = position;
-        t_comp.rotation = t_comp.rotation + delta_rot;
-        t_comp.scale = scale;
+        eng::Transform &lt = ent.get_component<eng::Transform>();
+        transform_decompose(transform, lt.position, lt.rotation, lt.scale);
     }
 }

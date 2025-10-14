@@ -27,6 +27,7 @@ Entity Scene::spawn_entity(const std::string &name) {
     ent.add_component<GlobalTransform>();
 
     entities.push_back(ent);
+    id_to_index[ent.handle] = entities.size() - 1;
 
     return ent;
 }
@@ -37,6 +38,7 @@ Entity Scene::duplicate(Entity &ent) {
     new_ent.handle = registry.duplicate(ent.handle);
 
     entities.push_back(new_ent);
+    id_to_index[ent.handle] = entities.size() - 1;
 
     return new_ent;
 }
@@ -47,8 +49,37 @@ void Scene::destroy_entity(Entity &ent) {
         [&](const Entity &entity) { return ent.handle == entity.handle; });
     assert(ent_itr != entities.end() && "Trying to remove non-existent entity");
 
-    registry.destroy_entity(ent_itr->handle);
+    std::vector<int32_t> &children = ent_itr->children_indices;
+    for (int32_t i = 0; i < children.size(); i++) {
+        eng::Entity &child = entities[children[i]];
+        child.parent_index = std::nullopt;
+    }
+
+    ecs::EntityID id = ent_itr->handle;
+    registry.destroy_entity(id);
+    id_to_index.erase(id);
+
+    int32_t deleted_idx = std::distance(entities.begin(), ent_itr);
+    for (auto &[ent_id, ent_idx] : id_to_index) {
+        if (ent_idx > deleted_idx)
+            ent_idx--;
+    }
+
     entities.erase(ent_itr);
+    for (Entity &ent : entities) {
+        if (ent.parent_index.has_value()) {
+            int32_t parent_idx = ent.parent_index.value();
+            if (parent_idx > deleted_idx) {
+                parent_idx--;
+                ent.parent_index = parent_idx;
+            }
+        }
+
+        for (int32_t &child_idx : ent.children_indices) {
+            if (child_idx > deleted_idx)
+                child_idx--;
+        }
+    }
 }
 
 void Scene::update_global_transforms() {

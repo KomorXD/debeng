@@ -21,6 +21,8 @@ struct Scene {
     std::string name;
     ecs::Registry registry;
     std::vector<Entity> entities;
+
+    std::map<ecs::EntityID, int32_t> id_to_index;
 };
 
 } // namespace eng

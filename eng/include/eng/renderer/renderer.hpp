@@ -127,7 +127,8 @@ void submit_shadow_mesh(const glm::mat4 &transform, AssetID mesh_id);
 
 void submit_dir_light(const glm::vec3 &rotation, const DirLight &light);
 void submit_point_light(const glm::vec3 &position, const PointLight &light);
-void submit_spot_light(const Transform &transform, const SpotLight &light);
+void submit_spot_light(const GlobalTransform &transform,
+                       const SpotLight &light);
 
 EnvMap create_envmap(const Texture &equirect);
 void use_envmap(EnvMap &envmap);

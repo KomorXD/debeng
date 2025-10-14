@@ -203,6 +203,8 @@ void EditorLayer::on_event(eng::Event &event) {
 }
 
 void EditorLayer::on_update(float ts) {
+    scene.update_global_transforms();
+
     camera.on_update(ts);
 }
 
@@ -213,44 +215,46 @@ static void render_control_panel(EditorLayer &layer);
 static void render_entity_panel(EditorLayer &layer);
 static void render_gizmo(EditorLayer &layer);
 
-[[maybe_unused]] static void on_shadow_pass(EditorLayer &layer) {
+static void on_shadow_pass(EditorLayer &layer) {
     eng::Scene &scene = layer.scene;
 
     eng::renderer::shadow_pass_begin(layer.camera.render_data(),
                                      layer.asset_pack);
 
     eng::ecs::RegistryView rview =
-        scene.registry.view<eng::Transform, eng::DirLight>();
+        scene.registry.view<eng::GlobalTransform, eng::DirLight>();
     for (eng::ecs::RegistryView::Entry &entry : rview.entity_entries) {
-        eng::Transform &transform = rview.get<eng::Transform>(entry);
+        eng::GlobalTransform &transform =
+            rview.get<eng::GlobalTransform>(entry);
         eng::DirLight &light = rview.get<eng::DirLight>(entry);
 
         eng::renderer::submit_dir_light(transform.rotation, light);
     }
 
-    rview =
-        scene.registry.view<eng::Transform, eng::PointLight>();
+    rview = scene.registry.view<eng::GlobalTransform, eng::PointLight>();
     for (eng::ecs::RegistryView::Entry &entry : rview.entity_entries) {
-        eng::Transform &transform = rview.get<eng::Transform>(entry);
+        eng::GlobalTransform &transform =
+            rview.get<eng::GlobalTransform>(entry);
         eng::PointLight &light = rview.get<eng::PointLight>(entry);
 
         eng::renderer::submit_point_light(transform.position, light);
     }
 
-    rview =
-        scene.registry.view<eng::Transform, eng::SpotLight>();
+    rview = scene.registry.view<eng::GlobalTransform, eng::SpotLight>();
     for (eng::ecs::RegistryView::Entry &entry : rview.entity_entries) {
-        eng::Transform &transform = rview.get<eng::Transform>(entry);
+        eng::GlobalTransform &transform =
+            rview.get<eng::GlobalTransform>(entry);
         eng::SpotLight &light = rview.get<eng::SpotLight>(entry);
 
         eng::renderer::submit_spot_light(transform, light);
     }
 
-    rview =
-        scene.registry.view<eng::Transform, eng::MeshComp, eng::MaterialComp>(
-            eng::ecs::exclude<eng::PointLight, eng::DirLight, eng::SpotLight>);
+    rview = scene.registry.view<eng::GlobalTransform, eng::MeshComp,
+                                eng::MaterialComp>(
+        eng::ecs::exclude<eng::PointLight, eng::DirLight, eng::SpotLight>);
     for (eng::ecs::RegistryView::Entry &entry : rview.entity_entries) {
-        eng::Transform &transform = rview.get<eng::Transform>(entry);
+        eng::GlobalTransform &transform =
+            rview.get<eng::GlobalTransform>(entry);
         eng::MeshComp &mesh = rview.get<eng::MeshComp>(entry);
 
         eng::renderer::submit_shadow_mesh(transform.to_mat4(), mesh.id);
@@ -302,36 +306,38 @@ void EditorLayer::on_render() {
     eng::renderer::scene_begin(camera.render_data(), asset_pack, main_fbo);
 
     eng::ecs::RegistryView rview =
-        scene.registry.view<eng::Transform, eng::DirLight>();
+        scene.registry.view<eng::GlobalTransform, eng::DirLight>();
     for (eng::ecs::RegistryView::Entry &entry : rview.entity_entries) {
-        eng::Transform &transform = rview.get<eng::Transform>(entry);
+        eng::GlobalTransform &transform =
+            rview.get<eng::GlobalTransform>(entry);
         eng::DirLight &light = rview.get<eng::DirLight>(entry);
 
         eng::renderer::submit_dir_light(transform.rotation, light);
     }
 
-    rview =
-        scene.registry.view<eng::Transform, eng::PointLight>();
+    rview = scene.registry.view<eng::GlobalTransform, eng::PointLight>();
     for (eng::ecs::RegistryView::Entry &entry : rview.entity_entries) {
-        eng::Transform &transform = rview.get<eng::Transform>(entry);
+        eng::GlobalTransform &transform =
+            rview.get<eng::GlobalTransform>(entry);
         eng::PointLight &light = rview.get<eng::PointLight>(entry);
 
         eng::renderer::submit_point_light(transform.position, light);
     }
 
-    rview =
-        scene.registry.view<eng::Transform, eng::SpotLight>();
+    rview = scene.registry.view<eng::GlobalTransform, eng::SpotLight>();
     for (eng::ecs::RegistryView::Entry &entry : rview.entity_entries) {
-        eng::Transform &transform = rview.get<eng::Transform>(entry);
+        eng::GlobalTransform &transform =
+            rview.get<eng::GlobalTransform>(entry);
         eng::SpotLight &light = rview.get<eng::SpotLight>(entry);
 
         eng::renderer::submit_spot_light(transform, light);
     }
 
-    rview =
-        scene.registry.view<eng::Transform, eng::MeshComp, eng::MaterialComp>();
+    rview = scene.registry
+                .view<eng::GlobalTransform, eng::MeshComp, eng::MaterialComp>();
     for (eng::ecs::RegistryView::Entry &entry : rview.entity_entries) {
-        eng::Transform &transform = rview.get<eng::Transform>(entry);
+        eng::GlobalTransform &transform =
+            rview.get<eng::GlobalTransform>(entry);
         eng::MeshComp &mesh = rview.get<eng::MeshComp>(entry);
         eng::MaterialComp &mat = rview.get<eng::MaterialComp>(entry);
 

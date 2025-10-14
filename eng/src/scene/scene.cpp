@@ -1,4 +1,5 @@
 #include "eng/scene/scene.hpp"
+#include "eng/random_utils.hpp"
 #include "eng/scene/components.hpp"
 
 namespace eng {
@@ -48,6 +49,24 @@ void Scene::destroy_entity(Entity &ent) {
 
     registry.destroy_entity(ent_itr->handle);
     entities.erase(ent_itr);
+}
+
+void Scene::update_global_transforms() {
+    for (int32_t i = 0; i < entities.size(); i++) {
+        Entity &ent = entities[i];
+        Transform &t = ent.get_component<Transform>();
+        GlobalTransform &gt = ent.get_component<GlobalTransform>();
+        gt.position = t.position;
+        gt.rotation = t.rotation;
+        gt.scale = t.scale;
+
+        if (ent.parent_index.has_value()) {
+            Entity &parent = entities[ent.parent_index.value()];
+            GlobalTransform &pgt = parent.get_component<GlobalTransform>();
+            glm::mat4 new_t = pgt.to_mat4() * gt.to_mat4();
+            transform_decompose(new_t, gt.position, gt.rotation, gt.scale);
+        }
+    }
 }
 
 } // namespace eng

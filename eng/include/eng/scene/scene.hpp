@@ -16,6 +16,8 @@ struct Scene {
 
     void destroy_entity(Entity &ent);
 
+    void update_global_transforms();
+
     std::string name;
     ecs::Registry registry;
     std::vector<Entity> entities;

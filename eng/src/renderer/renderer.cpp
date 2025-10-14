@@ -1238,7 +1238,8 @@ void submit_point_light(const glm::vec3 &position, const PointLight &light) {
     light_data.color = light.color * light.intensity;
 }
 
-void submit_spot_light(const Transform &transform, const SpotLight &light) {
+void submit_spot_light(const GlobalTransform &transform,
+                       const SpotLight &light) {
     if (s_renderer.spot_lights.size() >= MAX_SPOT_LIGHTS)
         return;
 

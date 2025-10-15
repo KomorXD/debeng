@@ -449,6 +449,27 @@ static void render_entity_node(EditorLayer &layer, eng::Entity &ent) {
         ImGui::TreeNodeEx((void *)(intptr_t)ent.handle, flags, "%s",
                           ent.get_component<eng::Name>().name.c_str());
 
+    if (ImGui::BeginDragDropSource()) {
+        ImGui::SetDragDropPayload("ENT_ID", &ent.handle,
+                                  sizeof(eng::ecs::EntityID));
+        ImGui::Text("%s", ent.get_component<eng::Name>().name.c_str());
+        ImGui::EndDragDropSource();
+    }
+
+    if (ImGui::BeginDragDropTarget()) {
+        if (const ImGuiPayload *payload =
+                ImGui::AcceptDragDropPayload("ENT_ID")) {
+            eng::ecs::EntityID dropped_id =
+                *(const eng::ecs::EntityID *)payload->Data;
+
+            int32_t dropped_idx = layer.scene.id_to_index[dropped_id];
+            eng::Entity &dropped = layer.scene.entities[dropped_idx];
+            layer.scene.link_relation(ent, dropped);
+        }
+
+        ImGui::EndDragDropTarget();
+    }
+
     if (ImGui::IsItemClicked(ImGuiMouseButton_Left) &&
         !ImGui::IsItemToggledOpen())
         layer.selected_entity = ent;

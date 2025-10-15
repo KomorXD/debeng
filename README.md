@@ -41,6 +41,7 @@ Mind you I only work with clang and on Linux, I can't promise it will work on ot
  - [x] Whatever smaller thing/thing I forgot
  - [x] 2D forward+ rendering (with that, early-Z for color pass)
  - [x] Culling shadow meshes, shadow casters
+ - [x] Scene hierarchy (parent-child only)
  - [ ] Forward+ clustered rendering
  - [ ] MSAA (2xSMAA later perhaps)
  - [ ] Screen space contact shadows

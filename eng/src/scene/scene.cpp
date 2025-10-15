@@ -33,17 +33,6 @@ Entity Scene::spawn_entity(const std::string &name) {
     return ent;
 }
 
-Entity Scene::duplicate(Entity &ent) {
-    Entity new_ent;
-    new_ent.owning_reg = &registry;
-    new_ent.handle = registry.duplicate(ent.handle);
-
-    entities.push_back(new_ent);
-    id_to_index[ent.handle] = entities.size() - 1;
-
-    return new_ent;
-}
-
 static void remove_relation(Scene &scene, ecs::EntityID parent_id,
                             ecs::EntityID child_id) {
     int32_t parent_idx = scene.id_to_index[parent_id];
@@ -79,6 +68,35 @@ static int32_t related_entities_count(Scene &scene, ecs::EntityID root_id) {
         count += related_entities_count(scene, child_id);
 
     return count;
+}
+
+static Entity &build_duplicate_children(Scene &scene, Entity &root) {
+    Entity &new_ent = scene.entities.emplace_back();
+    new_ent.owning_reg = &scene.registry;
+    new_ent.handle = scene.registry.duplicate(root.handle);
+
+    int32_t new_ent_idx = scene.entities.size() - 1;
+    scene.id_to_index[new_ent.handle] = new_ent_idx;
+
+    for (ecs::EntityID child_id : root.children_ids) {
+        Entity dummy_child = scene.entities[scene.id_to_index[child_id]];
+        Entity &new_child = build_duplicate_children(scene, dummy_child);
+        new_ent = scene.entities[new_ent_idx];
+        scene.link_relation(new_ent, new_child);
+    }
+
+    return scene.entities[new_ent_idx];
+}
+
+Entity &Scene::duplicate(Entity &ent) {
+    Entity &new_root = build_duplicate_children(*this, ent);
+    ecs::EntityID new_root_id = new_root.handle;
+    if (ent.parent_id.has_value()) {
+        Entity &parent = entities[id_to_index[ent.parent_id.value()]];
+        link_relation(parent, new_root);
+    }
+
+    return entities[id_to_index[new_root_id]];
 }
 
 void Scene::destroy_entity(ecs::EntityID ent_id) {
@@ -121,10 +139,10 @@ void Scene::link_relation(Entity &parent, Entity &child) {
 
     int32_t new_child_idx = parent_idx + 1;
 
-    real_parent.children_ids.push_back(real_child.handle);
     if (real_child.parent_id.has_value())
         remove_relation(*this, real_child.parent_id.value(), real_child.handle);
 
+    real_parent.children_ids.push_back(real_child.handle);
     real_child.parent_id = real_parent.handle;
 
     bool child_after_parent = (old_child_idx > parent_idx);

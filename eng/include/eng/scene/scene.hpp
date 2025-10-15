@@ -12,7 +12,7 @@ struct Scene {
     void destroy();
 
     [[nodiscard]] Entity spawn_entity(const std::string &name);
-    [[nodiscard]] Entity duplicate(Entity &ent);
+    [[nodiscard]] Entity &duplicate(Entity &ent);
 
     void destroy_entity(ecs::EntityID ent_id);
 

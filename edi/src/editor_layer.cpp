@@ -432,29 +432,60 @@ static void setup_dockspace() {
 
 }
 
+static void render_entity_node(EditorLayer &layer, eng::Entity &ent) {
+    ImGuiTreeNodeFlags flags =
+        ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanFullWidth |
+        ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_FramePadding |
+        ImGuiTreeNodeFlags_OpenOnDoubleClick;
+
+    if (layer.selected_entity.has_value() &&
+        layer.selected_entity.value().handle == ent.handle)
+        flags |= ImGuiTreeNodeFlags_Selected;
+
+    if (ent.children_ids.empty())
+        flags |= ImGuiTreeNodeFlags_Leaf;
+
+    bool opened =
+        ImGui::TreeNodeEx((void *)(intptr_t)ent.handle, flags, "%s",
+                          ent.get_component<eng::Name>().name.c_str());
+
+    if (ImGui::IsItemClicked(ImGuiMouseButton_Left) &&
+        !ImGui::IsItemToggledOpen())
+        layer.selected_entity = ent;
+
+    if (opened) {
+        for (eng::ecs::EntityID child_id : ent.children_ids) {
+            int32_t child_idx = layer.scene.id_to_index[child_id];
+            render_entity_node(layer, layer.scene.entities[child_idx]);
+        }
+
+        ImGui::TreePop();
+    }
+}
+
 static void render_control_panel(EditorLayer &layer) {
     ImGui::Text("%s", layer.scene.name.c_str());
     ImGui::Separator();
 
     ImGui::Text("Entities");
-    ImGui::PushStyleColor(ImGuiCol_ChildBg, {0.1f, 0.1f, 0.1f, 1.0f});
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, {0.15f, 0.15f, 0.15f, 1.0f});
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, {0.0f, 0.5f});
+    ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, 8.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, {0.0f, 4.0f});
 
     ImVec2 av_space = ImGui::GetContentRegionAvail();
-    ImGui::BeginChild("Entities", {av_space.x, av_space.y / 4.0f});
+    ImGui::BeginChild("Entities", {av_space.x, av_space.y / 2.0f});
 
     for (eng::Entity &ent : layer.scene.entities) {
-        ImGui::PushID((int32_t)ent.handle);
-
-        if (ImGui::Selectable(ent.get_component<eng::Name>().name.c_str(),
-                              ent.handle ==
-                                  layer.selected_entity.value_or({}).handle))
-            layer.selected_entity = ent;
-
-        ImGui::PopID();
+        if (!ent.parent_id.has_value())
+            render_entity_node(layer, ent);
     }
 
     ImGui::EndChild();
+    ImGui::PopStyleVar(3);
     ImGui::PopStyleColor();
+
+    ImGui::Dummy({av_space.x, 4.0f});
 
     if (ImGui::PrettyButton("New entity")) {
         ImVec2 pos = ImGui::GetItemRectMin();

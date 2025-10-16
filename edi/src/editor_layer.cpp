@@ -432,7 +432,10 @@ static void setup_dockspace() {
 
 }
 
-static void render_entity_node(EditorLayer &layer, eng::Entity &ent) {
+using LinkedEntitiesOpt = std::optional<std::array<eng::ecs::EntityID, 2>>;
+
+static void render_entity_node(EditorLayer &layer, eng::Entity &ent,
+                               LinkedEntitiesOpt &out_new_link) {
     ImGuiTreeNodeFlags flags =
         ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanFullWidth |
         ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_FramePadding |
@@ -464,7 +467,9 @@ static void render_entity_node(EditorLayer &layer, eng::Entity &ent) {
 
             int32_t dropped_idx = layer.scene.id_to_index[dropped_id];
             eng::Entity &dropped = layer.scene.entities[dropped_idx];
-            layer.scene.link_relation(ent, dropped);
+
+            if (!layer.scene.is_ascendant_of(ent, dropped))
+                out_new_link = {ent.handle, dropped.handle};
         }
 
         ImGui::EndDragDropTarget();
@@ -477,7 +482,8 @@ static void render_entity_node(EditorLayer &layer, eng::Entity &ent) {
     if (opened) {
         for (eng::ecs::EntityID child_id : ent.children_ids) {
             int32_t child_idx = layer.scene.id_to_index[child_id];
-            render_entity_node(layer, layer.scene.entities[child_idx]);
+            render_entity_node(layer, layer.scene.entities[child_idx],
+                               out_new_link);
         }
 
         ImGui::TreePop();
@@ -497,9 +503,18 @@ static void render_control_panel(EditorLayer &layer) {
     ImVec2 av_space = ImGui::GetContentRegionAvail();
     ImGui::BeginChild("Entities", {av_space.x, av_space.y / 2.0f});
 
+    LinkedEntitiesOpt new_link;
     for (eng::Entity &ent : layer.scene.entities) {
         if (!ent.parent_id.has_value())
-            render_entity_node(layer, ent);
+            render_entity_node(layer, ent, new_link);
+    }
+
+    if (new_link.has_value()) {
+        eng::Entity &parent =
+            layer.scene.entities[layer.scene.id_to_index[new_link.value()[0]]];
+        eng::Entity &child =
+            layer.scene.entities[layer.scene.id_to_index[new_link.value()[1]]];
+        layer.scene.link_relation(parent, child);
     }
 
     ImGui::EndChild();

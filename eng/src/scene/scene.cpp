@@ -177,7 +177,7 @@ bool Scene::is_ascendant_of(Entity &child, Entity &ascendant) {
     assert(id_to_index.contains(ascendant.handle) &&
            "Ascendant does not exist in this scene");
 
-    Entity &ent = child;
+    Entity ent = child;
     while (ent.parent_id.has_value()) {
         ecs::EntityID ent_p_id = ent.parent_id.value();
         if (ent_p_id == ascendant.handle)

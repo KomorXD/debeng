@@ -140,7 +140,7 @@ void Scene::link_relation(Entity parent, Entity child) {
     if (rchild.parent_id.has_value())
         remove_relation(*this, rchild.parent_id.value(), rchild.handle);
 
-    rparent.children_ids.push_back(rchild.handle);
+    rparent.children_ids.insert(rparent.children_ids.begin(), rchild.handle);
     rchild.parent_id = rparent.handle;
 
     int32_t new_child_idx = parent_idx + 1;

@@ -88,7 +88,7 @@ static Entity &build_duplicate_children(Scene &scene, Entity &root) {
     return scene.entities[new_ent_idx];
 }
 
-Entity &Scene::duplicate(Entity &ent) {
+Entity &Scene::duplicate(Entity ent) {
     Entity &new_root = build_duplicate_children(*this, ent);
     ecs::EntityID new_root_id = new_root.handle;
     if (ent.parent_id.has_value()) {
@@ -121,7 +121,7 @@ void Scene::destroy_entity(ecs::EntityID ent_id) {
     }
 }
 
-void Scene::link_relation(Entity &parent, Entity &child) {
+void Scene::link_relation(Entity parent, Entity child) {
     assert(parent.handle != child.handle && "Linking entity to itself");
     assert(id_to_index.contains(parent.handle) &&
            "Parent does not exist in this scene");

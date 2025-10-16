@@ -18,6 +18,10 @@ struct Scene {
 
     /* PARENT's and CHILD's relation indices are modified in-place. */
     void link_relation(Entity &parent, Entity &child);
+
+    bool is_ascendant_of(Entity &child, Entity &ascendant);
+    bool is_descendant_of(Entity &parent, Entity &descendant);
+
     void update_global_transforms();
 
     std::string name;

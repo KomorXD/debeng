@@ -132,44 +132,65 @@ void Scene::link_relation(Entity &parent, Entity &child) {
         return;
 
     int32_t parent_idx = id_to_index[parent.handle];
-    Entity &real_parent = entities[parent_idx];
+    Entity &rparent = entities[parent_idx];
 
-    int32_t old_child_idx = id_to_index[child.handle];
-    Entity &real_child = entities[old_child_idx];
+    int32_t child_idx = id_to_index[child.handle];
+    Entity &rchild = entities[child_idx];
+
+    if (rchild.parent_id.has_value())
+        remove_relation(*this, rchild.parent_id.value(), rchild.handle);
+
+    rparent.children_ids.push_back(rchild.handle);
+    rchild.parent_id = rparent.handle;
 
     int32_t new_child_idx = parent_idx + 1;
+    int32_t child_subtree_size = related_entities_count(*this, rchild.handle);
 
-    if (real_child.parent_id.has_value())
-        remove_relation(*this, real_child.parent_id.value(), real_child.handle);
-
-    real_parent.children_ids.push_back(real_child.handle);
-    real_child.parent_id = real_parent.handle;
-
-    bool child_after_parent = (old_child_idx > parent_idx);
-    int32_t entities_moved = related_entities_count(*this, real_child.handle);
-
-    auto first_itr = entities.begin();
-    auto middle_itr = entities.begin();
-    auto last_itr = entities.begin();
-    if (child_after_parent) {
-        first_itr = entities.begin() + new_child_idx;
-        middle_itr = entities.begin() + old_child_idx;
-        last_itr = entities.begin() + old_child_idx + entities_moved;
+    int32_t first{};
+    int32_t mid{};
+    int32_t last{};
+    if (parent_idx < child_idx) {
+        first = new_child_idx;
+        mid = child_idx;
+        last = mid + child_subtree_size;
     } else {
-        first_itr = entities.begin() + old_child_idx;
-        middle_itr = entities.begin() + old_child_idx + entities_moved;
-        last_itr = entities.begin() + new_child_idx;
+        first = child_idx;
+        mid = first + child_subtree_size;
+        last = new_child_idx;
     }
 
-    std::rotate(first_itr, middle_itr, last_itr);
+    std::rotate(entities.begin() + first, entities.begin() + mid,
+                entities.begin() + last);
 
-    for (int32_t i = 0; i < entities.size(); i++) {
+    for (int32_t i = first; i < last; i++) {
         Entity &ent = entities[i];
         id_to_index[ent.handle] = i;
     }
 
-    parent = entities[id_to_index[real_parent.handle]];
-    child = entities[id_to_index[real_child.handle]];
+    parent = entities[id_to_index[rparent.handle]];
+    child = entities[id_to_index[rchild.handle]];
+}
+
+bool Scene::is_ascendant_of(Entity &child, Entity &ascendant) {
+    assert(id_to_index.contains(child.handle) &&
+           "Child does not exist in this scene");
+    assert(id_to_index.contains(ascendant.handle) &&
+           "Ascendant does not exist in this scene");
+
+    Entity &ent = child;
+    while (ent.parent_id.has_value()) {
+        ecs::EntityID ent_p_id = ent.parent_id.value();
+        if (ent_p_id == ascendant.handle)
+            return true;
+
+        ent = entities[id_to_index[ent_p_id]];
+    }
+
+    return false;
+}
+
+bool Scene::is_descendant_of(Entity &parent, Entity &descendant) {
+    return is_ascendant_of(descendant, parent);
 }
 
 void Scene::update_global_transforms() {

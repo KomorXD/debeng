@@ -83,7 +83,7 @@ std::unique_ptr<Layer> EditorLayer::create(const eng::WindowSpec &win_spec) {
         eng::AssetPack::DEFAULT_BASE_MATERIAL;
 
     eng::Entity ent2 = layer->scene.spawn_entity("xdd2");
-    ent2.get_component<eng::Transform>().position = {3.0f, 0.0f, 0.0f};
+    ent2.get_component<eng::Transform>().position = {2.0f, 0.0f, 0.0f};
     ent2.add_component<eng::MeshComp>().id = eng::AssetPack::CUBE_ID;
     ent2.add_component<eng::MaterialComp>().id =
         eng::AssetPack::DEFAULT_BASE_MATERIAL;
@@ -99,9 +99,6 @@ std::unique_ptr<Layer> EditorLayer::create(const eng::WindowSpec &win_spec) {
     ent4.add_component<eng::MeshComp>().id = eng::AssetPack::CUBE_ID;
     ent4.add_component<eng::MaterialComp>().id =
         eng::AssetPack::DEFAULT_BASE_MATERIAL;
-
-    layer->scene.link_relation(ent, ent2);
-    layer->scene.link_relation(ent4, ent);
 
     return layer;
 }

@@ -167,8 +167,26 @@ void Scene::link_relation(Entity parent, Entity child) {
         id_to_index[ent.handle] = i;
     }
 
-    parent = entities[id_to_index[rparent.handle]];
-    child = entities[id_to_index[rchild.handle]];
+    new_child_idx = id_to_index[child.handle];
+
+    for (int32_t i = new_child_idx; i < new_child_idx + child_subtree_size; i++) {
+        Entity &local_child = entities[i];
+        assert(local_child.parent_id.has_value() &&
+               "Child in a subtree should have a parent");
+
+        int32_t local_parent_idx = id_to_index[local_child.parent_id.value()];
+        Entity &local_parent = entities[local_parent_idx];
+
+        GlobalTransform &pgt = local_parent.get_component<GlobalTransform>();
+        glm::mat4 parent_inv = glm::inverse(pgt.to_mat4());
+
+        GlobalTransform &cgt = local_child.get_component<GlobalTransform>();
+        glm::mat4 adjusted_child_local = parent_inv * cgt.to_mat4();
+
+        Transform &ct = local_child.get_component<Transform>();
+        transform_decompose(adjusted_child_local, ct.position, ct.rotation,
+                            ct.scale);
+    }
 }
 
 bool Scene::is_ascendant_of(Entity &child, Entity &ascendant) {

@@ -515,6 +515,13 @@ static void render_control_panel(EditorLayer &layer) {
         eng::Entity &child =
             layer.scene.entities[layer.scene.id_to_index[new_link.value()[1]]];
         layer.scene.link_relation(parent, child);
+
+        /* In case selected one moved. */
+        if (layer.selected_entity.has_value()) {
+            int32_t selected_idx =
+                layer.scene.id_to_index[layer.selected_entity.value().handle];
+            layer.selected_entity = layer.scene.entities[selected_idx];
+        }
     }
 
     ImGui::EndChild();

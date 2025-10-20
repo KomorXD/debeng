@@ -414,6 +414,7 @@ bool init() {
             }
         });
 
+        (void)success;
         assert(success && "Failed to build light culling shader");
     }
 

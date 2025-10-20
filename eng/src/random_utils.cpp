@@ -41,6 +41,7 @@ void transform_decompose(const glm::mat4 &transform, glm::vec3 &translation,
 
     bool success = glm::decompose(transform, scale, orientation, translation,
                                   dummy_skew, dummy_perspevtive);
+    (void)success;
     assert(success && "Couldn't decompose transform matrix");
 
     rotation = glm::eulerAngles(orientation);
